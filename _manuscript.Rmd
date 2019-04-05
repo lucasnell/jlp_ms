@@ -1,5 +1,5 @@
 ---
-title: "gemino: An efficient, flexible molecular evolution and sequencing simulator"
+title: "jackelope: A swift, versatile molecular evolution and sequencing simulator"
 bibliography: "references.bib"
 csl: "apa.csl"
 fontsize: 12pt
@@ -150,43 +150,40 @@ pretty_num <- function(num, sigfigs = 2) {
 
 High-throughput sequencing (HTS) is central to the study of population genomics.
 Choices in sampling design for sequencing projects can include 
-sequencing method (e.g., restriction-site associated DNA sequencing [RADseq] versus
-whole genome sequencing [WGS]),
-depth of coverage,
-number of individuals to sample, and
-selecting the appropriate restriction enzyme(s) (for RADseq).
+sequencing platform, depth of coverage, and number of individuals to sample.
 These choices are most often informed by previous work on highly diverged species, 
 which ignores species- and population-specific genomic characteristics, demographies, 
 and evolutionary histories.
 Simulating sequencing based on available genomic data better informs sampling
 strategies.
-However, current methods provide only rudimentary ways to simulate population
+However, most current methods provide only rudimentary ways to simulate population
 structure and variation in coverage among sites.
-Here I present the R package `gemino` that efficiently 
+Here I present the R package `jackelope` that efficiently 
 (i) reads and simulates reference genomes;
 (ii) generates variants using summary statistics, phylogenies, 
 Variant Call Format (VCF) files, and coalescent simulations---the latter of which can
 include selection, recombination, and demographic fluctuations;
-(iii) simulates sequencing error, mapping qualities, restriction-enzyme digestion,
-and variance in coverage among sites;
+(iii) simulates sequencing error, mapping qualities, multiplexing, and
+optical/PCR duplicates;
 and
 (iv) writes outputs to standard file formats.
-`gemino` can simulate single or paired-ended reads for WGS, RADseq, or 
-genotyping-by-sequencing on the Illumina platform.
-Although defaults are provided for most functions, relatively few aspects of `gemino` 
-are hard-coded, providing the user flexibility for their simulations.
-`gemino` can be extended to simulate different sequencing technologies, such
-as Pacific BioSciences, or Oxford Nanopore Technologies.
+`jackelope` can simulate single, paired-end, or mate-pair Illumina reads,
+as well as reads from Pacific BioSciences.
 Most functions are written in C++ to improve performance, and I employed OpenMP to 
 allow for parallel processing.
-The stable version of `gemino` is available on CRAN
-(https://CRAN.R-project.org/package=gemino),
-and the development version is on GitHub
-(https://github.com/lucasnell/gemino).
+`jackelope` is available on GitHub
+(https://github.com/lucasnell/jackelope).
+
+
+<!-- The stable version of `jackelope` is available on CRAN -->
+<!-- (https://CRAN.R-project.org/package=jackelope), -->
+<!-- and the development version is on GitHub -->
+<!-- (https://github.com/lucasnell/jackelope). -->
+
 
 
 __Keywords\:__ sequencing simulator, population genomics, high-throughput sequencing,
-Illumina, Pool-seq, RADseq
+Illumina, Pacific Biosciences, Pool-seq
 
 
 
@@ -202,10 +199,7 @@ bioinformatic pipelines an important aspect of research using HTS.
 Many bioinformatic tools exist, and new programs that are more accurate and
 computationally efficient are constantly being developed.
 To test these tools against known parameter values, in silico simulation of
-genomic data is needed.
-
-
-Although there are many sequence simulators currently available
+genomic data is needed. Although there are many sequence simulators currently available
 `r prefix("reviewed in", citep("10.1038/nrg.2016.57"))`,
 most have only rudimentary ways to generate population-level data.
 Events like population-size changes, selection, or population structure
@@ -213,29 +207,34 @@ can drastically change null expectations for sequence data, but including
 these possibilities is impossible with most current methods.
 
 
-In the present paper I introduce `gemino`, the first available HTS simulator
+
+<!---
+
+ADD HERE DESCRIPTIONS OF CURRENT TOOLS
+
+-->
+
+
+
+In the present paper I introduce `jackelope`, the first available HTS simulator
 in the R
 `r keep_title("base", "{R:} A Language and Environment for Statistical Computing")`
 environment.
 Designed for efficient memory use, flexibility, and speed,
-`gemino` combines the functionality of an HTS simulator with that of a
+`jackelope` combines the functionality of an HTS simulator with that of a
 molecular phylogenetics simulator.
 Genomes can be derived from FASTA files or simulated in silico.
-`gemino` can create variants from the reference genome based on basic 
+`jackelope` can create variants from the reference genome based on basic 
 population-genomic summary statistics, phylogenies, Variant Call Format (VCF) files, or
 coalescent simulations.
-These variants are simulated based on several popular molecular-evolution models.
-Another difference from other HTS simulators is that, in addition to simulating
-sequencing error and mapping qualities, `gemino` explicitly simulates variance in
-coverage among sites.
-This makes it possible to test bioinformatic pipelines that calculate allele frequencies.
-`gemino` can simulate single or paired-ended reads for WGS on the 
-Illumina platform, and can be extended to simulate restriction-enzyme-associated
-sequencing methods and different sequencing platforms, including those from
-Pacific Biosciences (PacBio) and Oxford Nanopore Technologies (Nanopore).
+These variants can be simulated based on one of several popular
+molecular-evolution models.
+`jackelope` simulates single, paired-ended, or mate-pair reads on the Illumina platform,
+and it generates Pacific Biosciences (PacBio) reads.
+Both types of sequencing output to FASTQ files that can be optionally compressed.
 
 
-After outlining the methods, I demonstrate the usefulness of `gemino` in
+After outlining the methods, I demonstrate the usefulness of `jackelope` in
 informing study design through three common usage examples.
 
 
@@ -249,23 +248,32 @@ informing study design through three common usage examples.
 Most code is written in C++ and interfaces with R using the `Rcpp` package
 `r citep(citation("Rcpp")[1])`.
 I used OpenMP to allow for parallel processing and
-the `PCG` family of pseudo-random number generators `r old_ref("Oneill_2014pcg")`.
-An overview of the methods are show in Figure \@ref(fig:gemino-overview).
+the `PCG` family of thread-safe, pseudo-random number generators
+`r old_ref("Oneill_2014pcg")`.
+Package `RcppProgress` provides the thread-safe progress bar
+`r citep(citation("RcppProgress"))`.
+An overview of the methods are show in Figure \@ref(fig:jackelope-overview).
 
-```{r gemino-overview-cap, include=FALSE}
-go_cap <- paste("Overview of \\texttt{gemino} functions, inputs, and outputs.",
+```{r jackelope-overview-cap, include=FALSE}
+go_cap <- paste("Overview of \\texttt{jackelope} functions, inputs, and outputs.",
                 "``ms'' indicates \\texttt{ms}-style output from coalescent simulations.")
 ```
-```{r gemino-overview, out.width="100%", out.height="100%", fig.cap=go_cap}
-# knitr::include_graphics("figs/gemino.pdf", dpi = NA)
+```{r jackelope-overview, out.width="100%", out.height="100%", fig.cap=go_cap}
+# knitr::include_graphics("figs/jackelope.pdf", dpi = NA)
 ```
 
 
 
-### Read and create genomes
 
-Haploid reference genomes can be input from FASTA files using the
-function `read_fasta`, which also accepts a FASTA index file---created using 
+
+### The `ref_genome` class
+
+Haploid reference genomes are represented by the class `ref_genome`, an
+R6 `r citep(citation("R6"))` class that acts as a wrapper around a pointer to 
+an underlying C++ object that stores all the sequence information.
+They can be generated from FASTA files using the
+function `read_fasta`.
+This function also accepts FASTA index files---created using 
 `samtools faidx`---for faster processing.
 Both FASTA and index files can be either uncompressed or compressed using `gzip`.
 If a reference genome is not available, the `create_genome` function creates 
@@ -274,37 +282,34 @@ standard deviation of the sequence-length distribution.
 I draw sequence lengths from a gamma distribution `r citep("10.1093/molbev/msr011")`.
 
 
-### Alter genomes
+The access provided by the R class `ref_genome` is designed to both 
+maximize flexibility and minimize copying and the chances of
+printing extremely large strings to the console.
+Methods in `ref_genome` allow the user to view the
+number of sequences, sequence sizes, sequence names, and individual sequence strings.
+Users can also edit sequence names and remove one or more sequences by name.
+Method `filter_sequences` filters genomes by the minimum sequence size or
+by the smallest sequence that retains a given proportion of total reference
+sequence if sequences are sorted by descending size.
+Using method `merge_sequences`, users can shuffle reference sequences and
+merge them into one.
+Method `replace_Ns` replaces any `N`s in the reference sequence with random nucleotides,
+optionally sampled with weights provided by the user.
+Reference genomes can be written to FASTA files using the `write_fasta` function.
 
-Using function `filter_sequences`, 
-genomes can be filtered by minimum sequence size or by the smallest sequence that 
-retains a given proportion of total reference sequence if sequences are sorted by
-descending size.
-Function `merge_sequences` shuffles reference sequences and merges them into one.
 
 
-### Add variants
 
-Variants from the reference genome are generated as haploid genomes.
-For diploid organisms, two haploid variants can be randomly assigned as being from 
-one individual, or haploid variants can be assigned to individuals by the user.
-Variants can be created in three different ways, all of which are encompassed in the
-`create_variants` function.
+### The `mevo` class
 
-(1\) Mutations are randomly distributed throughout the genome based on 
-population-genomic statistics.
-Watterson's estimator `r no_auth(old_ref('Watterson'))` informs the number of segregating
-sites and Nei and Li's $\theta$ `r no_auth(old_ref('Nei'))` informs the nucleotide
-diversity at segregating sites.
-I used "Algorithm D" by `r citet("10.1145/358105.893")` for sampling
-locations  on genomes without replacement.
 
-(2\) Mutations are derived directly from a variant call format (VCF) file.
-Reading and writing VCF files uses package `vcfR` `r citep(citation("vcfR")[1])`.
+The `mevo` class stores molecular evolution information for use in the
+`create_variants` function, and is created using the `make_mevo` function.
+Molecular evolution can include substitutions,
+indels (insertions and deletions) of lengths up to $2^{31} - 1$,
+and variation in mutation rates among sites.
 
-(3\) Variant sequences are simulated along a phylogenetic tree or based on 
-coalescent simulation output.
-The following substitution models can be used:
+The following substitution models can be employed:
 TN93 `r old_ref('TN93')`,
 JC69 `r old_ref('JC69')`,
 K80 `r citep("10.1007/BF01731581")`,
@@ -313,252 +318,148 @@ HKY85 `r old_ref(c('Hasegawa_1985', 'Hasegawa_1984'))`,
 F84 `r old_ref("Thorne_1992")`,
 GTR `r old_ref("Tavare_1986gtr")`,
 and UNREST `r old_ref("Yang_1994")`.
-
-If using the UNREST model, equilibrium nucleotide frequencies ($\pi$) are 
-calculated by solving for $\pi \mathbf{Q} = 0$, where $\mathbf{Q}$ is the
+If using the UNREST model, equilibrium nucleotide frequencies ($\mathbf{\pi}$) are 
+calculated by solving for $\mathbf{\pi} \mathbf{Q} = 0$, where $\mathbf{Q}$ is the
 substitution rate matrix.
 This is done by finding the left eigenvector of $\mathbf{Q}$ that
 corresponds to the eigenvalue closest to zero.
 
+Insertions and deletions are generated the same and have the same requirements for 
+inputs in the `make_mevo` function.
+They first require an overall rate parameter, which is for the sum among all
+nucleotides; indel rates do not differ among nucleotides.
+Function `make_mevo` also requires information about the relative rates of
+indels of different sizes, which can be provided in 3 different ways.
+First, rates can be proportional to $\exp(-u)$ for indel length $u$ from
+1 to the maximum possible length, $M$ `r citep("10.1101/gr.112326.110")`.
+Second, rates can be generated from a Lavalette distribution, 
+where the rate for length $u$ is proportional to
+$\left[{u M / (M - u + 1)}\right]^{-a}$ `r citep("10.1093/molbev/msp098")`.
+Third, relative rates can be specified directly by providing a length-$M$
+numeric vector of positive values.
 
-I incorporated indels (insertions and deletions) of any size into the models,
-resulting in the following substitution rate matrix $\mathbf{Q}$:
 
-$$
-\mathbf{Q} = 
-\begin{bmatrix}
--(\alpha_1\pi_C + \beta \pi_R + \xi) & \alpha_1 \pi_C                 & \beta \pi_A                    & \beta \pi_G \\
-\alpha_1 \pi_T                 & -(\alpha_1\pi_T + \beta \pi_R + \xi) & \beta \pi_A                    & \beta \pi_G \\
-\beta \pi_T                    & \beta \pi_C                    & -(\alpha_2\pi_G + \beta \pi_Y + \xi) & \alpha_2 \pi_G \\
-\beta \pi_T                    & \beta \pi_C                    & \alpha_2 \pi_A                 & -(\alpha_2\pi_A + \beta \pi_Y + \xi)
-\end{bmatrix}
-$$
+Among-site variation in mutation rates is included either by generating
+gamma distances ($\gamma$) from a distribution or by passing them manually.
+The overall mutation rate is $\gamma ~ q_{0}$, where
+$q_{0}$ is the base mutation rate determined only by the nucleotide.
+Gamma distances are generated from a Gamma distribution with a fixed mean of 1
+and with a shape parameter provided by the user.
+Users can also pass a list of matrices, one for each reference sequence,
+with a gamma distance and end point for each sequence region.
+The gamma distances can optionally be written to a BED file.
 
-where rows specify rates of change from T, C, A, and G, respectively; 
-$\pi_T$, $\pi_C$, $\pi_A$, and $\pi_G$ represent substitution rates and equilibrium 
-frequencies; 
-$\pi_Y$ is the frequency of pyrimidines (i.e., $\pi_T + \pi_C$); 
-$\pi_R$ is the frequency of purines (i.e., $\pi_A + \pi_G$); 
-$\alpha_1$ and $\alpha_2$ are the rates of C$\leftrightarrow$T
-and A$\leftrightarrow$G transitions, respectively;
-$\beta$ is the rate of transversions;
-and
-$\xi$ is the summed rates of indels of all sizes.
 
-The substitution-transition matrix ($\mathbf{M}$), giving the probabilities of 
-each substitution given that a mutation occurs, is
 
-$$
-\mathbf{M} = 
-\begin{bmatrix}
-0                  & \frac{q_{TC}}{q_T} & \frac{q_{TA}}{q_T} & \frac{q_{TG}}{q_T} \\
-\frac{q_{CT}}{q_C} & 0                  & \frac{q_{CA}}{q_C} & \frac{q_{CG}}{q_C} \\
-\frac{q_{AT}}{q_A} & \frac{q_{AC}}{q_A} & 0                  & \frac{q_{AG}}{q_A} \\
-\frac{q_{GT}}{q_G} & \frac{q_{GC}}{q_G} & \frac{q_{GA}}{q_G} & 0
-\end{bmatrix}
-$$
 
-where $q_{ij} = \mathbf{Q}_{ij}$ and $q_i = -q_{ii}$ `r old_ref("Yang_2006")`.
-The sum of values in each row $i$ in $\mathbf{M}$ equals $1 - \xi / q_i$.
+### The `variants` class
 
-The vector of indel rates by size ($\mathbf{\Xi}$) is
 
-$$
-\mathbf{\Xi} =
-\begin{bmatrix}
-    \xi_{(I)1} & \ldots  & \xi_{(I)n_I} & \xi_{(D)1} & \ldots  & \xi_{(D)n_D}
-\end{bmatrix}
-$$
+Variants from the reference genome are represented as haploid genomes
+in the `variants` class.
+Similarly to `ref_genome`, this R6 class wraps a pointer to a C++ object
+that stores all the information, and it was designed to prevent copying of large
+objects in memory.
+The underlying C++ class also does not store whole variant genomes, but
+rather just their mutation information---this dramatically reduces memory usage.
+Variants can be created in five different ways, all of which are encompassed in the
+`create_variants` function.
 
-where the first subscript indicates whether the rate pertains to an insertion ($I$)
-or deletion ($D$),
-the second subscript indicates size, and
-$n_I$ and $n_D$ represent the maximum sizes for insertions and deletions respectively.
-All indel rates are the same among nucleotides, and $\sum\mathbf{\Xi} = \xi$.
-Rates in $\mathbf{\Xi}$ can be independently set to any value.
-Default values for insertions and deletions are the same and are calculated,
-for size $l$ from 1 to 10 `r citep("10.1101/gr.112326.110")`, as such:
 
-$$
-\xi_l = R \left( \frac{\alpha_1 + \alpha_2}{2} + \beta \right)
-    \frac{ \text{e}^{-l} }{ \sum^{10}_{k=1}{ \text{e}^{-k} } }
-$$
+The first two methods directly specify numbers and locations of mutations and
+therefore do not require any phylogenetic methods in `jackalope`.
+First, a variant call format (VCF) file can directly specify mutations for each
+variant.
+This method works using the `vcfR` package `r citep(citation("vcfR"))` and
+is the only method that does not require a `mevo` object.
+Second, matrices of segregating sites from coalescent output can provide the locations
+of mutations.
+A `mevo` object then provides the type of mutation at each site.
+The segregating-site information can take the form of 
+(1\) a coalescent-simulator object from the `scrm` `r citep(citation("scrm"))` or
+`coala` `r citep(citation("coala"))` package, or
+(2\) a file containing output from a coalescent simulator in the format of the
+`ms` `r citep("10.1093/bioinformatics/18.2.337")` or 
+`msms` `r citep("10.1093/bioinformatics/btq322")` programs.
 
-where $R$ is the average rate of indels to substitutions in eukaryotes from
-`r old_ref("Sung_2016", parenth = FALSE)`.
 
-When choosing a substition or indel for a mutation at a position containing 
-nucleotide $i$, I weight sampling based on a vector $\mathbf{W}_i$
-consisting of row $i$ in $\mathbf{M}$ truncated with $\mathbf{\Xi} \cdot {q_i}^{-1}$.
-For example, if the mutation occurs at a position containing T, the sampling weight 
-vector would be
+The last three methods require simulations along phylogenetic trees, which is outlined
+in the following paragraph.
+In the first of these phylogenetic methods,
+phylogenetic tree(s) can be directly input from either `phylo` object(s) or
+NEWICK file(s).
+One tree can be used for all genome sequences, or each sequence can use a separate tree.
+Alternatively, users can pass an estimate for $\theta$ (the population-scaled
+mutation rate).
+A random coalescent tree is first generated using the `rcoal` function
+in the `ape` package `r citep(citation("ape"))`.
+Then, its total tree length is scaled to be
+$\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ variants and an equilibrium
+mutation rate of $\mu$.
+The last method allows for simulation of recombination by simulating along
+gene trees that can differ both within and among reference sequences.
+As for coalescent segregating sites, gene trees can be from `scrm` or `coala` objects,
+or from `ms`-style output files.
 
-$$
-\mathbf{W}_T = 
-\begin{bmatrix}
-    0 & \frac{q_{TC}}{q_T} & \frac{q_{TA}}{q_T} & \frac{q_{TG}}{q_T} & 
-    \frac{\xi_{(I)1}}{q_T} & \ldots  & \frac{\xi_{(I)n_I}}{q_T} & \frac{\xi_{(D)1}}{q_T} & \ldots  & \frac{\xi_{(D)n_D}}{q_T}
-\end{bmatrix}
-$$
 
-If the $j^{\text{th}}$ item is selected, it is 
-a substition to nucleotide $j$ if $j \le 4$, 
-an insertion of length $j-4$ if $4 < j \le n_I + 4$,
-and
-a deletion of length $j - n_I - 4$ if $n_I + 4 < j$.
-To improve the efficiency of weighted sampling from a potentially high number of
-items within $\mathbf{W}_i$, I used alias sampling
-`r citep(list("10.1049/el:19740097", "10.1080/00031305.1979.10482697"))`.
-
-Phylogenetic trees are accepted as `phylo` objects from the `ape` package
-`r keep_title("ape")` or from `ms`-style output from
-coalescent simulators such as
-`scrm` `r citep("10.1093/bioinformatics/btu861")`,
-`msms` `r citep("10.1093/bioinformatics/btq322")`,
-`ms` `r citep("10.1093/bioinformatics/18.2.337")`, or
-`msprime` `r citep("10.1371/journal.pcbi.1004842")`.
-`ms`-style output can include multiple trees per variant sequence if recombination is
-included in the simulations.
 Variants are simulated along tree branches by generating exponential wait times
 for the Markov "jump" chain for each sequence,
 where the rate of the exponential distribution is the sum of mutation rates for
 each nucleotide in the sequence `r old_ref("Yang_2006")`.
-The mutation rate for nucleotide $i$ is $q_i$.
 At each jump, a position on the sequence is sampled with a probability proportional to
-the mutation rate for that nucleotide, using weighted reservoir sampling with
+the mutation rate for that nucleotide.
+To sample positions, I use weighted reservoir sampling with
 exponential jumps `r citep("10.1016/j.ipl.2005.11.003")`.
-A mutation type is then sampled with probabilities from $\mathbf{W}_i$.
+To optionally improve performance for sampling long sequences,
+a number of positions can be first uniformly sampled using
+"Algorithm D" by `r citet("10.1145/358105.893")`, followed by weighted
+sampling by rates.
+After sampling a position, a mutation type is sampled with probabilities
+proportional to the rate of each mutation type for the nucleotide
+present at the sampled position.
+I used alias sampling
+`r citep(list("10.1049/el:19740097", "10.1080/00031305.1979.10482697"))`
+for sampling mutation types.
 Jumps are performed until the summed length of all jumps is greater than the
 branch length.
 
 
 
-### Digest genomes
+Methods in `variants` allow the user to view the number of sequences/variants,
+variant sequence sizes, sequence/variant names, and individual variant-sequence strings.
+Users can also edit variant names, remove one or more variants by name,
+and manually add mutations.
+Variant information can be written to VCF files using the `write_vcf` function,
+where each variant can optionally be considered one of multiple haplotypes for
+samples with ploidy levels > 1.
 
-An unlimited number of restriction-enzyme binding sites of varying lengths 
-can be used to digest either a reference genome or a set of variants from the 
-reference, using function `digest_genome`.
-Digesting variants explicitly simulates polymorphisms in restriction enzyme 
-binding sites, an important source of potential bias for RADseq data
-`r citep("10.1038/nrg.2015.28")`.
+
 
 
 ### Simulate sequencing data
 
-Multiple sources cause variation in sequencing depth for WGS and RADseq 
-`r citep(list("10.1038/nrg.2016.57", "10.1038/nrg.2015.28"))`.
-`gemino` includes explicit simulation of PCR, fragment size selection, and DNA shearing.
-These steps occur on the fly as FASTQ files are output, so these methods are
-all provided inside the `sequence` function.
 
-PCR is modeled as a Galton--Watson discrete time branching process 
-`r citep("10.1093/nar/gkv717")` for the number of fragments ($N$)
-after $j$ rounds of PCR:
+Both R6 classes `ref_genome` and `variants` can be input to the sequencing functions
+`illumina` and `pacbio`.
+If providing a `variants` object, you can specify sampling weights for each variant
+to simulate the library containing differing amounts of DNA from each.
+Both methods also allow for a probability of read duplication, which might occur
+due to PCR in either method and from optical duplicates in Illumina sequencing.
+Reads can be written using multiple threads by having a read "pool" for each thread 
+and having pools write to file only when they are full.
+This reduces conflicts that occur when multiple threads attempt to write to disk
+at the same time.
+The size of a "full" pool can be adjusted, and larger sizes should increase both
+speed and memory usage.
+Reads are output to FASTQ files, optionally with `gzip` compression.
 
-$$
-N_j = N_{j-1} + \text{Bin}(N_{j-1}, p)
-$$
+Function `illumina` simulates single, paired-ended, or mate-pair Illumina reads,
+while `pacbio` simulates reads from the Pacific Biosciences (PacBio) platform.
+Illumina read simulation is based on the ART program
+`r citep("10.1093/bioinformatics/btr708")`, and
+PacBio read simulation is based on SimLoRD `r citep("10.1093/bioinformatics/btw286")`.
+Function inputs emulate the program they were based on.
 
-where $p$ is the probability of the fragment being duplicated during each round of PCR.
-The expected value and variance in $N$ after $j$ rounds of PCR is as follows
-`r old_ref("Athreya_1972")`:
-
-$$
-\begin{aligned}
-    \text{E}(N) &= N_0 (1 + p)^j \\
-    \text{Var}(N) &= N_0 (1-p) (1+p)^{j-1} \left[ (1+p)^j - 1 \right]
-\end{aligned}
-$$
-
-where $N_0$ is the starting number of fragments.
-With even moderate numbers of starting fragments, the distribution of
-fragment numbers approaches normal (Figure \@ref(fig:pcr-plot)).
-However, if starting with only 1 of each unique fragment (which most closely 
-resembles WGS and, to a lesser extent, original RADseq), the distribution is 
-neither normal nor unimodal.
-For this reason, direct simulation of this branching process is provided for WGS
-and original RADseq.
-Arguments are provided to specify PCR bias due to fragment size and GC content.
-
-
-```{r pcr-caption, include=FALSE}
-pcr_cap <- paste("Frequency polygons of final / initial fragment abundances given",
-                 "different starting fragment numbers ($N_0$). Distributions were",
-                 "derived from $10^6$ simulations of 5 cycles of PCR for each $N_0$.",
-                 "The dashed line indicates the expected value of final / initial",
-                 "fragments for all $N_0$.")
-```
-
-
-```{r pcr-plot, fig.height=3, fig.width=5, fig.cap=pcr_cap, cache=FALSE}
-
-Rcpp::sourceCpp('scripts/pcr.cpp')
-set.seed(4)
-z <- pcr_sim(n_sims = 1e6,  n_0 = 10^(0:3),  max_j = 5, n_cores = 2, 
-             display_progress = FALSE)
-zdf <- as_data_frame(z) %>%
-    rename_(.dots = setNames(paste0('V', 1:4), (10^(0:3)))) %>% 
-    gather('N_0', 'N') %>% 
-    mutate(Nnorm = N / as.numeric(N_0),
-           N_0 = factor(as.integer(N_0), levels = as.integer(10^(0:3))))
-
-# source(".Rprofile")
-
-zdf %>% 
-    filter(N_0 != "1") %>% 
-    ggplot(aes(Nnorm, color = N_0)) +
-    geom_freqpoly(binwidth = 0.1, size = 0.75) +
-    geom_freqpoly(data = zdf %>%  filter(N_0 == "1"), binwidth = 1, size = 0.75) +
-    geom_vline(xintercept = (1 + 0.9)^5, linetype = 2) +
-    theme(legend.position = c(0.1, 0.9), legend.justification = c(0,1)) +
-    guides(color = guide_legend(expression(N[0]))) +
-    scale_y_continuous(bquote(.("Count (") %*% 1000 * .(")")),
-                       breaks = seq(50e3, 200e3, 50e3), labels = seq(50, 200, 50)) +
-    xlab("Final / initial fragment abundances") +
-    scale_color_brewer(palette = "RdBu")
-
-# Calculating parameter for other distributions:
-# n0 = 10
-# sd_ = sqrt(n0 * (1-0.9) * (1+0.9)^(5-1) * ((1+0.9)^5 - 1))
-# mean_ = n0 * (1 + 0.9)^5
-# gamma_shape = mean_^2 / sd_^2
-# gamma_scale = sd_^2 / mean_;
-# log_sd_ = sqrt(log(sd_^2 / mean_^2 + 1))
-# log_mean_ = log(mean_) - (log_sd_^2 / 2)
-# nb_size = mean_^2 / (sd_^2 - mean_)
-# nb_prob = (mean_ / sd_^2)
-```
-
-
-
-Size selection, by default, simply filters fragments outside a range.
-Alternatively, the user can assign sizes a probability of being selected.
-Shearing is done by first sampling a sheared fragment size.
-Then locations in the genome are sampled, which can be done with or without 
-weighting by GC content.
-
-
-Sequencing error and quality scores for paired- or single-end Illumina reads
-are based on methods by `r old_ref('Mason', FALSE)`.
-Default values are provided, but the user can specify error rates and 
-quality-score distribution parameters (for a normal distribution)
-for each position in output reads.
-Although indels are rare in Illumina sequencing
-`r citep("10.1093/bioinformatics/bts187")`,
-they can be a large source of error in reads from PacBio or Nanopore 
-`r citep(list("10.1002/bies.200900181", "10.1038/nrg3655",
-"10.1093/bioinformatics/bts649"))`.
-Indels are disabled by default in `gemino`, but indel rates can be set and
-affected by fragment size and GC content.
-
-
-
-### Writing output
-
-Reference genome sequences can be written to FASTA files and
-sets of variants to VCF files using the `write` function.
-Sequencing reads are written to FASTQ files using the `sequence` function.
-Each of these functions can output to uncompressed or gzipped files.
 
 
 
@@ -566,173 +467,29 @@ Each of these functions can output to uncompressed or gzipped files.
 
 Performance was tested on a 2013 MacBook Pro running macOS High Sierra with a 
 2.6GHz Intel Core i5 processor and 8 GB RAM.
-I compared the performance of `gemino` functions to those in other packages based on 
+I compared the performance of `jackalope` functions to those in other packages based on 
 the time and maximum RAM required for each to perform its task.
 RAM usage is presented as the maximum usage during an R session where the only
 actions taken were to load the necessary package and run the function.
 Thus overhead associated with loading a package is included.
-For functions in packages outside `gemino`, I use the R convention of displaying them as
-the package name, two colons, then the function name (e.g., `Package::Function`).
+For functions in packages outside `jackalope`, I use the R convention of
+displaying them as the package name, two colons, then the function name
+(i.e., `Package::Function`).
 
 
 
 
-### Reference-genome creating, reading, and digesting
-
-For performance comparisons in creating, reading, and digesting reference genomes, 
-I used the R packages `SimRAD`
-<!-- ` r keep_title("SimRAD", -->
-<!-- "{SimRAD:} Simulations to Predict the Number of {RAD} and {GBS} Loci")` -->
-and `ShortRead`
-<!-- ` r citep(citation("ShortRead"))`. -->
-.
-`SimRAD` is designed to assist in research design for RADseq studies, and 
-`ShortRead` performs data input in the Bioconductor system
-`r citep("10.1038/nmeth.3252")`.
-
-For the performance of creating a reference genome, I compared `create_genome` 
-to `SimRAD::sim.DNAseq` in creating one 100 Mbp chromosome.
-Although `create_genome` can use multiple cores, I only use one for the comparison test
-because `SimRAD::sim.DNAseq` can only use one and because multithreading in 
-`create_genome` is done across multiple sequences.
-I also report on the performance of `create_genome` in creating a 1 Gbp genome split 
-among eight chromosomes.
 
 
-To test reference-genome read and digestion performance, I used the 
-threespine stickleback (*Gasterosteus aculeatus*) genome 
-`r gsub("\\[", "\\[438 Mbp; ", citep("10.1093/jhered/esx058"))`.
-For reading, I compared `read_fasta` (with and without a fasta index file) 
-to `ShortRead::readFasta`, separately for uncompressed and gzipped files.
-I compared digestion between `digest_genome` and `SimRAD::insilico.digest` using the restriction enzyme *ApeKI* (1.3 million cut sites).
-
-
-```{r SimRAD-comp-table}
-SimRAD_table <- readr::read_csv('data/SimRAD_tests.csv', col_types = 'cccdi', 
-                                comment = '#')
-SimRAD_table$Task[is.na(SimRAD_table$Task)] <- ""
-SimRAD_table <- SimRAD_table %>% 
-    mutate_at(vars(Package, Function), 
-              function(x) sprintf("\\texttt{%s}", gsub("`", "", x))) %>% 
-    mutate(Function = Function %>% 
-               str_replace_all("†\\}", "\\}$^\\{\\\\dagger\\}$") %>% 
-               str_replace_all("‡\\}", "\\}$^\\{\\\\ddagger\\}$") %>% 
-               str_replace_all("\\_", "\\\\_"))
-
-pretty_df(SimRAD_table, 
-          caption = paste("Performance of \\texttt{gemino}, \\texttt{SimRAD}, and",
-                          "\\texttt{ShortRead} package functions for creating,",
-                          "reading, and digesting reference genomes.",
-                          "† indicates a run using 4 cores.",
-                          "‡ indicates a run using a FASTA index file."))
-```
-
-
-
-Table \@ref(tab:SimRAD-comp-table) shows that `gemino` outperforms `SimRAD` across
-all functions for both elapsed time and RAM used.
-`gemino` outperformed `ShortRead` in reading FASTA files when an index file was 
-used in the former, but `gemino` became slower without an index file.
-RAM usage for `ShortRead::readFasta` was higher than for `read_fasta` largely
-due to the overhead associated with loading required packages.
-Before running any functions, loading `SimRAD` or `ShortRead` increased RAM usage by
-~`r 380-55` MB, while `gemino` only increased it by ~`r 80-55` MB.
-
-
-### Molecular evolution simulation
-
-Here I will compare my method of simulating variants with those from package `phylosim`.
-However, I am not finished coding this portion of the package.
-
-
-## Example usage
-
-### Choose a restriction enzyme for RADseq
-
-Many common restriction enzymes are already programmed into the `digest` command, so 
-comparing different digestions is simple.
-The example below digests the stickleback genome using *ApeKI* and *AscI*
-and plots the resulting fragment sizes (Figure \@ref(fig:choose-enzyme-run)).
-
-```{r choose-enzyme-display, echo = TRUE, eval = FALSE}
-genome <- read_fasta('stickleback_genome.fa')
-dig_ApeKI <- digest(genome, 'ApeKI', n_cores = 4)
-dig_AscI <- digest(genome, 'AscI', n_cores = 4)
-plot_digest(list(dig_ApeKI, dig_AscI), genome)
-```
-
-```{r choose-enzyme-caption, include=FALSE}
-ce_cap <- paste("Example digestion of the threespine stickleback genome with two",
-                "restriction enzymes. X-axes are on the log scale.")
-```
-
-```{r choose-enzyme-run, fig.height=3.5, fig.width=6, fig.cap=ce_cap, cache=FALSE}
-genome <- read_fasta('../safepug/gfiles/Gac_genome.fa.gz',
-                     '../safepug/gfiles/Gac_genome.fa.fai.gz')
-apeki <- safepug::binding_sites[['ApeKI']]
-apeki <- sapply(c(1,3), function(i) paste(apeki[i:(i+1)], collapse = ''))
-asci <- paste0(safepug::binding_sites[['AscI']], collapse = '')
-dig_ApeKI <- digest_ref(genome, apeki, c(1,1), n_cores = 3)
-dig_AscI <- digest_ref(genome, asci, 2, n_cores = 3)
-ref_names <- sapply(0:(get_ref_n_scaff(genome)-1), get_ref_name, ref_ = genome)
-names(dig_ApeKI) <- ref_names
-names(dig_AscI) <- ref_names
-dig_ApeKI_df <- lapply(1:length(dig_ApeKI), 
-                       function(i) data_frame(
-                           seq = names(dig_ApeKI)[i], 
-                           enzyme = 'ApeKI',
-                           length = diff(c(0, dig_ApeKI[[i]], 
-                                           get_ref_seq_size(genome, i-1))))) %>% 
-    bind_rows
-dig_AscI_df <- lapply(1:length(dig_AscI), 
-                      function(i) data_frame(
-                          seq = names(dig_AscI)[i], 
-                          enzyme = 'AscI',
-                          length = diff(c(0, dig_AscI[[i]], 
-                                          get_ref_seq_size(genome, i-1))))) %>% 
-    bind_rows
-
-dig_df <- bind_rows(dig_ApeKI_df, dig_AscI_df) %>% 
-    filter(!seq %in% c("chrM", "chrUn")) %>% 
-    mutate(seq = factor(seq, levels = c("chrI", "chrII", "chrIII", "chrIV", 
-                                        "chrV", "chrVI", "chrVII", "chrVIII", "chrIX",
-                                        "chrX", "chrXI", "chrXII", "chrXIII", "chrXIV",
-                                        "chrXV", "chrXVI", "chrXVII", "chrXVIII", 
-                                        "chrXIX", "chrXX", "chrXXI")),
-                                        # "chrM", "chrUn")),
-           enzyme = factor(enzyme, levels = c('ApeKI', 'AscI')))
-# source(".Rprofile")
-dig_df %>% 
-    ggplot(aes(length, ..density.., color = enzyme)) +
-    geom_freqpoly(bins = 25) +
-    theme(legend.position = 'top', 
-          legend.text = element_text(face = 'italic', margin = margin(0,0,0,0)),
-          legend.title = element_blank()) +
-    facet_wrap(~ seq, nrow = 3) +
-    scale_x_log10('Fragment size', breaks = 10^(c(3, 6)), 
-                  labels = trans_format('log10',math_format(10^.x))) +
-    scale_y_continuous('Density', breaks = c(0, 0.5, 1)) +
-    scale_color_manual(values = c('dodgerblue', 'firebrick')) +
-    guides(color = guide_legend(keywidth = 1.5, keyheight = 0.5))
-```
-
-
-### Test variant-calling effectiveness in WGS versus RADseq
-
-This portion is not yet coded.
-
-### Compute the power of various depths of coverage in WGS
-
-This portion is not yet coded.
 
 ## Conclusion
 
-`gemino` outperforms current programs while providing a more flexible platform.
+`jackalope` outperforms current programs while providing a more flexible platform.
 This package should inform research design for projects employing HTS,
 particularly those in population genomics.
-Output from `gemino` will help develop more specific sequencing goals 
+Output from `jackalope` will help develop more specific sequencing goals 
 in funding applications and estimate the power of a given sequencing design.
-Furthermore, `gemino` can be used to test bioinformatic pipelines under assumptions of
+Furthermore, `jackalope` can be used to test bioinformatic pipelines under assumptions of
 much more complex demographic histories than current HTS simulation 
 platforms allow.
 
