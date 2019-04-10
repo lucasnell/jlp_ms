@@ -1,5 +1,5 @@
 ---
-title: "jackelope: A swift, versatile molecular evolution and sequencing simulator"
+title: "jackelope: a swift, light-weight phylogenomic and high-throughput sequencing simulator"
 bibliography: "references.bib"
 csl: "apa.csl"
 fontsize: 12pt
@@ -156,8 +156,12 @@ which ignores species- and population-specific genomic characteristics, demograp
 and evolutionary histories.
 Simulating sequencing based on available genomic data better informs sampling
 strategies.
-However, most current methods provide only rudimentary ways to simulate population
-structure and variation in coverage among sites.
+
+However, current methods provide only rudimentary ways to simulate population
+histories.
+More recent pipelines have been developed that can simulate complex evolutionary 
+
+
 Here I present the R package `jackelope` that efficiently 
 (i) reads and simulates reference genomes;
 (ii) generates variants using summary statistics, phylogenies, 
@@ -169,6 +173,8 @@ and
 (iv) writes outputs to standard file formats.
 `jackelope` can simulate single, paired-end, or mate-pair Illumina reads,
 as well as reads from Pacific BioSciences.
+
+
 Most functions are written in C++ to improve performance, and I employed OpenMP to 
 allow for parallel processing.
 `jackelope` is available on GitHub
@@ -182,7 +188,9 @@ allow for parallel processing.
 
 
 
-__Keywords\:__ sequencing simulator, population genomics, high-throughput sequencing,
+<!-- 4-6 keywords -->
+
+__Keywords\:__ sequencing simulator, population genomics, phylogenomics,
 Illumina, Pacific Biosciences, Pool-seq
 
 
@@ -194,48 +202,54 @@ Illumina, Pacific Biosciences, Pool-seq
 High-throughput sequencing (HTS) is a cost-effective approach to generate vast amounts
 of genomic data and has revolutionized the study of genomes
 `r citep("10.1038/nrg2626")`.
-Large datasets combined with increased error rates---compared to Sanger sequencing---make
-bioinformatic pipelines an important aspect of research using HTS.
+The combination of massive datasets, sequencing errors, and potentially complex
+evolutionary histories make bioinformatic pipelines an important aspect of
+research using HTS.
 Many bioinformatic tools exist, and new programs that are more accurate and
 computationally efficient are constantly being developed.
-To test these tools against known parameter values, in silico simulation of
-genomic data is needed. Although there are many sequence simulators currently available
+To test these tools against known parameter values, simulation of HTS data is needed.
+Although there are many sequence simulators currently available
 `r prefix("reviewed in", citep("10.1038/nrg.2016.57"))`,
-most have only rudimentary ways to generate population-level data.
-Events like population-size changes, selection, or population structure
-can drastically change null expectations for sequence data, but including
-these possibilities is impossible with most current methods.
+most have only rudimentary ways to generate variants from a reference genome.
 
 
+Recently, pipelines have been developed that use multiple programs
+to simulate complex evolutionary histories and HTS on the resulting populations
+or species.
+`TreeToReads` can simulate sequences along a single phylogenetic tree and output
+to Illumina reads `r citep("10.1186/s12859-017-1592-1")`.
+`NGSphy` can generate sequences from multiple gene trees, and similarly outputs
+Illumina reads `r citep("10.1093/bioinformatics/bty146")`.
+These pipelines are quite powerful and useful to those seeking to simulate
+HTS data under realistic evolutionary scenarios.
+However, this power comes at a cost.
+Both pipelines require the installation of multiple programs to use them,
+the vast array of features creates a steep learning curve when getting started,
+and the lack of integration between inner programs means that the entire process
+is not as computationally efficient as a single standalone program.
 
-<!---
 
-ADD HERE DESCRIPTIONS OF CURRENT TOOLS
-
--->
-
-
-
-In the present paper I introduce `jackelope`, the first available HTS simulator
-in the R
-`r keep_title("base", "{R:} A Language and Environment for Statistical Computing")`
-environment.
+In the present paper I introduce `jackelope`, the first available high-throughput
+DNa-sequencing simulator for R
+`r keep_title("base", "{R:} A Language and Environment for Statistical Computing")`.
 Designed for efficient memory use, flexibility, and speed,
 `jackelope` combines the functionality of an HTS simulator with that of a
-molecular phylogenetics simulator.
+phylogenomics simulator.
 Genomes can be derived from FASTA files or simulated in silico.
 `jackelope` can create variants from the reference genome based on basic 
-population-genomic summary statistics, phylogenies, Variant Call Format (VCF) files, or
-coalescent simulations.
-These variants can be simulated based on one of several popular
+population-genomic summary statistics, phylogenies, gene trees, 
+Variant Call Format (VCF) files, or matrices of segregating sites.
+These variants can be simulated based on any of several popular
 molecular-evolution models.
 `jackelope` simulates single, paired-ended, or mate-pair reads on the Illumina platform,
-and it generates Pacific Biosciences (PacBio) reads.
-Both types of sequencing output to FASTQ files that can be optionally compressed.
+as well as Pacific Biosciences (PacBio) reads.
+All information generated by `jackalope` can be output to standard file formats.
 
 
-After outlining the methods, I demonstrate the usefulness of `jackelope` in
-informing study design through three common usage examples.
+After outlining the methods, I compare the performance of `jackalope` to that of 
+other popular programs.
+Lastly, I demonstrate the usefulness of `jackelope` in informing study design
+through three common usage examples.
 
 
 
@@ -252,6 +266,7 @@ the `PCG` family of thread-safe, pseudo-random number generators
 `r old_ref("Oneill_2014pcg")`.
 Package `RcppProgress` provides the thread-safe progress bar
 `r citep(citation("RcppProgress"))`.
+All inputs and outputs files can optionally be read or written with `gzip` compression.
 An overview of the methods are show in Figure \@ref(fig:jackelope-overview).
 
 ```{r jackelope-overview-cap, include=FALSE}
@@ -271,11 +286,9 @@ go_cap <- paste("Overview of \\texttt{jackelope} functions, inputs, and outputs.
 Haploid reference genomes are represented by the class `ref_genome`, an
 R6 `r citep(citation("R6"))` class that acts as a wrapper around a pointer to 
 an underlying C++ object that stores all the sequence information.
-They can be generated from FASTA files using the
-function `read_fasta`.
+They can be generated from FASTA files using the function `read_fasta`.
 This function also accepts FASTA index files---created using 
 `samtools faidx`---for faster processing.
-Both FASTA and index files can be either uncompressed or compressed using `gzip`.
 If a reference genome is not available, the `create_genome` function creates 
 a reference genome of given equilibrium nucleotide distributions, and mean and 
 standard deviation of the sequence-length distribution.
@@ -293,8 +306,9 @@ by the smallest sequence that retains a given proportion of total reference
 sequence if sequences are sorted by descending size.
 Using method `merge_sequences`, users can shuffle reference sequences and
 merge them into one.
-Method `replace_Ns` replaces any `N`s in the reference sequence with random nucleotides,
-optionally sampled with weights provided by the user.
+Method `replace_Ns` replaces any `N`s in the reference sequence with nucleotides
+that are sampled with weights proportional to their equilibrium distributions 
+(provided by the user).
 Reference genomes can be written to FASTA files using the `write_fasta` function.
 
 
@@ -304,10 +318,12 @@ Reference genomes can be written to FASTA files using the `write_fasta` function
 
 
 The `mevo` class stores molecular evolution information for use in the
-`create_variants` function, and is created using the `make_mevo` function.
+`create_variants` function, and is created using the `create_mevo` function.
 Molecular evolution can include substitutions,
 indels (insertions and deletions) of lengths up to $2^{31} - 1$,
 and variation in mutation rates among sites.
+A table of rates from `r citet("10.1534/g3.116.030890")` is included in the package
+as a guide to users.
 
 The following substitution models can be employed:
 TN93 `r old_ref('TN93')`,
@@ -325,10 +341,10 @@ This is done by finding the left eigenvector of $\mathbf{Q}$ that
 corresponds to the eigenvalue closest to zero.
 
 Insertions and deletions are generated the same and have the same requirements for 
-inputs in the `make_mevo` function.
+inputs in the `create_mevo` function.
 They first require an overall rate parameter, which is for the sum among all
 nucleotides; indel rates do not differ among nucleotides.
-Function `make_mevo` also requires information about the relative rates of
+Function `create_mevo` also requires information about the relative rates of
 indels of different sizes, which can be provided in 3 different ways.
 First, rates can be proportional to $\exp(-u)$ for indel length $u$ from
 1 to the maximum possible length, $M$ `r citep("10.1101/gr.112326.110")`.
@@ -451,7 +467,7 @@ This reduces conflicts that occur when multiple threads attempt to write to disk
 at the same time.
 The size of a "full" pool can be adjusted, and larger sizes should increase both
 speed and memory usage.
-Reads are output to FASTQ files, optionally with `gzip` compression.
+Reads are output to FASTQ files.
 
 Function `illumina` simulates single, paired-ended, or mate-pair Illumina reads,
 while `pacbio` simulates reads from the Pacific Biosciences (PacBio) platform.
@@ -465,16 +481,13 @@ Function inputs emulate the program they were based on.
 
 ## Performance
 
-Performance was tested on a 2013 MacBook Pro running macOS High Sierra with a 
+Performance was tested on a 2013 MacBook Pro running macOS Mojave with a 
 2.6GHz Intel Core i5 processor and 8 GB RAM.
-I compared the performance of `jackalope` functions to those in other packages based on 
-the time and maximum RAM required for each to perform its task.
-RAM usage is presented as the maximum usage during an R session where the only
-actions taken were to load the necessary package and run the function.
-Thus overhead associated with loading a package is included.
-For functions in packages outside `jackalope`, I use the R convention of
-displaying them as the package name, two colons, then the function name
-(i.e., `Package::Function`).
+Performance was based on the time and maximum RAM required for a program
+to perform its task.
+
+
+
 
 
 
@@ -485,12 +498,13 @@ displaying them as the package name, two colons, then the function name
 ## Conclusion
 
 `jackalope` outperforms current programs while providing a more flexible platform.
+
 This package should inform research design for projects employing HTS,
-particularly those in population genomics.
+particularly those focusing on population genomics or phylogenetics.
 Output from `jackalope` will help develop more specific sequencing goals 
 in funding applications and estimate the power of a given sequencing design.
 Furthermore, `jackalope` can be used to test bioinformatic pipelines under assumptions of
-much more complex demographic histories than current HTS simulation 
+much more complex demographic histories than most current HTS simulation 
 platforms allow.
 
 
