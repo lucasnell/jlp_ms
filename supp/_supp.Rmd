@@ -1,0 +1,85 @@
+---
+title: 'Supplementary Information for:'
+subtitle: "``jackelope: a swift, light-weight phylogenomic and high-throughput sequencing simulator''"
+author:
+    - name: Lucas A. Nell
+      nums: "1"
+affil:
+    - name: University of Wisconsin--Madison
+      num: "1"
+fontsize: 12pt
+geometry: margin=1in,letterpaper
+documentclass: article
+tables: true
+graphics: true
+colorlinks: true
+supplemental: true
+mathspec: true
+header-includes: 
+    - \usepackage{placeins}
+linestretch: 1.5
+sectionbreaks: true
+sectionnumbering: true
+raggedtoc: true
+output:
+    bookdown::pdf_document2:
+        fig_caption: yes
+        template: template.tex
+        number_sections: yes
+        latex_engine: xelatex
+        toc: yes
+        toc_depth: 2
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE, cache = FALSE}
+suppressPackageStartupMessages({
+  library(knitr)
+  library(bookdown)
+  library(jackalope)
+  library(scrm)
+  library(grid)
+  library(ape)
+  library(tidyverse)
+})
+knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = 'quartz_pdf')
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+if (isTRUE(getOption('knitr.in.progress'))) knitr::knit_theme$set(knitr::knit_theme$get("acid"))
+if (!isTRUE(getOption('knitr.in.progress'))) {
+    options("device" = "quartz")
+    grDevices::graphics.off()
+}
+theme_set(theme_classic() + 
+              theme(legend.background = element_blank(),
+                    strip.background = element_blank(),
+                    plot.margin = margin(0.5, 0.5, 0.5, 0.5)))
+dir <- paste0(tempdir(check = TRUE), "/")
+
+```
+
+
+# Creating variants
+
+```{r mevo-main, child = 'diagnostics-mevo.Rmd'}
+```
+
+
+
+
+# Illumina
+
+```{r illumina-main, child = 'diagnostics-illumina.Rmd'}
+```
+
+
+
+# PacBio
+
+```{r pacbio-main, child = 'diagnostics-pacbio.Rmd'}
+```
+
+
+
+
