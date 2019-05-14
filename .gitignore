@@ -8,3 +8,7 @@
 *.fastq
 *seqfile
 *.tree
+*.pdf
+*.rds
+*.toc
+_supp_cache*
