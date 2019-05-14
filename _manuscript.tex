@@ -27,7 +27,7 @@
 \usepackage{hyperref}
 \PassOptionsToPackage{usenames,dvipsnames}{color} % color is loaded by hyperref
 \hypersetup{unicode=true,
-            pdftitle={jackelope: A swift, versatile molecular evolution and sequencing simulator},
+            pdftitle={jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator},
             colorlinks=true,
             linkcolor=Maroon,
             citecolor=Blue,
@@ -53,7 +53,7 @@
 \setlength{\emergencystretch}{3em}  % prevent overfull lines
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
-\setcounter{secnumdepth}{0}
+\setcounter{secnumdepth}{5}
 % Redefines (sub)paragraphs to behave more like sections
 \ifx\paragraph\undefined\else
 \let\oldparagraph\paragraph
@@ -80,8 +80,7 @@
 
 \setlength{\droptitle}{-2em}
 
-  \title{jackelope: A swift, versatile molecular evolution and sequencing
-simulator}
+  \title{jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator}
     \pretitle{\vspace{\droptitle}\centering\huge}
   \posttitle{\par}
     \author{}
@@ -93,278 +92,365 @@ simulator}
 \begin{document}
 \maketitle
 
+{
+\hypersetup{linkcolor=black}
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
 \hypertarget{abstract}{%
 \subsection{Abstract}\label{abstract}}
 
-High-throughput sequencing (HTS) is central to the study of population
-genomics. Choices in sampling design for sequencing projects can include
-sequencing platform, depth of coverage, and number of individuals to
-sample. These choices are most often informed by previous work on highly
-diverged species, which ignores species- and population-specific genomic
-characteristics, demographies, and evolutionary histories. Simulating
-sequencing based on available genomic data better informs sampling
-strategies. However, most current methods provide only rudimentary ways
-to simulate population structure and variation in coverage among sites.
-Here I present the R package \texttt{jackelope} that efficiently (i)
-reads and simulates reference genomes; (ii) generates variants using
-summary statistics, phylogenies, Variant Call Format (VCF) files, and
-coalescent simulations---the latter of which can include selection,
-recombination, and demographic fluctuations; (iii) simulates sequencing
-error, mapping qualities, multiplexing, and optical/PCR duplicates; and
-(iv) writes outputs to standard file formats. \texttt{jackelope} can
-simulate single, paired-end, or mate-pair Illumina reads, as well as
-reads from Pacific BioSciences. Most functions are written in C++ to
-improve performance, and I employed OpenMP to allow for parallel
-processing. \texttt{jackelope} is available on GitHub
-(\url{https://github.com/lucasnell/jackelope}).
+High-throughput sequencing (HTS) is central to the study of population genomics.
+Choices in sampling design for sequencing projects can include
+sequencing platform, depth of coverage, and number of individuals to sample.
+These choices are most often informed by previous work on highly diverged species,
+which ignores species- and population-specific genomic characteristics, demographies,
+and evolutionary histories.
+Simulating sequencing based on available genomic data better informs sampling
+strategies.
 
-\textbf{Keywords:} sequencing simulator, population genomics,
-high-throughput sequencing, Illumina, Pacific Biosciences, Pool-seq
+However, current methods provide only rudimentary ways to simulate population
+histories.
+More recent pipelines have been developed that can simulate complex evolutionary
+
+Here I present the R package \texttt{jackalope} that efficiently
+(i) reads and simulates reference genomes;
+(ii) generates variants using summary statistics, phylogenies,
+Variant Call Format (VCF) files, and coalescent simulations---the latter of which can
+include selection, recombination, and demographic fluctuations;
+(iii) simulates sequencing error, mapping qualities, multiplexing, and
+optical/PCR duplicates;
+and
+(iv) writes outputs to standard file formats.
+\texttt{jackalope} can simulate single, paired-end, or mate-pair Illumina reads,
+as well as reads from Pacific BioSciences.
+
+Most functions are written in C++ to improve performance, and I employed OpenMP to
+allow for parallel processing.
+\texttt{jackalope} is available on GitHub
+(\url{https://github.com/lucasnell/jackalope}).
+
+\textbf{Keywords:} sequencing simulator, population genomics, phylogenomics,
+Illumina, Pacific Biosciences, Pool-seq
 
 \hypertarget{introduction}{%
 \subsection{Introduction}\label{introduction}}
 
-High-throughput sequencing (HTS) is a cost-effective approach to
-generate vast amounts of genomic data and has revolutionized the study
-of genomes (Metzker, 2009). Large datasets combined with increased error
-rates---compared to Sanger sequencing---make bioinformatic pipelines an
-important aspect of research using HTS. Many bioinformatic tools exist,
-and new programs that are more accurate and computationally efficient
-are constantly being developed. To test these tools against known
-parameter values, in silico simulation of genomic data is needed.
+High-throughput sequencing (HTS) is a cost-effective approach to generate vast amounts
+of genomic data and has revolutionized the study of genomes
+(Metzker, 2009).
+The combination of massive datasets, sequencing errors, and potentially complex
+evolutionary histories make bioinformatic pipelines an important aspect of
+research using HTS.
+Many bioinformatic tools exist, and new programs that are more accurate and
+computationally efficient are constantly being developed.
+To test these tools against known parameter values, simulation of HTS data is needed.
 Although there are many sequence simulators currently available
-(reviewed in Escalona, Rocha, \& Posada, 2016), most have only
-rudimentary ways to generate population-level data. Events like
-population-size changes, selection, or population structure can
-drastically change null expectations for sequence data, but including
-these possibilities is impossible with most current methods.
+(reviewed in Escalona, Rocha, \& Posada, 2016),
+most have only rudimentary ways to generate variants from a reference genome.
 
-In the present paper I introduce \texttt{jackelope}, the first available
-HTS simulator in the R (R Core Team, 2019) environment. Designed for
-efficient memory use, flexibility, and speed, \texttt{jackelope}
-combines the functionality of an HTS simulator with that of a molecular
-phylogenetics simulator. Genomes can be derived from FASTA files or
-simulated in silico. \texttt{jackelope} can create variants from the
-reference genome based on basic population-genomic summary statistics,
-phylogenies, Variant Call Format (VCF) files, or coalescent simulations.
-These variants can be simulated based on one of several popular
-molecular-evolution models. \texttt{jackelope} simulates single,
-paired-ended, or mate-pair reads on the Illumina platform, and it
-generates Pacific Biosciences (PacBio) reads. Both types of sequencing
-output to FASTQ files that can be optionally compressed.
+Recently, pipelines have been developed that use multiple programs
+to simulate complex evolutionary histories and HTS on the resulting populations
+or species.
+\texttt{TreeToReads} can simulate sequences along a single phylogenetic tree and output
+to Illumina reads (McTavish et al., 2017).
+\texttt{NGSphy} can generate sequences from multiple gene trees, and similarly outputs
+Illumina reads (Escalona, Rocha, \& Posada, 2018).
+These pipelines are quite powerful and useful to those seeking to simulate
+HTS data under realistic evolutionary scenarios.
+However, this power comes at a cost.
+Both pipelines require the installation of multiple programs to use them,
+the vast array of features creates a steep learning curve when getting started,
+and the lack of integration between inner programs means that the entire process
+is not as computationally efficient as a single standalone program.
 
-After outlining the methods, I demonstrate the usefulness of
-\texttt{jackelope} in informing study design through three common usage
-examples.
+In the present paper I introduce \texttt{jackalope}, the first available high-throughput
+DNA-sequencing simulator for R
+(R Core Team, 2019).
+Designed for efficient memory use, flexibility, and speed,
+\texttt{jackalope} combines the functionality of an HTS simulator with that of a
+phylogenomics simulator.
+Genomes can be derived from FASTA files or simulated in silico.
+\texttt{jackalope} can create variants from the reference genome based on basic
+population-genomic summary statistics, phylogenies, gene trees,
+Variant Call Format (VCF) files, or matrices of segregating sites.
+These variants can be simulated based on any of several popular
+molecular-evolution models.
+\texttt{jackalope} simulates single, paired-ended, or mate-pair reads on the Illumina platform,
+as well as Pacific Biosciences (PacBio) reads.
+All information generated by \texttt{jackalope} can be output to standard file formats.
+
+After outlining the methods, I compare the performance of \texttt{jackalope} to that of
+other popular programs.
+Lastly, I demonstrate the usefulness of \texttt{jackalope} in informing study design
+through three common usage examples.
 
 \hypertarget{features-and-methods}{%
 \subsection{Features and methods}\label{features-and-methods}}
 
-Most code is written in C++ and interfaces with R using the
-\texttt{Rcpp} package (Eddelbuettel \& François, 2011). I used OpenMP to
-allow for parallel processing and the \texttt{PCG} family of
-thread-safe, pseudo-random number generators (O'Neill, 2014). Package
-\texttt{RcppProgress} provides the thread-safe progress bar (Forner,
-2018). An overview of the methods are show in Figure
-@ref(fig:jackelope-overview).
+Most code is written in C++ and interfaces with R using the \texttt{Rcpp} package
+(Eddelbuettel \& François, 2011).
+I used OpenMP to allow for parallel processing and
+the \texttt{PCG} family of thread-safe, pseudo-random number generators
+(O'Neill, 2014).
+Package \texttt{RcppProgress} provides the thread-safe progress bar
+(Forner, 2018).
+All input and output files can have \texttt{gzip} or \texttt{bgzip} compression, using the
+\texttt{zlib} and
+\texttt{htslib} (Li et al., 2009) libraries.
+Access to these libraries uses the R packages
+\texttt{zlibbioc} (Morgan, 2018) and
+\texttt{Rhtslib} (Hayden \& Morgan, 2019)
+to improve portability.
+An overview of the methods are show in Figure \ref{fig:jackalope-overview}.
+
+\begin{figure}
+\includegraphics[width=1\linewidth,height=1\textheight]{figs/jackalope}
+\caption{Overview of primary \texttt{jackalope} functions, classes, inputs, and outputs.
+  Circles \texttt{sub\_models} and \texttt{vars\_functions} refer to multiple
+  functions; see text for details.
+  \(\theta\) indicates the population-scaled mutation rate.}
+\label{fig:jackalope-overview}
+\end{figure}
 
 \hypertarget{the-ref_genome-class}{%
-\subsubsection{\texorpdfstring{The \texttt{ref\_genome}
-class}{The ref\_genome class}}\label{the-ref_genome-class}}
+\subsubsection{\texorpdfstring{The \texttt{ref\_genome} class}{The ref\_genome class}}\label{the-ref_genome-class}}
 
-Haploid reference genomes are represented by the class
-\texttt{ref\_genome}, an R6 (Chang, 2019) class that acts as a wrapper
-around a pointer to an underlying C++ object that stores all the
-sequence information. They can be generated from FASTA files using the
-function \texttt{read\_fasta}. This function also accepts FASTA index
-files---created using \texttt{samtools\ faidx}---for faster processing.
-Both FASTA and index files can be either uncompressed or compressed
-using \texttt{gzip}. If a reference genome is not available, the
-\texttt{create\_genome} function creates a reference genome of given
-equilibrium nucleotide distributions, and mean and standard deviation of
-the sequence-length distribution. I draw sequence lengths from a gamma
-distribution (X. Li et al., 2011).
+Haploid reference genomes are represented by the class \texttt{ref\_genome}, an
+R6 (Chang, 2019) class that acts as a wrapper around a pointer to
+an underlying C++ object that stores all the sequence information.
+They can be generated from FASTA files using the function \texttt{read\_fasta}.
+This function also accepts FASTA index files---created using
+\texttt{samtools\ faidx}---for faster processing.
+If a reference genome is not available, the \texttt{create\_genome} function creates
+a reference genome of given equilibrium nucleotide distributions.
+Sequence lengths are drawn from a gamma distribution (Li et al., 2011)
+with a mean and standard deviation provided by the user.
 
-The access provided by the R class \texttt{ref\_genome} is designed to
-both maximize flexibility and minimize copying and the chances of
-printing extremely large strings to the console. Methods in
-\texttt{ref\_genome} allow the user to view the number of sequences,
-sequence sizes, sequence names, and individual sequence strings. Users
-can also edit sequence names and remove one or more sequences by name.
-Method \texttt{filter\_sequences} filters genomes by the minimum
-sequence size or by the smallest sequence that retains a given
-proportion of total reference sequence if sequences are sorted by
-descending size. Using method \texttt{merge\_sequences}, users can
-shuffle reference sequences and merge them into one. Method
-\texttt{replace\_Ns} replaces any \texttt{N}s in the reference sequence
-with random nucleotides, optionally sampled with weights provided by the
-user. Reference genomes can be written to FASTA files using the
-\texttt{write\_fasta} function.
+The access provided by the R class \texttt{ref\_genome} is designed to both
+maximize flexibility and minimize copying and the chances of
+printing extremely large strings to the console.
+Methods in \texttt{ref\_genome} allow the user to view the
+number of sequences, sequence sizes, sequence names, individual sequence strings,
+and nucleotide proportions (GC or otherwise).
+Users can also edit sequence names and remove one or more sequences by name.
+Method \texttt{filter\_sequences} filters genomes by the minimum sequence size or
+by the smallest sequence that retains a given proportion of total reference
+sequence if sequences are sorted by descending size.
+Using method \texttt{merge\_sequences}, users can shuffle reference sequences and
+merge them into one.
+Method \texttt{replace\_Ns} replaces any \texttt{N}s in the reference sequence with nucleotides
+that are sampled with weights proportional to their equilibrium distributions
+(provided by the user).
+Reference genomes can be written to FASTA files using the \texttt{write\_fasta} function.
 
-\hypertarget{the-mevo-class}{%
-\subsubsection{\texorpdfstring{The \texttt{mevo}
-class}{The mevo class}}\label{the-mevo-class}}
+\hypertarget{creating-variants}{%
+\subsubsection{Creating variants}\label{creating-variants}}
 
-The \texttt{mevo} class stores molecular evolution information for use
-in the \texttt{create\_variants} function, and is created using the
-\texttt{make\_mevo} function. Molecular evolution can include
-substitutions, indels (insertions and deletions) of lengths up to
-\(2^{31} - 1\), and variation in mutation rates among sites.
+Haploid variants from the reference genome are generated using the
+\texttt{create\_variants} function.
+To organize a potentially large amount of information that can be input to this function,
+I added helper functions that handle parts of the input.
+There are helper functions for the high-level method information and
+for various aspects of the molecular evolution (substitutions, indels, and among-site
+variability in mutation rates).
+The first subsection below outlines the higher-level information functions, and
+the second subsection details the molecular evolution functions.
 
-The following substitution models can be employed: TN93 (Tamura \& Nei,
-1993), JC69 (Jukes \& Cantor, 1969), K80 (Kimura, 1980), F81
-(Felsenstein, 1981), HKY85 (Hasegawa, Kishino, \& Yano, 1985; Hasegawa,
-Yano, \& Kishino, 1984), F84 (Thorne, Kishino, \& Felsenstein, 1992),
-GTR (Tavar\a'e, 1986), and UNREST (Z. B. Yang, 1994). If using the
-UNREST model, equilibrium nucleotide frequencies (\(\mathbf{\pi}\)) are
-calculated by solving for \(\mathbf{\pi} \mathbf{Q} = 0\), where
-\(\mathbf{Q}\) is the substitution rate matrix. This is done by finding
-the left eigenvector of \(\mathbf{Q}\) that corresponds to the
-eigenvalue closest to zero.
+\hypertarget{higher-level-method-information}{%
+\paragraph{Higher-level method information}\label{higher-level-method-information}}
 
-Insertions and deletions are generated the same and have the same
-requirements for inputs in the \texttt{make\_mevo} function. They first
-require an overall rate parameter, which is for the sum among all
-nucleotides; indel rates do not differ among nucleotides. Function
-\texttt{make\_mevo} also requires information about the relative rates
-of indels of different sizes, which can be provided in 3 different ways.
-First, rates can be proportional to \(\exp(-u)\) for indel length \(u\)
-from 1 to the maximum possible length, \(M\) (Albers et al., 2010).
-Second, rates can be generated from a Lavalette distribution, where the
-rate for length \(u\) is proportional to
+There are five ways to generate variants from the reference genome, and
+each has a function associated with it.
+The names of these functions follow the form \texttt{vars\_X} for method \texttt{X},
+and information on all of the function can be found in the \texttt{vars\_functions} documentation.
+The outputs of these functions are meant to be passed to the \texttt{vars\_info} argument
+in \texttt{create\_variants}.
+
+The first two methods directly specify numbers and locations of mutations and
+therefore do not require any phylogenomic methods in \texttt{jackalope}.
+First, a variant call format (VCF) file can directly specify mutations for each
+variant (function \texttt{vars\_vcf}).
+This method works using the \texttt{vcfR} package (Knaus \& Grünwald, 2016, 2017) and
+is the only method that does not require any molecular-evolution information.
+Second, matrices of segregating sites from coalescent output can provide the locations
+of mutations (function \texttt{vars\_ssites}).
+Molecular evolution information passed to \texttt{create\_variants} then informs the sampling
+for the type of mutation at each site.
+The segregating-site information can take the form of
+(1) a coalescent-simulator object from the \texttt{scrm} (Paul R. Staab, Sha Zhu, Dirk Metzler, \& Gerton Lunter, 2015) or
+\texttt{coala} (Paul R. Staab \& Dirk Metzler, 2016) package, or
+(2) a file containing output from a coalescent simulator in the format of the
+\texttt{ms} (Hudson, 2002) or
+\texttt{msms} (Ewing \& Hermisson, 2010) programs.
+
+The last three methods simulate sequences along phylogenetic trees.
+In the first of these methods,
+phylogenetic tree(s) can be directly input from either \texttt{phylo} object(s) or
+NEWICK file(s) (function \texttt{vars\_phylo}).
+One tree can be used for all genome sequences, or each sequence can use a separate tree.
+In the second method, users can pass an estimate for \(\theta\), the population-scaled
+mutation rate (function \texttt{vars\_theta}).
+A random coalescent tree is first generated using the \texttt{rcoal} function
+in the \texttt{ape} package (Paradis \& Schliep, 2018).
+Then, its total tree length is scaled to be
+\(\theta / \mu \sum_{i=1}^{n-1}{1 / i}\) for \(n\) variants and an equilibrium
+mutation rate of \(\mu\).
+The last method allows for simulation of recombination by simulating along
+gene trees that can differ both within and among reference sequences
+(function \texttt{vars\_gtrees}).
+As for simulations using coalescent segregating sites, gene trees can be
+from \texttt{scrm} or \texttt{coala} objects, or from \texttt{ms}-style output files.
+
+For the phylogenomic methods, variants are simulated along tree branches by
+generating exponential wait times
+for the Markov ``jump'' chain for each sequence,
+where the rate of the exponential distribution is the sum of mutation rates for
+each nucleotide in the sequence (Yang, 2006).
+At each jump, a position on the sequence is sampled with a probability proportional to
+the mutation rate for that nucleotide.
+To sample positions, I use weighted reservoir sampling with
+exponential jumps (Efraimidis \& Spirakis, 2006).
+To optionally improve performance for sampling long sequences,
+a number of positions can be first uniformly sampled using
+``Algorithm D'' by Vitter (1984), followed by weighted
+sampling by rates.
+After sampling a position, a mutation type is sampled with probabilities
+proportional to the rate of each mutation type for the nucleotide
+present at the sampled position.
+I used alias sampling
+(Kronmal \& Peterson, 1979; Walker, 1974)
+for sampling mutation types.
+Jumps are performed until the summed length of all jumps is greater than the
+branch length.
+
+\hypertarget{molecular-evolution}{%
+\paragraph{Molecular evolution}\label{molecular-evolution}}
+
+The user can include substitutions, indels (insertions and deletions),
+and variation in mutation rates among sites.
+A table of rates from Sung et al. (2016) is included in the package
+as a guide to users.
+Molecular evolution information is provided to the \texttt{create\_variants}
+function through organizing functions that are specific to the type of information.
+Substitutions use the \texttt{sub\_models} group of functions,
+indels use the \texttt{indels} function,
+and among-site variation uses the \texttt{site\_var} function.
+
+Each substitution model uses its own function of the pattern \texttt{sub\_M} for model \texttt{M},
+and the provided \texttt{sub\_models} documentation includes information to help
+users choose among them.
+The following substitution models can be employed:
+TN93 (Tamura \& Nei, 1993),
+JC69 (Jukes \& Cantor, 1969),
+K80 (Kimura, 1980),
+F81 (Felsenstein, 1981),
+HKY85 (Hasegawa, Kishino, \& Yano, 1985; Hasegawa, Yano, \& Kishino, 1984),
+F84 (Thorne, Kishino, \& Felsenstein, 1992),
+GTR (Tavar\a'e, 1986),
+and UNREST (Yang, 1994).
+If using the UNREST model, equilibrium nucleotide frequencies (\(\mathbf{\pi}\)) are
+calculated by solving for \(\mathbf{\pi} \mathbf{Q} = 0\), where \(\mathbf{Q}\) is the
+substitution rate matrix.
+This is done by finding the left eigenvector of \(\mathbf{Q}\) that
+corresponds to the eigenvalue closest to zero.
+
+Providing insertion and deletion information is organized in the \texttt{indels} function.
+It first requires an overall rate parameter, which is for the sum among all
+nucleotides; indel rates do not differ among nucleotides.
+The \texttt{indels} function also requires information about the relative rates of
+indels of different sizes, which can be provided in 3 different ways.
+First, rates can be proportional to \(\exp(-u)\) for indel length \(u\) from
+1 to the maximum possible length, \(M\) (Albers et al., 2010).
+Second, rates can be generated from a Lavalette distribution,
+where the rate for length \(u\) is proportional to
 \(\left[{u M / (M - u + 1)}\right]^{-a}\) (Fletcher \& Yang, 2009).
-Third, relative rates can be specified directly by providing a
-length-\(M\) numeric vector of positive values.
+Third, relative rates can be specified directly by providing a length-\(M\)
+numeric vector of positive values.
+The maximum size of indels is 1 Mb.
 
-Among-site variation in mutation rates is included either by generating
-gamma distances (\(\gamma\)) from a distribution or by passing them
-manually. The overall mutation rate is \(\gamma ~ q_{0}\), where
+Among-site variation in mutation rates, specified in the \texttt{site\_var} function,
+is included either by generating gamma distances (\(\gamma\)) from a distribution
+or by passing them manually.
+The overall mutation rate is \(\gamma ~ q_{0}\), where
 \(q_{0}\) is the base mutation rate determined only by the nucleotide.
-Gamma distances are generated from a Gamma distribution with a fixed
-mean of 1 and with a shape parameter provided by the user. Users can
-also pass a list of matrices, one for each reference sequence, with a
-gamma distance and end point for each sequence region. The gamma
-distances can optionally be written to a BED file.
+Gamma distances are generated from a Gamma distribution with a fixed mean of 1
+and with a shape parameter provided by the user.
+Users can also pass a list of matrices, one for each reference sequence,
+with a gamma distance and end point for each sequence region.
+The gamma distances can optionally be written to a BED file.
 
 \hypertarget{the-variants-class}{%
-\subsubsection{\texorpdfstring{The \texttt{variants}
-class}{The variants class}}\label{the-variants-class}}
+\subsubsection{\texorpdfstring{The \texttt{variants} class}{The variants class}}\label{the-variants-class}}
 
-Variants from the reference genome are represented as haploid genomes in
-the \texttt{variants} class. Similarly to \texttt{ref\_genome}, this R6
-class wraps a pointer to a C++ object that stores all the information,
-and it was designed to prevent copying of large objects in memory. The
-underlying C++ class also does not store whole variant genomes, but
-rather just their mutation information---this dramatically reduces
-memory usage. Variants can be created in five different ways, all of
-which are encompassed in the \texttt{create\_variants} function.
-
-The first two methods directly specify numbers and locations of
-mutations and therefore do not require any phylogenetic methods in
-\texttt{jackalope}. First, a variant call format (VCF) file can directly
-specify mutations for each variant. This method works using the
-\texttt{vcfR} package (Knaus \& Grünwald, 2016, 2017) and is the only
-method that does not require a \texttt{mevo} object. Second, matrices of
-segregating sites from coalescent output can provide the locations of
-mutations. A \texttt{mevo} object then provides the type of mutation at
-each site. The segregating-site information can take the form of (1) a
-coalescent-simulator object from the \texttt{scrm} (Paul R. Staab, Sha
-Zhu, Dirk Metzler, \& Gerton Lunter, 2015) or \texttt{coala} (Paul R.
-Staab \& Dirk Metzler, 2016) package, or (2) a file containing output
-from a coalescent simulator in the format of the \texttt{ms} (Hudson,
-2002) or \texttt{msms} (Ewing \& Hermisson, 2010) programs.
-
-The last three methods require simulations along phylogenetic trees,
-which is outlined in the following paragraph. In the first of these
-phylogenetic methods, phylogenetic tree(s) can be directly input from
-either \texttt{phylo} object(s) or NEWICK file(s). One tree can be used
-for all genome sequences, or each sequence can use a separate tree.
-Alternatively, users can pass an estimate for \(\theta\) (the
-population-scaled mutation rate). A random coalescent tree is first
-generated using the \texttt{rcoal} function in the \texttt{ape} package
-(Paradis \& Schliep, 2018). Then, its total tree length is scaled to be
-\(\theta / \mu \sum_{i=1}^{n-1}{1 / i}\) for \(n\) variants and an
-equilibrium mutation rate of \(\mu\). The last method allows for
-simulation of recombination by simulating along gene trees that can
-differ both within and among reference sequences. As for coalescent
-segregating sites, gene trees can be from \texttt{scrm} or
-\texttt{coala} objects, or from \texttt{ms}-style output files.
-
-Variants are simulated along tree branches by generating exponential
-wait times for the Markov ``jump'' chain for each sequence, where the
-rate of the exponential distribution is the sum of mutation rates for
-each nucleotide in the sequence (Z. Yang, 2006). At each jump, a
-position on the sequence is sampled with a probability proportional to
-the mutation rate for that nucleotide. To sample positions, I use
-weighted reservoir sampling with exponential jumps (Efraimidis \&
-Spirakis, 2006). To optionally improve performance for sampling long
-sequences, a number of positions can be first uniformly sampled using
-``Algorithm D'' by Vitter (1984), followed by weighted sampling by
-rates. After sampling a position, a mutation type is sampled with
-probabilities proportional to the rate of each mutation type for the
-nucleotide present at the sampled position. I used alias sampling
-(Kronmal \& Peterson, 1979; Walker, 1974) for sampling mutation types.
-Jumps are performed until the summed length of all jumps is greater than
-the branch length.
-
-Methods in \texttt{variants} allow the user to view the number of
-sequences/variants, variant sequence sizes, sequence/variant names, and
-individual variant-sequence strings. Users can also edit variant names,
-remove one or more variants by name, and manually add mutations. Variant
-information can be written to VCF files using the \texttt{write\_vcf}
-function, where each variant can optionally be considered one of
-multiple haplotypes for samples with ploidy levels \textgreater{} 1.
+Haploid variant information is stored in the \texttt{variants} class.
+Similarly to \texttt{ref\_genome}, this R6 class wraps a pointer to a C++ object
+that stores all the information, and it was designed to prevent copying of large
+objects in memory.
+The underlying C++ class also does not store whole variant genomes, but
+rather just their mutation information---this dramatically reduces memory usage.
+Methods in \texttt{variants} allow the user to view the number of sequences/variants,
+variant sequence sizes, sequence/variant names, and individual variant-sequence strings.
+Users can also edit variant names, remove one or more variants by name,
+and manually add mutations.
+Variant information can be written to VCF files using the \texttt{write\_vcf} function,
+where each variant can optionally be considered one of multiple haplotypes for
+samples with ploidy levels \textgreater{} 1.
+Alternatively, variant genomes can be written to separate FASTA files
+using \texttt{write\_fasta}.
 
 \hypertarget{simulate-sequencing-data}{%
-\subsubsection{Simulate sequencing
-data}\label{simulate-sequencing-data}}
+\subsubsection{Simulate sequencing data}\label{simulate-sequencing-data}}
 
-Both R6 classes \texttt{ref\_genome} and \texttt{variants} can be input
-to the sequencing functions \texttt{illumina} and \texttt{pacbio}. If
-providing a \texttt{variants} object, you can specify sampling weights
-for each variant to simulate the library containing differing amounts of
-DNA from each. Both methods also allow for a probability of read
-duplication, which might occur due to PCR in either method and from
-optical duplicates in Illumina sequencing. Reads can be written using
-multiple threads by having a read ``pool'' for each thread and having
-pools write to file only when they are full. This reduces conflicts that
-occur when multiple threads attempt to write to disk at the same time.
-The size of a ``full'' pool can be adjusted, and larger sizes should
-increase both speed and memory usage. Reads are output to FASTQ files,
-optionally with \texttt{gzip} compression.
+Both R6 classes \texttt{ref\_genome} and \texttt{variants} can be input to the sequencing functions
+\texttt{illumina} and \texttt{pacbio}.
+Sequences from which reads are derived are sampled with weights proportional to
+their length.
+If a \texttt{variants} object is provided, individual variants are sampled with equal
+probabilities by default.
+Alternatively, the user can specify sampling weights for each variant
+to simulate the library containing differing amounts of DNA from each.
+Both methods also allow for a probability of read duplication, which might occur
+due to PCR in either method and from optical duplicates in Illumina sequencing.
+Reads can be written using multiple threads by having a read ``pool'' for each thread
+and having pools write to file only when they are full.
+This reduces conflicts that occur when multiple threads attempt to write to disk
+at the same time.
+The size of a ``full'' pool can be adjusted, and larger sizes should increase both
+speed and memory usage.
+Reads are output to FASTQ files.
 
-Function \texttt{illumina} simulates single, paired-ended, or mate-pair
-Illumina reads, while \texttt{pacbio} simulates reads from the Pacific
-Biosciences (PacBio) platform. Illumina read simulation is based on the
-ART program (Huang, Li, Myers, \& Marth, 2011), and PacBio read
-simulation is based on SimLoRD (Stöcker, Köster, \& Rahmann, 2016).
+Function \texttt{illumina} simulates single, paired-ended, or mate-pair Illumina reads,
+while \texttt{pacbio} simulates reads from the Pacific Biosciences (PacBio) platform.
+Illumina read simulation is based on the ART program
+(Huang, Li, Myers, \& Marth, 2011), and
+PacBio read simulation is based on SimLoRD (Stöcker, Köster, \& Rahmann, 2016).
+Each was re-coded in C++ to more seemlessly integrate into \texttt{jackalope}.
 Function inputs emulate the program they were based on.
 
 \hypertarget{performance}{%
 \subsection{Performance}\label{performance}}
 
-Performance was tested on a 2013 MacBook Pro running macOS High Sierra
-with a 2.6GHz Intel Core i5 processor and 8 GB RAM. I compared the
-performance of \texttt{jackalope} functions to those in other packages
-based on the time and maximum RAM required for each to perform its task.
-RAM usage is presented as the maximum usage during an R session where
-the only actions taken were to load the necessary package and run the
-function. Thus overhead associated with loading a package is included.
-For functions in packages outside \texttt{jackalope}, I use the R
-convention of displaying them as the package name, two colons, then the
-function name (i.e., \texttt{Package::Function}).
+Performance was tested on a 2013 MacBook Pro running macOS Mojave with a
+2.6GHz Intel Core i5 processor and 8 GB RAM.
+Performance was based on the time and maximum RAM required for a program
+to perform its task.
+
+\hypertarget{example-usage}{%
+\subsection{Example usage}\label{example-usage}}
 
 \hypertarget{conclusion}{%
 \subsection{Conclusion}\label{conclusion}}
 
-\texttt{jackalope} outperforms current programs while providing a more
-flexible platform. This package should inform research design for
-projects employing HTS, particularly those in population genomics.
-Output from \texttt{jackalope} will help develop more specific
-sequencing goals in funding applications and estimate the power of a
-given sequencing design. Furthermore, \texttt{jackalope} can be used to
-test bioinformatic pipelines under assumptions of much more complex
-demographic histories than current HTS simulation platforms allow.
+\texttt{jackalope} outperforms current programs while providing a more flexible platform.
+
+This package should inform research design for projects employing HTS,
+particularly those focusing on population genomics or phylogenomics.
+Output from \texttt{jackalope} will help develop more specific sequencing goals
+in funding applications and estimate the power of a given sequencing design.
+Furthermore, \texttt{jackalope} can be used to test bioinformatic pipelines under assumptions of
+much more complex demographic histories than most current HTS simulation
+platforms allow.
 
 \hypertarget{references}{%
 \section*{References}\label{references}}
@@ -372,181 +458,121 @@ demographic histories than current HTS simulation platforms allow.
 
 \hypertarget{refs}{}
 \leavevmode\hypertarget{ref-Albers_2010}{}%
-Albers, C. A., Lunter, G., MacArthur, D. G., McVean, G., Ouwehand, W.
-H., \& Durbin, R. (2010). Dindel: Accurate indel calls from short-read
-data. \emph{Genome Research}, \emph{21}(6), 961--973.
-\url{https://doi.org/10.1101/gr.112326.110}
+Albers, C. A., Lunter, G., MacArthur, D. G., McVean, G., Ouwehand, W. H., \& Durbin, R. (2010). Dindel: Accurate indel calls from short-read data. \emph{Genome Research}, \emph{21}(6), 961--973. \url{https://doi.org/10.1101/gr.112326.110}
 
 \leavevmode\hypertarget{ref-Chang_2019}{}%
-Chang, W. (2019). \emph{R6: Encapsulated classes with reference
-semantics}. Retrieved from \url{https://CRAN.R-project.org/package=R6}
+Chang, W. (2019). \emph{R6: Encapsulated classes with reference semantics}. Retrieved from \url{https://CRAN.R-project.org/package=R6}
 
 \leavevmode\hypertarget{ref-Eddelbuettel_2011}{}%
-Eddelbuettel, D., \& François, R. (2011). Rcpp: Seamless R and C++
-integration. \emph{Journal of Statistical Software}, \emph{40}(8),
-1--18. \url{https://doi.org/10.18637/jss.v040.i08}
+Eddelbuettel, D., \& François, R. (2011). Rcpp: Seamless R and C++ integration. \emph{Journal of Statistical Software}, \emph{40}(8), 1--18. \url{https://doi.org/10.18637/jss.v040.i08}
 
 \leavevmode\hypertarget{ref-Efraimidis_2006}{}%
-Efraimidis, P. S., \& Spirakis, P. G. (2006). Weighted random sampling
-with a reservoir. \emph{Information Processing Letters}, \emph{97}(5),
-181--185. \url{https://doi.org/10.1016/j.ipl.2005.11.003}
+Efraimidis, P. S., \& Spirakis, P. G. (2006). Weighted random sampling with a reservoir. \emph{Information Processing Letters}, \emph{97}(5), 181--185. \url{https://doi.org/10.1016/j.ipl.2005.11.003}
 
 \leavevmode\hypertarget{ref-Escalona_2016}{}%
-Escalona, M., Rocha, S., \& Posada, D. (2016). A comparison of tools for
-the simulation of genomic next-generation sequencing data. \emph{Nature
-Reviews Genetics}, \emph{17}(8), 459--469.
-\url{https://doi.org/10.1038/nrg.2016.57}
+Escalona, M., Rocha, S., \& Posada, D. (2016). A comparison of tools for the simulation of genomic next-generation sequencing data. \emph{Nature Reviews Genetics}, \emph{17}(8), 459--469. \url{https://doi.org/10.1038/nrg.2016.57}
+
+\leavevmode\hypertarget{ref-Escalona_2018}{}%
+Escalona, M., Rocha, S., \& Posada, D. (2018). NGSphy: Phylogenomic simulation of next-generation sequencing data. \emph{Bioinformatics}, \emph{34}(14), 2506--2507. \url{https://doi.org/10.1093/bioinformatics/bty146}
 
 \leavevmode\hypertarget{ref-Ewing_2010}{}%
-Ewing, G., \& Hermisson, J. (2010). MSMS: A coalescent simulation
-program including recombination, demographic structure and selection at
-a single locus. \emph{Bioinformatics}, \emph{26}(16), 2064--2065.
-\url{https://doi.org/10.1093/bioinformatics/btq322}
+Ewing, G., \& Hermisson, J. (2010). MSMS: A coalescent simulation program including recombination, demographic structure and selection at a single locus. \emph{Bioinformatics}, \emph{26}(16), 2064--2065. \url{https://doi.org/10.1093/bioinformatics/btq322}
 
 \leavevmode\hypertarget{ref-Felsenstein_1981}{}%
-Felsenstein, J. (1981). Evolutionary trees from DNA sequences: A maximum
-likelihood approach. \emph{Journal of Molecular Evolution},
-\emph{17}(6), 368--376. \url{https://doi.org/10.1007/bf01734359}
+Felsenstein, J. (1981). Evolutionary trees from DNA sequences: A maximum likelihood approach. \emph{Journal of Molecular Evolution}, \emph{17}(6), 368--376. \url{https://doi.org/10.1007/bf01734359}
 
 \leavevmode\hypertarget{ref-Fletcher_2009}{}%
-Fletcher, W., \& Yang, Z. (2009). INDELible: A flexible simulator of
-biological sequence evolution. \emph{Molecular Biology and Evolution},
-\emph{26}(8), 1879--1888. \url{https://doi.org/10.1093/molbev/msp098}
+Fletcher, W., \& Yang, Z. (2009). INDELible: A flexible simulator of biological sequence evolution. \emph{Molecular Biology and Evolution}, \emph{26}(8), 1879--1888. \url{https://doi.org/10.1093/molbev/msp098}
 
 \leavevmode\hypertarget{ref-Forner_2018}{}%
-Forner, K. (2018). \emph{RcppProgress: An interruptible progress bar
-with openmp support for c++ in r packages}. Retrieved from
-\url{https://CRAN.R-project.org/package=RcppProgress}
+Forner, K. (2018). \emph{RcppProgress: An interruptible progress bar with openmp support for c++ in r packages}. Retrieved from \url{https://CRAN.R-project.org/package=RcppProgress}
 
 \leavevmode\hypertarget{ref-Hasegawa_1985}{}%
-Hasegawa, M., Kishino, H., \& Yano, T.-a. (1985). Dating of the
-human-ape splitting by a molecular clock of mitochondrial DNA.
-\emph{Journal of Molecular Evolution}, \emph{22}(2), 160--174.
-\url{https://doi.org/10.1007/bf02101694}
+Hasegawa, M., Kishino, H., \& Yano, T.-a. (1985). Dating of the human-ape splitting by a molecular clock of mitochondrial DNA. \emph{Journal of Molecular Evolution}, \emph{22}(2), 160--174. \url{https://doi.org/10.1007/bf02101694}
 
 \leavevmode\hypertarget{ref-Hasegawa_1984}{}%
-Hasegawa, M., Yano, T.-a., \& Kishino, H. (1984). A new molecular clock
-of mitochondrial DNA and the evolution of hominoids. \emph{Proceedings
-of the Japan Academy, Series B}, \emph{60}(4), 95--98.
-\url{https://doi.org/10.2183/pjab.60.95}
+Hasegawa, M., Yano, T.-a., \& Kishino, H. (1984). A new molecular clock of mitochondrial DNA and the evolution of hominoids. \emph{Proceedings of the Japan Academy, Series B}, \emph{60}(4), 95--98. \url{https://doi.org/10.2183/pjab.60.95}
+
+\leavevmode\hypertarget{ref-Hayden_2019}{}%
+Hayden, N., \& Morgan, M. (2019). \emph{Rhtslib: HTSlib high-throughput sequencing library as an r package}.
 
 \leavevmode\hypertarget{ref-Huang_2011}{}%
-Huang, W., Li, L., Myers, J. R., \& Marth, G. T. (2011). ART: A
-next-generation sequencing read simulator. \emph{Bioinformatics},
-\emph{28}(4), 593--594.
-\url{https://doi.org/10.1093/bioinformatics/btr708}
+Huang, W., Li, L., Myers, J. R., \& Marth, G. T. (2011). ART: A next-generation sequencing read simulator. \emph{Bioinformatics}, \emph{28}(4), 593--594. \url{https://doi.org/10.1093/bioinformatics/btr708}
 
 \leavevmode\hypertarget{ref-Hudson_2002}{}%
-Hudson, R. R. (2002). Generating samples under a wright-fisher neutral
-model of genetic variation. \emph{Bioinformatics}, \emph{18}(2),
-337--338. \url{https://doi.org/10.1093/bioinformatics/18.2.337}
+Hudson, R. R. (2002). Generating samples under a wright-fisher neutral model of genetic variation. \emph{Bioinformatics}, \emph{18}(2), 337--338. \url{https://doi.org/10.1093/bioinformatics/18.2.337}
 
 \leavevmode\hypertarget{ref-JC69}{}%
-Jukes, T. H., \& Cantor, C. R. (1969). Evolution of protein molecules.
-In H. N. Munro (Ed.), \emph{Mammalian protein metabolism} (Vol. 3, pp.
-21--131). New York: Academic Press.
+Jukes, T. H., \& Cantor, C. R. (1969). Evolution of protein molecules. In H. N. Munro (Ed.), \emph{Mammalian protein metabolism} (Vol. 3, pp. 21--131). New York: Academic Press.
 
 \leavevmode\hypertarget{ref-Kimura_1980}{}%
-Kimura, M. (1980). A simple method for estimating evolutionary rates of
-base substitutions through comparative studies of nucleotide sequences.
-\emph{Journal of Molecular Evolution}, \emph{16}(2), 111--120.
-\url{https://doi.org/10.1007/bf01731581}
+Kimura, M. (1980). A simple method for estimating evolutionary rates of base substitutions through comparative studies of nucleotide sequences. \emph{Journal of Molecular Evolution}, \emph{16}(2), 111--120. \url{https://doi.org/10.1007/bf01731581}
 
 \leavevmode\hypertarget{ref-Knaus_2016}{}%
-Knaus, B. J., \& Grünwald, N. J. (2016). VcfR: An r package to
-manipulate and visualize VCF format data. \emph{BioRxiv}. Retrieved from
-\url{http://dx.doi.org/10.1101/041277}
+Knaus, B. J., \& Grünwald, N. J. (2016). VcfR: An r package to manipulate and visualize VCF format data. \emph{BioRxiv}. Retrieved from \url{http://dx.doi.org/10.1101/041277}
 
 \leavevmode\hypertarget{ref-Knaus_2017}{}%
-Knaus, B. J., \& Grünwald, N. J. (2017). VCFR: A package to manipulate
-and visualize variant call format data in R. \emph{Molecular Ecology
-Resources}, \emph{17}(1), 44--53. Retrieved from
-\url{http://dx.doi.org/10.1111/1755-0998.12549}
+Knaus, B. J., \& Grünwald, N. J. (2017). VCFR: A package to manipulate and visualize variant call format data in R. \emph{Molecular Ecology Resources}, \emph{17}(1), 44--53. Retrieved from \url{http://dx.doi.org/10.1111/1755-0998.12549}
 
 \leavevmode\hypertarget{ref-Kronmal_1979}{}%
-Kronmal, R. A., \& Peterson, A. V. (1979). On the alias method for
-generating random variables from a discrete distribution. \emph{The
-American Statistician}, \emph{33}(4), 214--218.
-\url{https://doi.org/10.1080/00031305.1979.10482697}
+Kronmal, R. A., \& Peterson, A. V. (1979). On the alias method for generating random variables from a discrete distribution. \emph{The American Statistician}, \emph{33}(4), 214--218. \url{https://doi.org/10.1080/00031305.1979.10482697}
+
+\leavevmode\hypertarget{ref-Li_2009}{}%
+Li, H., Handsaker, B., Wysoker, A., Fennell, T., Ruan, J., Homer, N., \ldots{} and, R. D. (2009). The sequence alignment/map format and SAMtools. \emph{Bioinformatics}, \emph{25}(16), 2078--2079. \url{https://doi.org/10.1093/bioinformatics/btp352}
 
 \leavevmode\hypertarget{ref-Li_2011}{}%
-Li, X., Zhu, C., Lin, Z., Wu, Y., Zhang, D., Bai, G., \ldots{} Yu, J.
-(2011). Chromosome size in diploid eukaryotic species centers on the
-average length with a conserved boundary. \emph{Molecular Biology and
-Evolution}, \emph{28}(6), 1901--1911.
-\url{https://doi.org/10.1093/molbev/msr011}
+Li, X., Zhu, C., Lin, Z., Wu, Y., Zhang, D., Bai, G., \ldots{} Yu, J. (2011). Chromosome size in diploid eukaryotic species centers on the average length with a conserved boundary. \emph{Molecular Biology and Evolution}, \emph{28}(6), 1901--1911. \url{https://doi.org/10.1093/molbev/msr011}
+
+\leavevmode\hypertarget{ref-McTavish_2017}{}%
+McTavish, E. J., Pettengill, J., Davis, S., Rand, H., Strain, E., Allard, M., \& Timme, R. E. (2017). TreeToReads - a pipeline for simulating raw reads from phylogenies. \emph{BMC Bioinformatics}, \emph{18}(1). \url{https://doi.org/10.1186/s12859-017-1592-1}
 
 \leavevmode\hypertarget{ref-Metzker_2009}{}%
-Metzker, M. L. (2009). Sequencing technologies the next generation.
-\emph{Nature Reviews Genetics}, \emph{11}(1), 31--46.
-\url{https://doi.org/10.1038/nrg2626}
+Metzker, M. L. (2009). Sequencing technologies the next generation. \emph{Nature Reviews Genetics}, \emph{11}(1), 31--46. \url{https://doi.org/10.1038/nrg2626}
+
+\leavevmode\hypertarget{ref-Morgan_2018}{}%
+Morgan, M. (2018). \emph{Zlibbioc: An r packaged zlib-1.2.5}. Retrieved from \url{http://bioconductor.org/packages/release/bioc/html/Zlibbioc.html}
 
 \leavevmode\hypertarget{ref-Oneill_2014pcg}{}%
-O'Neill, M. E. (2014). \emph{PCG: a family of simple fast
-space-efficient statistically good algorithms for random number
-generation}. Claremont, CA: Harvey Mudd College.
+O'Neill, M. E. (2014). \emph{PCG: a family of simple fast space-efficient statistically good algorithms for random number generation}. Claremont, CA: Harvey Mudd College.
 
 \leavevmode\hypertarget{ref-Paradis_2018}{}%
-Paradis, E., \& Schliep, K. (2018). Ape 5.0: An environment for modern
-phylogenetics and evolutionary analyses in R. \emph{Bioinformatics},
-\emph{35}, 526--528.
+Paradis, E., \& Schliep, K. (2018). Ape 5.0: An environment for modern phylogenetics and evolutionary analyses in R. \emph{Bioinformatics}, \emph{35}, 526--528.
 
 \leavevmode\hypertarget{ref-Paul_R._Staab_2016}{}%
-Paul R. Staab, \& Dirk Metzler. (2016). Coala: An R framework for
-coalescent simulation. \emph{Bioinformatics}.
-\url{https://doi.org/10.1093/bioinformatics/btw098}
+Paul R. Staab, \& Dirk Metzler. (2016). Coala: An R framework for coalescent simulation. \emph{Bioinformatics}. \url{https://doi.org/10.1093/bioinformatics/btw098}
 
 \leavevmode\hypertarget{ref-Paul_R._Staab_2015}{}%
-Paul R. Staab, Sha Zhu, Dirk Metzler, \& Gerton Lunter. (2015). scrm:
-Efficiently simulating long sequences using the approximated coalescent
-with recombination. \emph{Bioinformatics}, \emph{31}(10), 1680--1682.
-Retrieved from
-\url{http://bioinformatics.oxfordjournals.org/content/31/10/1680}
+Paul R. Staab, Sha Zhu, Dirk Metzler, \& Gerton Lunter. (2015). scrm: Efficiently simulating long sequences using the approximated coalescent with recombination. \emph{Bioinformatics}, \emph{31}(10), 1680--1682. Retrieved from \url{http://bioinformatics.oxfordjournals.org/content/31/10/1680}
 
 \leavevmode\hypertarget{ref-R_Core_Team_2019}{}%
-R Core Team. (2019). \emph{R: a language and environment for statistical
-computing}. Vienna, Austria: R Foundation for Statistical Computing.
-Retrieved from \url{https://www.R-project.org/}
+R Core Team. (2019). \emph{R: a language and environment for statistical computing}. Vienna, Austria: R Foundation for Statistical Computing. Retrieved from \url{https://www.R-project.org/}
 
 \leavevmode\hypertarget{ref-St_cker_2016}{}%
-Stöcker, B. K., Köster, J., \& Rahmann, S. (2016). SimLoRD: Simulation
-of long read data. \emph{Bioinformatics}, \emph{32}(17), 2704--2706.
-\url{https://doi.org/10.1093/bioinformatics/btw286}
+Stöcker, B. K., Köster, J., \& Rahmann, S. (2016). SimLoRD: Simulation of long read data. \emph{Bioinformatics}, \emph{32}(17), 2704--2706. \url{https://doi.org/10.1093/bioinformatics/btw286}
+
+\leavevmode\hypertarget{ref-Sung_2016}{}%
+Sung, W., Ackerman, M. S., Dillon, M. M., Platt, T. G., Fuqua, C., Cooper, V. S., \& Lynch, M. (2016). Evolution of the insertion-deletion mutation rate across the tree of life. \emph{G3: Genes\(\vert\)Genomes\(\vert\)Genetics}, \emph{6}(8), 2583--2591. \url{https://doi.org/10.1534/g3.116.030890}
 
 \leavevmode\hypertarget{ref-TN93}{}%
-Tamura, K., \& Nei, M. (1993). Estimation of the number of nucleotide
-substitutions in the control region of mitochondrial dna in humans and
-chimpanzees. \emph{Molecular Biology and Evolution}, \emph{10}(3),
-512--526.
+Tamura, K., \& Nei, M. (1993). Estimation of the number of nucleotide substitutions in the control region of mitochondrial dna in humans and chimpanzees. \emph{Molecular Biology and Evolution}, \emph{10}(3), 512--526.
 
 \leavevmode\hypertarget{ref-Tavare_1986gtr}{}%
-Tavar\a'e, S. (1986). Some probabilistic and statistical problems in the
-analysis of DNA sequences. \emph{Lectures on Mathematics in the Life
-Sciences}, \emph{17}(2), 57--86.
+Tavar\a'e, S. (1986). Some probabilistic and statistical problems in the analysis of DNA sequences. \emph{Lectures on Mathematics in the Life Sciences}, \emph{17}(2), 57--86.
 
 \leavevmode\hypertarget{ref-Thorne_1992}{}%
-Thorne, J. L., Kishino, H., \& Felsenstein, J. (1992). Inching toward
-reality: an improved likelihood model of sequence evolution.
-\emph{Journal of Molecular Evolution}, \emph{34}(1), 3--16.
+Thorne, J. L., Kishino, H., \& Felsenstein, J. (1992). Inching toward reality: an improved likelihood model of sequence evolution. \emph{Journal of Molecular Evolution}, \emph{34}(1), 3--16.
 
 \leavevmode\hypertarget{ref-Vitter_1984}{}%
-Vitter, J. S. (1984). Faster methods for random sampling.
-\emph{Communications of the ACM}, \emph{27}(7), 703--718.
-\url{https://doi.org/10.1145/358105.893}
+Vitter, J. S. (1984). Faster methods for random sampling. \emph{Communications of the ACM}, \emph{27}(7), 703--718. \url{https://doi.org/10.1145/358105.893}
 
 \leavevmode\hypertarget{ref-Walker_1974}{}%
-Walker, A. (1974). New fast method for generating discrete random
-numbers with arbitrary frequency distributions. \emph{Electronics
-Letters}, \emph{10}(8), 127. \url{https://doi.org/10.1049/el:19740097}
+Walker, A. (1974). New fast method for generating discrete random numbers with arbitrary frequency distributions. \emph{Electronics Letters}, \emph{10}(8), 127. \url{https://doi.org/10.1049/el:19740097}
 
 \leavevmode\hypertarget{ref-Yang_2006}{}%
-Yang, Z. (2006). \emph{Computational molecular evolution}. New York, NY,
-USA: Oxford University Press.
-\url{https://doi.org/10.1093/acprof:oso/9780198567028.001.0001}
+Yang, Z. (2006). \emph{Computational molecular evolution}. New York, NY, USA: Oxford University Press. \url{https://doi.org/10.1093/acprof:oso/9780198567028.001.0001}
 
 \leavevmode\hypertarget{ref-Yang_1994}{}%
-Yang, Z. B. (1994). Estimating the pattern of nucleotide substitution.
-\emph{Journal of Molecular Evolution}, \emph{39}(1), 105--111.
+Yang, Z. B. (1994). Estimating the pattern of nucleotide substitution. \emph{Journal of Molecular Evolution}, \emph{39}(1), 105--111.
 
 
 \end{document}
