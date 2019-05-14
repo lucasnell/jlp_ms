@@ -11,10 +11,11 @@ setwd("~/GitHub/Wisconsin/jlp_ms/perf_tests")
 
 library(jackalope)
 
-fa_file <- "ref.fa"
-# ref <- create_genome(10, 100e3, len_sd = 10e3)
-# write_fasta(ref, fa_file)
+# set.seed(79807890)
+# ref <- create_genome(20, 100e3)
+# write_fasta(ref, "ref", overwrite = TRUE)
 
+fa_file <- "ref.fa"
 ref <- read_fasta(fa_file)
 
 #' 

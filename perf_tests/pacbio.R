@@ -11,21 +11,28 @@ setwd("~/GitHub/Wisconsin/jlp_ms/perf_tests")
 
 library(jackalope)
 
+nt <- 1
+comp <- FALSE
 fa_file <- "ref.fa"
-# ref <- create_genome(10, 100e3, len_sd = 10e3)
-# write_fasta(ref, fa_file)
+
+# set.seed(79807890)
+# ref <- create_genome(20, 100e3)
+# write_fasta(ref, "ref", overwrite = TRUE)
 
 ref <- read_fasta(fa_file)
 
 
-set.seed(1)
+set.seed(7890)
 
 fq_file <- "pacbio_out/pb"
 if (comp) fq_file <- paste0(fq_file, "_gz")
 
+t0 <- Sys.time()
 pacbio(ref, fq_file, n_reads = 10e3, overwrite = TRUE, 
        n_threads = nt, compress = comp)
+t1 <- Sys.time()
 
+t1 - t0
 
 
 #' CURRENT TIMES ----

@@ -1,7 +1,7 @@
 
-# Rscript ~/GitHub/Wisconsin/jlp_ms/perf_tests/seq-gen.R
+# Rscript ~/GitHub/Wisconsin/jlp_ms/perf_tests/speed_improvement.R
 
-nt <- 4
+nt <- 1
 # comp <- FALSE
 
 
@@ -14,28 +14,46 @@ library(jackalope)
 
 
 t0 <- Sys.time()
-ref <- create_genome(20, 1e6)
+ref <- create_genome(20, 100e3)
 t1 <- Sys.time()
-cat("Starting creating variants...\n")
-t2 <- Sys.time()
 vars <- create_variants(ref,
                         vars_gtrees(fn = "scrm.tree"),
-                        # mean mutation rate of 0.001:
-                        sub = sub_HKY85(rep(0.25, 4), 0.004, 0.006),
+                        sub = sub_JC69(0.1),
                         gamma_mats = site_var(ref, shape = 1, region_size = 100),
                         n_threads = nt, show_progress = TRUE)
-t3 <- Sys.time()
-
-# t4 <- Sys.time()
+t2 <- Sys.time()
 # write_fasta(vars, "seq-gen_out/vars", compress = comp,
 #             overwrite = TRUE, n_threads = nt)
-# t5 <- Sys.time()
+# t3 <- Sys.time()
 
-cat(sprintf("ref: %.3g secs\n", as.numeric(difftime(t1, t0, units = "secs"))))
-cat(sprintf("vars: %.3g secs\n", as.numeric(difftime(t3, t2, units = "secs"))))
+# cat(sprintf("ref: %.3g secs\n", as.numeric(difftime(t1, t0, units = "secs"))))
+cat(sprintf("vars: %.3g secs\n", as.numeric(difftime(t2, t1, units = "secs"))))
 # cat(sprintf("fasta: %.3g secs\n", as.numeric(difftime(t3, t2, units = "secs"))))
 
 # 1 thread, 20 x 10e6 genome: 
 # 4 threads, 20 x 10e6 genome:
 
-# 4 threads, 20 x 100e6 genome: 7 GB, 
+
+
+#' To start out (20 x 100e3 genome):
+#' --- 1 threads ...
+#' vars: 273 secs
+#' 
+#' --- 4 threads ...
+#' vars: 136 secs
+#' 
+#' 
+#' With a chunk size of 1
+#' --- 1 threads ...
+#' vars: 46.4 secs
+#' 
+#' With uniform location sampling:
+#' --- 1 threads ...
+#' vars: 48 secs
+#' 
+#' --- 4 threads ...
+#' vars: 23.2 secs
+#' 
+
+
+
