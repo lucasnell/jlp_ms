@@ -46,8 +46,8 @@ expectations.
 ## Testing mismatches and quality scores:
 
 
-```{r illumina-prof_pred_sourceCpp}
-
+```{r illumina-prof-pred-sourceCpp}
+set.seed(94861548)
 Rcpp::sourceCpp("supp/diagnostics-illumina.cpp")
 
 # Profile I'll be using
@@ -75,17 +75,18 @@ Mismatches and quality scores are simulated the same as in ART.
 First, qualities profiles indicate the frequency of quality scores by position on read.
 Then, the probability of a mismatch for quality $q$ is $10^{- q / 10}$.
 I am testing the accuracy of the output from `illumina` by starting with a
-reference genome consisting of 4 sequences, each containing only a single nucleotide.
-Then I simulated 100-bp reads from the HiSeq 2500 platform ten times.
+reference genome consisting of 4 sequences, each containing a single nucleotide
+repeated 100,000 times.
+Then I simulated 100,000 100-bp reads from the HiSeq 2500 platform ten times.
 Reads were matched with the sequence they derived from based on which nucleotide
-comprises the majority of the read.
+comprised the majority of the read.
 I counted mismatches as nucleotides that differ from the majority nucleotide.
 Qualities are directly measured from the output FASTQ.
 Both mismatches and qualities are aggregated by their position on the read,
 and compared to expectations as calculated from the profile file.
 
 
-```{r illumina-test_mm_quals}
+```{r illumina-test-mm-quals}
 bases <- c("T", "C", "A", "G")
 
 # 1 sequence of length 100e3
@@ -116,7 +117,7 @@ ill_plot1_cap <- paste("The proportion of reads derived from each reference geno
 ```
 
 
-```{r illumina-test_mm_qual_plots1, fig.height=3, fig.width=5, fig.cap=ill_plot1_cap}
+```{r illumina-test-mm-qual-plots1, fig.height=3, fig.width=5, fig.cap=ill_plot1_cap}
 # Should be ~0.25 each:
 map_dfr(1:10, function(i) tibble(x = 1:4, y = map_dbl(1:4, ~ mean(nts[[i]] == .x)))) %>% 
     mutate(x = factor(x, levels = 1:4, labels = rg$names())) %>% 
@@ -130,7 +131,7 @@ map_dfr(1:10, function(i) tibble(x = 1:4, y = map_dbl(1:4, ~ mean(nts[[i]] == .x
 ```
 
 
-```{r illumina_test_mm_qual_plots2_cap}
+```{r illumina-test-mm-qual-plots2-cap}
 ill_plot2_cap <- paste("Observed versus predicted quality scores for each nucleotide.",
                        "The dashed lines are the 1-to-1 lines.",
                        "Each point represents the number of times a quality score",
@@ -139,7 +140,7 @@ ill_plot2_cap <- paste("Observed versus predicted quality scores for each nucleo
 ```
 
 
-```{r illumina-test_mm_qual_plots2, fig.width=5.5, fig.height=5, fig.cap=ill_plot2_cap}
+```{r illumina-test-mm-qual-plots2, fig.cap=ill_plot2_cap, fig.height=5, fig.width=5.5}
 #'
 #' Looking at mapping qualities as predicted by position on read and
 #' starting nucleotide
@@ -174,7 +175,6 @@ qbp_df %>%
     ggplot(aes(log(pred_count), log(count))) +
     geom_point(alpha = 0.25, shape = 1) +
     geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
-    theme_classic() +
     theme(strip.background = element_blank(),
           strip.text = element_text(face = "bold", size = 12)) +
     facet_wrap(~ nucleo, nrow = 2) +
@@ -192,14 +192,14 @@ qbp_df %>%
 
 
 
-```{r illumina-test_mm_qual_plots3_cap}
+```{r illumina-test-mm-qual-plots3-cap}
 ill_plot3_cap <- paste("Observed versus predicted mismatches.",
                        "The dashed line is the 1-to-1 line.",
                        "Each point represents the number of mismatches",
                        "for a given quality, for each of the 10 simulations.")
 ```
 
-```{r illumina-test_mm_qual_plots3, fig.width=4.25, fig.height=4, fig.cap=ill_plot3_cap}
+```{r illumina-test-mm-qual-plots3, fig.cap=ill_plot3_cap}
 #'
 #' Now looking at mismatches as predicted by quality:
 #'
@@ -229,7 +229,6 @@ mmbq_df %>%
     scale_y_continuous("Observed mismatch count", breaks = log(10^(1:3)),
                        labels = 10^(1:3), 
                        limits = log(range(c(mmbq_df$mm, mmbq_df$mm_pred)))) +
-    theme_classic() +
   coord_equal()
 ```
 
@@ -244,7 +243,7 @@ mmbq_df %>%
 
 
 Indels are simulated the same as in ART, where there is a standard rate at which
-indels occurs that does not depend on the position on the read.
+indels occur that does not depend on the position on the read.
 I am testing the accuracy of the output from `illumina` by starting with a
 reference genome with many small (smaller than the read length), same-sized sequences.
 Then I simulated 100-bp reads using a fake profile with no mismatches.
@@ -256,7 +255,7 @@ read length, and the number of reads.
 
 
 
-```{r illumina-fake_ill_prof}
+```{r illumina-fake-ill-prof}
 # Making fake profile for no mismatches:
 profile_df <- crossing(nucleo = c("T", "C", "A", "G"),
                        pos = 0:99,
@@ -264,12 +263,11 @@ profile_df <- crossing(nucleo = c("T", "C", "A", "G"),
     arrange(nucleo, pos, qual)
 
 write_tsv(profile_df, path = paste0(dir, "test_prof.txt"), col_names = FALSE)
-read_tsv(paste0(dir, "test_prof.txt"))
 ```
 
 
 
-```{r illumina-indel_rates, fig.height=4, fig.width=4}
+```{r illumina-indel-rates}
 # 100e3 sequences of length 10
 seqs <- replicate(100e3, paste(rep("TA", 10 / 2), collapse = ""))
 
@@ -308,7 +306,7 @@ indel_rates_plot_cap <- paste("Observed versus predicted number of reads with in
 ```
 
 
-```{r illumina-indel_rates_plot, fig.height=4, fig.width=4, fig.cap=indel_rates_plot_cap}
+```{r illumina-indel-rates-plot, fig.cap=indel_rates_plot_cap}
 
 # Takes ~ 6 sec
 indel_df <- crossing(ins_prob = c(0, 10^(seq(-1,-4,length.out = 11))),
@@ -328,7 +326,6 @@ indel_df %>%
     scale_y_continuous("Observed indel count", limits = lims,
                        breaks = log(labs), labels = labs) +
     scale_color_brewer(NULL, palette = "Dark2") +
-    theme_classic() +
     theme(legend.position = c(0.3, 0.9)) +
     coord_equal()
 ```

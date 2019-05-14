@@ -30,8 +30,16 @@ dir <- paste0(tempdir(check = TRUE), "/")
 ```
 
 
+This tests that when creating variants, `jackalope` produces substitutions, indels,
+and among-site variation that fit expectations.
+It lastly checks that when simulating along a phylogeny, the number of 
+differences between individual variants is proportional to the phylogenetic distance
+between them.
+The reference genome used in this section is displayed below:
 
 ```{r mevo-simulate}
+
+set.seed(1087437799)
 
 # simulate ----
 
@@ -65,12 +73,9 @@ with(pars, {
     seqs <- sapply(seqs, paste, collapse = "")
 })
 
-
-set.seed(1087437799)
-
 # Make ref_genome object from a pointer to a RefGenome object based on `seqs`
 ref <- with(pars, ref_genome$new(jackalope:::make_ref_genome(seqs)))
-
+ref
 
 
 # For testing: just one individual at known sites
@@ -80,9 +85,85 @@ coal_obj$seg_sites <- map(coal_obj$seg_sites, ~ .x[1,.x[1,] > 0,drop=FALSE])
 
 
 
+
+
+## Substitution rates
+
+```{r illumina-sub-cap-inputs}
+# Phylogenetic tree:
+tree <- ape::rcoal(2)
+tree$edge.length <- tree$edge.length * 0.1
+
+Q <- sub_TN93(alpha_1 = pars$alpha_1,
+              alpha_2 = pars$alpha_2,
+              beta = pars$beta,
+              pi_tcag = pars$pi_tcag)
+
+ill_sub_cap <- paste("Observed versus predicted substitutions for simulation of",
+                     "2 variants along a phylogeny.")
+```
+
+This simulates just substitutions along a phylogeny of 2 variants, with
+a branch length of `r signif(tree$edge.length[1], 3)` and with the following
+substitution rate matrix:
+
+```{r mevo-sub-mat}
+prmatrix(Q$Q, digits = 3,
+         rowlab = paste("  ", c("T", "C", "A", "G")),
+         collab = c("T", "C", "A", "G"))
+```
+
+
+
+```{r mevo-sub-rates, fig.cap=ill_sub_cap}
+
+# Only substitutions
+var_set <- create_variants(ref, vars_phylo(tree),
+                           sub = Q)
+
+substitutions <- map(0:(pars$n_seqs-1),
+                     function(s) {
+                         Z <- jackalope:::examine_mutations(var_set_ptr = var_set$genomes,
+                                                     var_ind = 0, seq_ind = s) %>%
+                         .[["sub"]]
+                     return(Z)
+                 }) %>%
+    Reduce(f = `+`)
+# Predicted values:
+sub_pred <- sum(substitutions) * (Q$Q / sum(Q$Q))
+
+sub_df <- tibble(obs = c(substitutions[lower.tri(substitutions)],
+                         substitutions[upper.tri(substitutions)]),
+                 pred = c(sub_pred[lower.tri(sub_pred)],
+                          sub_pred[upper.tri(sub_pred)]))
+
+
+sub_df %>%
+    ggplot(aes(pred, obs)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
+    scale_x_continuous("Predicted substitution count") +
+    scale_y_continuous("Observed substitution count") +
+    coord_equal()
+```
+
+
+
 ## Indel rates
 
-```{r mevo-indels}
+In this section, I simulated everything the same except that I had no substitutions
+and indel rates were $> 0$.
+In the first set of simulations, the deletion rate was zero and 
+the insertion rate was `r pars$rates[1]`.
+In the second set, the insertion rate was zero and the deletion rate was
+`r pars$rates[2]`.
+```{r mevo-indels-caption}
+ind_cap <- paste("Observed versus predicted insertions (left) and deletions (right)",
+                 "for simulation of 2 variants along a phylogeny.")
+```
+
+
+```{r mevo-indels, fig.height=3, fig.width=6, fig.cap=ind_cap}
 # Function to calculate the expected proportion of mutations that are
 # insertions or deletions of a given size:
 indel_pred <- function(u, j, q_) {
@@ -136,17 +217,6 @@ ins_df <- tibble(pred = indel_pred(1:pars$M[1], 1, rates_) * sum(insertions),
                  obs = insertions)
 
 
-ins_p <- ins_df %>%
-    ggplot(aes(pred, obs)) +
-    geom_point() +
-    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
-    scale_x_continuous("Predicted insertion count") +
-    scale_y_continuous("Observed insertion count") +
-    theme_classic() + 
-    coord_equal()
-
-
-
 
 # --------------------*
 # Deletions ----
@@ -185,66 +255,34 @@ del_df <- tibble(pred = indel_pred(1:pars$M[2], 2, rates_) * sum(deletions),
                  obs = deletions)
 
 
+# ---------*
+# Plots
+# ---------*
+
+
+ins_p <- ins_df %>%
+    ggplot(aes(pred, obs)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
+    scale_x_continuous("Predicted insertion count") +
+    scale_y_continuous("Observed insertion count") +
+    coord_equal()
+
 del_p <- del_df %>%
     ggplot(aes(pred, obs)) +
     geom_point() +
     geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
     scale_x_continuous("Predicted deletion count") +
     scale_y_continuous("Observed deletion count") +
-    theme_classic() +
     coord_equal()
 
 
 
 grid.newpage()
-grid.draw(rbind(ggplotGrob(del_p), ggplotGrob(ins_p), size = "last"))
+grid.draw(cbind(ggplotGrob(ins_p), ggplotGrob(del_p), size = "last"))
 
 ```
 
-
-
-## Substitution rates
-
-```{r mevo-sub_rates}
-# Phylogenetic tree:
-tree <- ape::rcoal(2)
-tree$edge.length <- tree$edge.length * 0.1
-
-Q <- sub_TN93(alpha_1 = pars$alpha_1,
-              alpha_2 = pars$alpha_2,
-              beta = pars$beta,
-              pi_tcag = pars$pi_tcag)
-
-# Only substitutions
-var_set <- create_variants(ref, vars_phylo(tree),
-                           sub = Q)
-
-substitutions <- map(0:(pars$n_seqs-1),
-                     function(s) {
-                         Z <- jackalope:::examine_mutations(var_set_ptr = var_set$genomes,
-                                                     var_ind = 0, seq_ind = s) %>%
-                         .[["sub"]]
-                     return(Z)
-                 }) %>%
-    Reduce(f = `+`)
-# Predicted values:
-sub_pred <- sum(substitutions) * (Q$Q / sum(Q$Q))
-
-sub_df <- tibble(obs = c(substitutions[lower.tri(substitutions)],
-                         substitutions[upper.tri(substitutions)]),
-                 pred = c(sub_pred[lower.tri(sub_pred)],
-                          sub_pred[upper.tri(sub_pred)]))
-
-
-sub_df %>%
-    ggplot(aes(pred, obs)) +
-    geom_point() +
-    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
-    scale_x_continuous("Predicted substitution count") +
-    scale_y_continuous("Observed substitution count") +
-    theme_classic() +
-    coord_equal()
-```
 
 
 
@@ -252,19 +290,32 @@ sub_df %>%
 
 ## Among-site variation
 
+In this set of simulations, I had only substitutions because insertions and deletions
+cause more extreme changes in overall mutation rates for regions.
+I used the same substitution rate matrix as in the "Substitution rates" section.
+For among-site variability, I used 100 manually created, equally sized regions per
+sequence, each of which had its own "gamma distance" that should be proportional
+to the number of mutations that occurred within it.
+After the variants were created, I counted the number of mutations per region
+and related it to its gamma distance.
 
-```{r mevo-site-var}
-ref <- with(pars, ref_genome$new(jackalope:::make_ref_genome(seqs[1:4])))
 
+
+```{r mevo-site-var-cap}
+sv_cap <- paste("Observed versus predicted number of mutations that occurred in",
+                "each region, based on each region's gamma distance.",
+                "The dashed line is the 1-to-1 line.")
+```
+
+```{r mevo-site-var, fig.cap = sv_cap}
 # Only substitutions plus gammas
 Q <- sub_TN93(alpha_1 = pars$alpha_1,
               alpha_2 = pars$alpha_2, beta = pars$beta,
               pi_tcag = pars$pi_tcag)
 gm <- site_var(ref, mats = pars$mats[1:ref$n_seqs()])
-# Takes ~14 sec
+
 var_set <- create_variants(ref, vars_phylo(tree), sub = Q, 
-                           gamma_mats = gm,
-                           n_threads = 4)
+                           gamma_mats = gm)
 
 pos_df <- map_dfr(0:(ref$n_seqs()-1),
     function(s) {
@@ -291,11 +342,10 @@ gamm_df <- map_dfr(0:(ref$n_seqs()-1),
 
 gamm_df %>%
     ggplot(aes(pred, obs)) +
-    geom_point() +
+    geom_point(shape = 1, alpha = 0.25) +
     geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
     scale_x_continuous("Predicted mutation count") +
     scale_y_continuous("Observed mutation count") +
-    theme_classic() +
     coord_equal()
 ```
 
@@ -305,13 +355,46 @@ gamm_df %>%
 
 ## Phylogeny
 
-```{r mevo-phylogeny}
+
+For this section, I simulated 10 variants along the following phylogenetic tree:
+
+
+```{r mevo-phylogeny-phylo, fig.height=4, fig.width=6, fig.cap="Phylogeny of 10 simulated variants."}
 # Phylogenetic tree:
 set.seed(89415648)
 tree <- ape::rcoal(pars$n_vars)
 tree$edge.length <- tree$edge.length * 0.1
 
-ref <- with(pars, ref_genome$new(jackalope:::make_ref_genome(seqs[1:4])))
+mp_cap <- paste("Observed versus predicted numbers of unshared mutations",
+                "between", pars$n_vars, "variants created by simulating along",
+                "a phylogeny.",
+                "Each point represents the number of unshared mutations between",
+                "two variants for one of the", ref$n_seqs(), "sequences.",
+                "The dashed line is the 1-to-1 line.")
+
+plot(tree)
+```
+
+
+I used only substitutions in the simulations, to make matching mutations between
+variants more straightforward.
+
+I calculated the number of unshared mutations between variants $i$ and $j$ as
+the total number of mutations in variant $i$ minus the number of mutations shared
+between them.
+I did not also include the calculation using the total mutations for variant $j$
+since that was redundant (and does not change my conclusions).
+I then calculated the phylogenetic distances between them using the function
+`ape::cophenetic.phylo` and dividing the output by 2 to get the time since
+the most recent common ancestor.
+Next, I multipled these distances by the mean mutation rate (based on the
+substitution rate matrix) and the mean number of basepairs in each reference genome
+sequence.
+This gave me the predicted number of unshared mutations.
+
+
+
+```{r mevo-phylogeny-plot, fig.cap=mp_cap}
 # Only substitutions again
 Q <- sub_TN93(alpha_1 = pars$alpha_1,
               alpha_2 = pars$alpha_2, beta = pars$beta,
@@ -339,8 +422,8 @@ for (s in 1:(ref$n_seqs())) {
         for (j in (i+1):(pars$n_vars)) {
             muts1 <- mutations[[i]][[s]]
             muts2 <- mutations[[j]][[s]]
-            shared_muts[[s]][i,j] <- as.integer(sum(muts2 %in% muts1))
-            shared_muts[[s]][j,i] <- as.integer(sum(muts1 %in% muts2))
+            shared_muts[[s]][i,j] <- as.integer(sum(muts1 %in% muts2))
+            shared_muts[[s]][j,i] <- as.integer(sum(muts2 %in% muts1))
         }
     }
     diag(shared_muts[[s]]) <- sapply(mutations, function(x) length(x[[s]]))
@@ -369,25 +452,23 @@ phylo_dists <- phylo_dists / 2
 
 # Average mutation rate for ancestral sequences times total bp in each sequence:
 mu_ <- mean(jackalope:::create_mevo(ref, sub = Q, NULL, NULL, NULL, 100)$q()) *
-    mean(nchar(pars$seqs[1:4]))
+    mean(nchar(pars$seqs))
 
 # Expected mutational distances:
 pred_mut_dists <- mu_ * phylo_dists
 
 
 phy_df <- tibble(obs = lapply(mut_dists,
-                              function(x) c(x[lower.tri(x)], x[upper.tri(x)])) %>%
+                              function(x) x[lower.tri(x)]) %>%
                      do.call(what = c),
-                 pred = rep(c(pred_mut_dists[lower.tri(pred_mut_dists)],
-                              pred_mut_dists[upper.tri(pred_mut_dists)]),
+                 pred = rep(pred_mut_dists[lower.tri(pred_mut_dists)],
                             ref$n_seqs()))
 
 phy_df %>%
     ggplot(aes(pred, obs)) +
-    geom_point() +
+    geom_point(alpha = 0.5, shape = 1) +
     geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
-    scale_x_continuous("Predicted mutation count") +
-    scale_y_continuous("Observed mutation count") +
-    theme_classic() +
+    scale_x_continuous("Predicted unshared mutations count") +
+    scale_y_continuous("Observed unshared mutations count") +
     coord_equal()
 ```
