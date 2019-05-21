@@ -68,6 +68,15 @@ pred_df <- map_dfr(1:4,
                                })
                    })
 
+bases <- c("T", "C", "A", "G")
+
+# 1 sequence of length 100e3
+seq <- sapply(bases, function(nt) paste(rep(nt, 100e3), collapse = ""))
+
+# Make ref_genome object from a pointer to a RefGenome object based on `seqs`
+rg <- ref_genome$new(jackalope:::make_ref_genome(seq))
+
+
 ```
 
 
@@ -76,7 +85,14 @@ First, qualities profiles indicate the frequency of quality scores by position o
 Then, the probability of a mismatch for quality $q$ is $10^{- q / 10}$.
 I am testing the accuracy of the output from `illumina` by starting with a
 reference genome consisting of 4 sequences, each containing a single nucleotide
-repeated 100,000 times.
+repeated 100,000 times:
+
+```{r illumina-print-ref}
+rg
+```
+
+
+
 Then I simulated 100,000 100-bp reads from the HiSeq 2500 platform ten times.
 Reads were matched with the sequence they derived from based on which nucleotide
 comprised the majority of the read.
@@ -87,13 +103,6 @@ and compared to expectations as calculated from the profile file.
 
 
 ```{r illumina-test-mm-quals}
-bases <- c("T", "C", "A", "G")
-
-# 1 sequence of length 100e3
-seq <- sapply(bases, function(nt) paste(rep(nt, 100e3), collapse = ""))
-
-# Make ref_genome object from a pointer to a RefGenome object based on `seqs`
-rg <- ref_genome$new(jackalope:::make_ref_genome(seq))
 
 set.seed(78915)
 for (i in 1:10) {
@@ -245,13 +254,26 @@ mmbq_df %>%
 Indels are simulated the same as in ART, where there is a standard rate at which
 indels occur that does not depend on the position on the read.
 I am testing the accuracy of the output from `illumina` by starting with a
-reference genome with many small (smaller than the read length), same-sized sequences.
+reference genome with many small (smaller than the read length), same-sized sequences:
+
+```{r illumina-reference}
+# 100e3 sequences of length 10
+seqs <- replicate(100e3, paste(rep("TA", 10 / 2), collapse = ""))
+
+# Make ref_genome object from a pointer to a RefGenome object based on `seqs`
+rg <- ref_genome$new(jackalope:::make_ref_genome(seqs))
+
+rg
+```
+
+
+
 Then I simulated 100-bp reads using a fake profile with no mismatches.
 Indels were found when the read length differed from the sequence length,
 and because I tested insertions and deletions separately, there was no chance of
 multiple indels offsetting one another.
-The predicted number of reads with indels was simply the product of the indel rate,
-read length, and the number of reads.
+The predicted number of reads with at least one indel was simply the product of 
+the indel rate, read length, and number of reads.
 
 
 
@@ -268,13 +290,6 @@ write_tsv(profile_df, path = paste0(dir, "test_prof.txt"), col_names = FALSE)
 
 
 ```{r illumina-indel-rates}
-# 100e3 sequences of length 10
-seqs <- replicate(100e3, paste(rep("TA", 10 / 2), collapse = ""))
-
-# Make ref_genome object from a pointer to a RefGenome object based on `seqs`
-rg <- ref_genome$new(jackalope:::make_ref_genome(seqs))
-
-
 
 indel_test <- function(.ins_prob, .del_prob) {
     stopifnot(.ins_prob == 0 | .del_prob == 0)

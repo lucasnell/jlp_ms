@@ -47,9 +47,16 @@ $$
 for read lengths $L \ge 50$, where $\delta = 10075.44$, $\mu = 9.79$,
 and $\sigma = 0.20$.
 
+I used the following reference genome:
+
+```{r pacbio-reference}
+set.seed(79164)
+rg <- create_genome(8, 100e3)
+rg
+```
+
 
 ```{r pacbio-read-lengths-cap}
-set.seed(79164)
 rl_cap <- paste("Read length distribution observed from 100,000 generated reads",
                 "(histogram; left y-axis), alongside the frequency distribution",
                 "as predicted for default parameters (dashed line; right y-axis).")
@@ -57,13 +64,7 @@ rl_cap <- paste("Read length distribution observed from 100,000 generated reads"
 
 
 ```{r pacbio-read-lengths, fig.height=3, fig.width=5, fig.cap=rl_cap}
-# 4 sequences of length 100e3
-seq <- sapply(c("T", "C", "A", "G"), function(nt) paste(rep(nt, 100e3), collapse = ""))
-
-# Make ref_genome object from a pointer to a RefGenome object based on `seqs`
-rg <- ref_genome$new(jackalope:::make_ref_genome(seq))
-
-pacbio(rg, out_prefix = paste0(dir, "test_pb"), n_reads = 10e3)
+pacbio(rg, out_prefix = paste0(dir, "test_pb"), n_reads = 10e3, overwrite = TRUE)
 
 fq <- readLines(paste0(dir, "test_pb_R1.fq"))
 read_lens <- nchar(fq[seq(2, length(fq), 4)])
@@ -85,14 +86,14 @@ tibble(obs = nchar(fq[seq(2, length(fq), 4)])) %>%
     ggplot(aes(obs)) +
     # geom_freqpoly(bins = 50, size = 1, color = "dodgerblue") +
     geom_histogram(bins = 50, fill = "dodgerblue", color = "gray70", size = 0.1) +
-    stat_function(fun = test_lens, args = list(mult = 6.5e6), color = "black",
+    stat_function(fun = test_lens, args = list(mult = 6.7e6), color = "black",
                   linetype = 2, size = 1) +
     theme(legend.position = c(0.75, 0.75),
           legend.text = element_text(size = 11)) +
     scale_color_brewer(NULL, palette = "Dark2") +
     # ggtitle("Read length distributions") +
     scale_y_continuous("Count",
-                       sec.axis = sec_axis(~./6.5e6, name = "Density")) +
+                       sec.axis = sec_axis(~./6.7e6, name = "Density")) +
     scale_x_continuous("Read length (kb)",
                        breaks = seq(0, 30e3, 10e3), labels = seq(0, 30, 10))
 ```
@@ -171,14 +172,14 @@ simulations.
 
 ```{r pacbio-write-reference, eval = FALSE}
 # I did this first for the SimLoRD simulations:
-write_fasta(rg, "perf_tests/diag_ref")
+write_fasta(rg, "supp/diag_ref")
 ```
 ```{bash pacbio-run-simlord, eval = FALSE}
 ## How I ran the SimLoRD simulations:
 conda activate base
 source activate simlord
 
-cd ~/GitHub/Wisconsin/jlp_ms/perf_tests
+cd ~/GitHub/Wisconsin/jlp_ms/supp
 
 simlord --read-reference diag_ref.fa -n 10000 --no-sam diag_pb_out
 ```

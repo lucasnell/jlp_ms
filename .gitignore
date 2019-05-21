@@ -12,3 +12,6 @@
 *.rds
 *.toc
 _supp_cache*
+_manuscript_cache*
+*.vcf
+*_out*

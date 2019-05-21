@@ -309,9 +309,9 @@ $endif$
 \usepackage{authblk,etoolbox}
 \renewcommand\Affilfont{\small}
 \makeatletter
-% patch \maketitle so that it doesn't center
-\patchcmd{\@maketitle}{center}{flushleft}{}{}
-\patchcmd{\@maketitle}{center}{flushleft}{}{}
+% % patch \maketitle so that it doesn't center
+% \patchcmd{\@maketitle}{center}{flushleft}{}{}
+% \patchcmd{\@maketitle}{center}{flushleft}{}{}
 
 % patch the patch by authblk so that the author block is flush left
 \def\maketitle{{%
@@ -322,7 +322,7 @@ $endif$
 \makeatother
 
 
-\providecommand{\subtitle}[1]{\Large\emph{#1}}
+\providecommand{\subtitle}[1]{\Huge{#1}}
 
 $if(title)$
 \title{

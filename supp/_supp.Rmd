@@ -1,11 +1,11 @@
 ---
 title: 'Supplementary Information for:'
-subtitle: "``jackelope: a swift, light-weight phylogenomic and high-throughput sequencing simulator''"
+subtitle: "jackelope: a swift, light-weight phylogenomic and high-throughput sequencing simulator"
 author:
     - name: Lucas A. Nell
       nums: "1"
 affil:
-    - name: University of Wisconsin--Madison
+    - name: Department of Integrative Biology, University of Wisconsin--Madison
       num: "1"
 fontsize: 12pt
 geometry: margin=1in,letterpaper
@@ -29,12 +29,13 @@ output:
         latex_engine: xelatex
         toc: yes
         toc_depth: 2
+        highlight: tango
 editor_options: 
   chunk_output_type: console
 ---
 
 
-```{r setup, include=FALSE, cache = FALSE}
+```{r setup, include=TRUE, echo=TRUE, cache = FALSE}
 suppressPackageStartupMessages({
   library(knitr)
   library(bookdown)
@@ -48,7 +49,6 @@ knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = 'quartz_pdf',
                       fig.height = 3, fig.width = 3.25, fig.align = "center",
                       message = FALSE, warning = FALSE)
 knitr::opts_knit$set(root.dir = normalizePath(".."))
-if (isTRUE(getOption('knitr.in.progress'))) knitr::knit_theme$set(knitr::knit_theme$get("acid"))
 if (!isTRUE(getOption('knitr.in.progress'))) {
     options("device" = "quartz")
     grDevices::graphics.off()
@@ -66,6 +66,9 @@ dir <- paste0(tempdir(check = TRUE), "/")
 This document provides diagnostics on creating variants, Illumina sequencing, and 
 Pacific Biosciences (PacBio) sequencing in `jackalope`.
 The overall conclusion is that the simulations work as expected.
+
+
+
 
 
 # Creating variants
