@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# time ~/GitHub/Wisconsin/jlp_ms/perf_tests/pacbio.sh
+# For 10,000 reads:
+# /usr/bin/time -l ~/GitHub/Wisconsin/jlp_ms/perf_tests/pacbio.sh 10
 
 cd ~/GitHub/Wisconsin/jlp_ms/perf_tests
 
@@ -8,7 +9,9 @@ cd ~/GitHub/Wisconsin/jlp_ms/perf_tests
 ## conda activate base
 ## source activate simlord
 
-simlord --read-reference ref.fa -n 10000 --no-sam pacbio_out/simlord
+nr=$(($1 * 1000))
+
+simlord --read-reference in_files/ref.fa -n $nr --no-sam pacbio_out/simlord
 
 
 # real	1m28.883s
