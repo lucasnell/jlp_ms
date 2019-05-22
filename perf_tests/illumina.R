@@ -1,11 +1,11 @@
 
 # For 100,000 reads on 4 threads:
-# /usr/bin/time -l Rscript ~/GitHub/Wisconsin/jlp_ms/perf_tests/illumina.R 100 4
+# /usr/bin/time -l Rscript ~/GitHub/Wisconsin/jlp_ms/perf_tests/illumina.R 1 4
 
 args  <- commandArgs(trailingOnly = TRUE)
 
 stopifnot(length(args) > 0)
-n_rds <- as.integer(args[1]) * 1e6L
+n_rds <- as.integer(args[1]) * 1e5L
 if (length(args) == 1) {
     nt <- 1
 } else nt <- as.integer(args[2])

@@ -359,7 +359,7 @@ gamm_df %>%
 For this section, I simulated 10 variants along the following phylogenetic tree:
 
 
-```{r mevo-phylogeny-phylo, fig.height=4, fig.width=6, fig.cap="Phylogeny of 10 simulated variants."}
+```{r mevo-phylogeny-phylo, fig.height=4, fig.width=5, fig.cap="Phylogeny of 10 simulated variants."}
 # Phylogenetic tree:
 set.seed(89415648)
 tree <- ape::rcoal(pars$n_vars)

@@ -30,5 +30,5 @@ scripts <- sapply(1:nrow(cmd_info), function(i) {
 
 writeLines(c("#!/usr/bin/env bash\n", "cd ~/GitHub/Wisconsin/jlp_ms/perf_tests\n",
              "i=1\n",
-             paste(scripts, collapse = "echo $i\n\ni=(($i + 1))\n")),
+             paste(scripts, collapse = "echo $i\n\ni=$(($i + 1))\n")),
            "seq-gen_scripts.sh")

@@ -213,7 +213,7 @@ pb_jlp <- tibble(qual = m_quals, len = read_lens) %>%
 # --------*
 # SimLoRD:
 # --------*
-fq <- readLines("perf_tests/diag_pb_out.fastq")
+fq <- readLines("supp/diag_pb_out.fastq")
 read_lens <- nchar(fq[seq(2, length(fq), 4)])
 
 quals <- fq[seq(4, length(fq), 4)]

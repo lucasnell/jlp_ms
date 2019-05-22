@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # For 100,000 total reads:
-# /usr/bin/time -l ~/GitHub/Wisconsin/jlp_ms/perf_tests/art.sh 100
+# /usr/bin/time -l ~/GitHub/Wisconsin/jlp_ms/perf_tests/art.sh 1
 
 cd ~/GitHub/Wisconsin/jlp_ms/perf_tests
 
-nr=$(($1 * 1000000))
+nr=$(($1 * 100000))
 # Because ART does it as # read pairs per sequence,
 # and jackalope does it as # total reads for all sequences (we have 20 sequences)
 nr=$(($nr / 40))

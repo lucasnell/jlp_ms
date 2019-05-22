@@ -35,7 +35,7 @@ editor_options:
 ---
 
 
-```{r setup, include=TRUE, echo=TRUE, cache = FALSE}
+```{r setup, include=FALSE, cache = FALSE}
 suppressPackageStartupMessages({
   library(knitr)
   library(bookdown)

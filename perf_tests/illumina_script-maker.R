@@ -1,7 +1,7 @@
 
 #'
 #' This file creates the file `illumina_scripts.sh` that has each iteration of
-#' both programs (with 1, 10, and 10 million reads, plus 1 and 4 threads for jackalope)
+#' both programs (with 0.1, 1, and 10 million reads, plus 1 and 4 threads for jackalope)
 #' run 10 times and in randomized order.
 #' Each run outputs a file that summarizes the time and memory used.
 #'
@@ -23,12 +23,12 @@ rownames(cmd_info) <- NULL
 
 scripts <- sapply(1:nrow(cmd_info), function(i) {
     .cmd <- paste(commands[[cmd_info$prog[i]]], cmd_info$nreads[i], cmd_info$threads[i])
-    .fn <- sprintf("illumina_out/runs/%s_%iMreads_%ithreads_rep%i.out", cmd_info$prog[i],
-                   cmd_info$nreads[i], cmd_info$threads[i], cmd_info$rep[i])
+    .fn <- sprintf("illumina_out/runs/%s_%.2gMreads_%ithreads_rep%i.out", cmd_info$prog[i],
+                   cmd_info$nreads[i]/10, cmd_info$threads[i], cmd_info$rep[i])
     sprintf("(/usr/bin/time -l %s) &> \\\n    %s\n", .cmd, .fn)
 })
 
 writeLines(c("#!/usr/bin/env bash\n", "cd ~/GitHub/Wisconsin/jlp_ms/perf_tests\n",
              "i=1\n",
-             paste(scripts, collapse = "echo $i\n\ni=(($i + 1))\n")),
+             paste(scripts, collapse = "echo $i\n\ni=$(($i + 1))\n")),
            "illumina_scripts.sh")
