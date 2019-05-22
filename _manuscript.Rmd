@@ -864,14 +864,12 @@ scaffolds by using a size threshold, and manually removed the sex chromosomes
 using the following code:
 
 ```{r examples-read-assembly-for-eval, eval = TRUE, echo = FALSE}
-ref <- read_fasta("examples/dmel-6.27.fasta.gz",
-                  cut_names = TRUE)
+ref <- read_fasta("examples/dmel-6.27.fasta.gz", cut_names = TRUE)
 ref$filter_seqs(1e6, method = "size")
 ref$rm_seqs(c("X", "Y"))
 ```
 ```{r examples-read-assembly-for-show}
-ref <- read_fasta("dmel-6.27.fasta.gz",
-                  cut_names = TRUE)
+ref <- read_fasta("dmel-6.27.fasta.gz", cut_names = TRUE)
 ref$filter_seqs(1e6, method = "size")
 ref$rm_seqs(c("X", "Y"))
 ```
@@ -1069,10 +1067,10 @@ one_seq <- function(size) {
               "-r 1", size,
               # 3 species with no ongoing migration:
               "-I 3", paste(rep("8", 3), collapse = " "), "0",
-              # Species 2 derived from 1 at time 1.0:
-              "-ej 1.0 2 1",  
-              # Species 3 derived from 2 at time 0.5:
-              "-ej 0.5 3 2"
+              # Species 3 derived from 1 (and 2) at time 1.0:
+              "-ej 1.0 3 1",
+              # Species 2 derived from 1 at time 0.5:
+              "-ej 0.5 2 1"
         ))
     return(sims$trees[[1]])
 }
@@ -1080,21 +1078,20 @@ one_seq <- function(size) {
 gtrees <- list(trees = lapply(ref$sizes(), one_seq))
 ```
 
-```{r examples-phylogeny-gtrees-create-variants, echo = FALSE, eval = TRUE, cache=TRUE}
+```{r examples-phylogeny-gtrees-create-variants, echo = FALSE, eval = TRUE}
 # Takes ~1.5 min
 vars <- create_variants(ref, vars_gtrees(gtrees),
                         sub, ins, del,
                         n_threads = 4)
 ```
 ```{r examples-phylogeny-gtrees-create-variants-for-show}
-vars <- create_variants(ref, vars_gtrees(gtrees),
-                        sub, ins, del)
+vars <- create_variants(ref, vars_gtrees(gtrees), sub, ins, del)
 ```
 
 
 This results in the following `variants` object:
 
-```{r examples-phylogeny-gtrees-variants-print, echo = FALSE, eval = TRUE, cache=TRUE}
+```{r examples-phylogeny-gtrees-variants-print, echo = FALSE, eval = TRUE}
 print(vars)
 ```
 
@@ -1102,11 +1099,29 @@ print(vars)
 To store mutation information by diploid sample, the `write_vcf` function writes
 the `variants` object to a VCF file.
 It assigns haplotypes to diploid samples using a matrix for the
-`sample_matrix` argument:
+`sample_matrix` argument, where each row represents the variants for a particular
+sample.
+Ploidy level is not limited by `jackalope`, so polyploidy is easily simulated
+by having more columns in the matrix.
+The matrix for this set of diploid samples might look something like this
+(only showing the first 5 rows below):
+
+```{r sample-matrix-example, echo = FALSE, eval = TRUE}
+samp_mat <- matrix(1:vars$n_vars(), ncol = 2, byrow = TRUE)
+{
+    print(samp_mat[1:5,])
+    cat("         ...\n")
+}
+```
+
+
+Using the matrix above assigns variants 1 and 2 to sample 1, variants 3 and 4 to
+sample 2, and so on.
+If the matrix is named `samp_mat`, we would use it to write the VCF file as follows:
 
 ```{r examples-phylogeny-write-vcf}
 write_vcf(vars, out_prefix = "var_gtrees",
-          sample_matrix = matrix(1:vars$n_vars(), ncol = 2, byrow = TRUE))
+          sample_matrix = samp_mat)
 ```
 
 
@@ -1114,10 +1129,8 @@ Now I can generate data for 1 flow cell of $2 \times 250$bp sequencing
 on an Illumina MiSeq v3.
 
 ```{r examples-phylogeny-gtrees-illumina}
-illumina(ref, out_prefix = "phylo_gtrees",
-         seq_sys = "MSv3",
-         read_length = 250,
-         n_reads = 50e6)
+illumina(ref, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
+         read_length = 250, n_reads = 50e6)
 ```
 
 
