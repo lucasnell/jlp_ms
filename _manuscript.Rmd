@@ -163,7 +163,7 @@ or species.
 `r citep("10.1186/s12859-017-1592-1")`, and
 `NGSphy` can generate sequences from multiple gene trees
 `r citep("10.1093/bioinformatics/bty146")`;
-both then generate Illumina reads.
+both generate Illumina reads.
 These pipelines are quite powerful and useful to those seeking to simulate
 HTS data under realistic evolutionary scenarios.
 However, both pipelines require the installation of multiple programs to use them,
@@ -1148,30 +1148,15 @@ Although it does not provide the in-built power of full pipelines like `NGSphy`,
 simulations using `jackalope` are much simpler to implement.
 Moreover, the flexibility of `jackalope` allows power users to manually
 provide inputs in many instances where the in-built functionality may not suffice.
-
-
 This package should inform research design for projects employing HTS,
 particularly those focusing on population genomics or phylogenomics.
 Output from `jackalope` will help develop more specific sequencing goals 
 in funding applications and estimate the power of a given sequencing design.
-Furthermore, `jackalope` can be used to test bioinformatic pipelines under assumptions of
-much more complex demographic histories than most current HTS simulation 
-platforms allow.
+Furthermore, `jackalope` can be used to test bioinformatic pipelines under 
+assumptions of much more complex evolutionary histories than most current HTS
+simulation platforms allow.
 
 
-
-
-
-<!-- ## Acknowledgements -->
-
-<!-- This research was performed using the compute resources and assistance of the -->
-<!-- UW--Madison Center For High Throughput Computing (CHTC) in the Department of -->
-<!-- Computer Sciences. -->
-<!-- The CHTC is supported by UW--Madison, the Advanced Computing Initiative, the -->
-<!-- Wisconsin Alumni Research Foundation, the Wisconsin Institutes for Discovery, -->
-<!-- and the National Science Foundation, and is an active member of the Open Science -->
-<!-- Grid, which is supported by the National Science Foundation and the U.S. Department -->
-<!-- of Energy's Office of Science. -->
 
 
 # References
