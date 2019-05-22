@@ -28,8 +28,6 @@ scripts <- sapply(1:nrow(cmd_info), function(i) {
     sprintf("(/usr/bin/time -l %s) &> \\\n    %s\n", .cmd, .fn)
 })
 
-# Finished through 76 last night:
-scripts <- scripts[77:length(scripts)]
 
 writeLines(c("#!/usr/bin/env bash\n", "cd ~/GitHub/Wisconsin/jlp_ms/perf_tests\n",
              "i=1\n",

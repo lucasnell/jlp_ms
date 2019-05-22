@@ -199,10 +199,6 @@ allow for parallel processing.
 <!-- (https://github.com/lucasnell/jackalope). -->
 
 
-<!-- ### Assembling a genome -->
-<!-- ### Estimating divergence between populations -->
-<!-- ### Constructing a phylogeny -->
-
 
 <!-- 4-6 keywords -->
 
@@ -597,14 +593,31 @@ FASTA files (for `jackalope`).
 `jackalope` was tested for 1 and 4 threads, but
 `Seq-Gen` for only 1 because it cannot use multiple threads.
 
-```{r variants-perf-test-inputs-caption, echo = FALSE, eval = TRUE}
+`jackalope` consistently outperforms `Seq-Gen` in terms of speed, and the effect
+of using 4 threads is most pronounced at the larger genome sizes
+(Figure \@ref(fig:variants-perf-test-plot)).
+This makes sense, since the overhead associated with multithreading becomes more
+worthwhile when there are more tasks to accomplish.
+Memory usage is greater in `jackalope` at low genome sizes due to the overhead
+associated with loading R:
+An R script that simply printed an empty string used $\sim 55$ MB memory, 
+and another that only loaded `jackalope` used $\sim 70$ MB.
+At the 20 Mb genome size, however, `jackalope` used slightly less memory than `Seq-Gen`,
+and for a 200 Mb genome size, `jackalope` used 38 \% less memory.
+
+
+```{r variants-perf-test-plot-caption, echo = FALSE, eval = TRUE}
 var_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
                       "\\texttt{Seq-Gen} in generating variants from a",
-                      "reference genome. In the legend, numbers inside parentheses",
-                      "indicate the number of threads used.")
+                      "reference genome.",
+                      "Sub-panels indicate the size of the genome from which",
+                      "variants were generated.",
+                      "Superscripts in the y-axis labels indicate",
+                      "the number of threads used.")
 ```
 
-```{r variants-perf-test-inputs, echo = FALSE, eval = TRUE, fig.width=80/25.4, fig.height=120/25.4, fig.cap=var_plot_cap}
+```{r variants-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=112/25.4, fig.cap=var_plot_cap}
+
 
 # one column, two-thirds page width, or two columns (80 mm, 112 mm, or 169 mm, respectively)
 
@@ -630,86 +643,104 @@ var_runs <- rbind(expand.grid(prog_ = "seqgen", gsize_ = c(2, 20, 200), threads_
     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
                           labels = paste(sort(unique(gsize)), "Mb")),
            type = paste(prog, threads, sep = "__"),
-           type = factor(type, levels = c("jackalope__1", "jackalope__4", "seqgen__1"),
-                         labels = c("jackalope (1)", "jackalope (4)", 
-                                    "Seq-Gen (1)")))
+           type = factor(type, levels = c("jackalope__4", "jackalope__1", "seqgen__1")))
+
+# # To look at the exact numbers:
+# var_runs %>% 
+#     group_by(gsize, threads, prog) %>% 
+#     summarize(sec = mean(sec), Mb = mean(Mb))
+
+# For jittering:
+set.seed(1283422021)
 
 var_time <- var_runs %>% 
-    ggplot(aes(1, sec)) +
+    ggplot(aes(type, sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
     geom_jitter(aes(fill = type), height = 0, width = 0.25, 
                 shape = 21, color = "gray40") +
     scale_y_continuous("Time taken (sec)", limits = c(0, NA)) +
-    facet_wrap(~ gsize, scales = "free_y") +
-    theme(axis.title.y = element_text(size = 11),
-          axis.text.y = element_text(size = 8),
-          axis.title.x = element_blank(),
-          axis.ticks.x = element_blank(),
-          axis.text.x = element_blank(),
-          legend.position = "top",
-          legend.text = element_text(size = 9, margin = margin(0,0,0, l = -8)),
-          legend.justification = 0.5,
-          strip.text = element_text(size = 10),
-          strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette) +
-    guides(fill = guide_legend(override.aes = list(size = 3))) +
-    NULL
-
-var_legend <- get_legend(var_time)
-
-var_time <- var_time + 
-    theme(legend.position = "none")
-
-var_mem <- var_runs %>% 
-    ggplot(aes(1, Mb)) +
-    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-    geom_jitter(aes(fill = type), height = 0, width = 0.25, 
-                shape = 21, color = "gray40") +
-    scale_y_continuous("Max memory used (MB)", limits = c(0, NA)) +
-    facet_wrap(~ gsize, scales = "free_y") +
-    theme(axis.title.y = element_text(size = 11),
-          axis.text.y = element_text(size = 8),
-          axis.title.x = element_blank(),
-          axis.ticks.x = element_blank(),
-          axis.text.x = element_blank(),
+    scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
+                                    expression("Seq-Gen"^1))) +
+    facet_wrap(~ gsize, scales = "free_x") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          axis.title.y = element_blank(),
+          plot.margin = margin(0, 0, 0, b = 6),
+          axis.text.y = element_text(color = "black", size = 11),
           legend.position = "none",
           strip.text = element_text(size = 10),
           strip.background = element_blank()) +
     scale_fill_manual(NULL, values = perf_palette) +
+    guides(fill = guide_legend(override.aes = list(size = 3))) +
+    coord_flip() +
     NULL
 
-var_plot <- plot_grid(var_legend, plot_grid(var_time, var_mem, ncol = 1,
-                                                  labels = letters[1:2]),
-                         rel_heights = c(0.1, 1), ncol = 1)
 
-ggsave("figs/Fig_2.pdf", var_plot, width = 80, height = 120, units = "mm")
+
+
+
+var_mem <- var_runs %>% 
+    ggplot(aes(type, Mb)) +
+    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
+    geom_jitter(aes(fill = type), height = 0, width = 0.25, 
+                shape = 21, color = "gray40") +
+    scale_y_continuous("Max memory used (MB)", limits = c(0, NA)) +
+    scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
+                                    expression("Seq-Gen"^1))) +
+    facet_wrap(~ gsize, scales = "free_x") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          axis.title.y = element_blank(),
+          plot.margin = margin(0, 0, 0, t = 6),
+          axis.text.y = element_text(color = "black", size = 11),
+          legend.position = "none",
+          strip.text = element_text(size = 10),
+          strip.background = element_blank()) +
+    scale_fill_manual(NULL, values = perf_palette) +
+    guides(fill = guide_legend(override.aes = list(size = 3))) +
+    coord_flip() +
+    NULL
+
+
+var_plot <- plot_grid(var_time, var_mem, ncol = 1)
+
+ggsave("figs/Fig_2.pdf", var_plot, width = 112, height = 112, units = "mm")
 
 var_plot
 ```
 
 
 
-### Illumina reads
+### Generating sequencing reads
 
-
-For Illumina read simulation, I compared `jackalope` to `ART`
-`r citep("10.1093/bioinformatics/btr708")`.
-The tests consisted of reading a 2 Mb genome from a FASTA file, simulating
-$2 \times 150$ reads from the HiSeq 2500 platform, and writing them to FASTQ files.
-There were separate tests for 100 thousand, 1 million, and 10 million total reads.
+For both Illumina and PacBio read generation in `jackalope`, I tested their performance
+in comparison to the programs they were based on: 
+`ART` `r citep("10.1093/bioinformatics/btr708")` and
+`SimLoRD` `r citep("10.1093/bioinformatics/btw286")`, respectively.
+All these tests consisted of reading a 2 Mb genome from a FASTA file, simulating
+reads, and writing them to FASTQ files.
+For Illumina sequencing, these were $2 \times 150$ reads from the HiSeq 2500 platform,
+and tests were conducted for 100 thousand, 1 million, and 10 million total reads.
+For PacBio sequencing, these were reads generated using default parameters,
+and tests were conducted for 1, 10, and 100 thousand total reads.
 `jackalope` was tested for 1 and 4 threads, but
-`ART` could only be tested for 1.
+neither `ART` nor `SimLoRD` allowed the use of more than 1.
 
 
 
-```{r variants-perf-test-inputs-caption, echo = FALSE, eval = TRUE}
-ill_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
-                      "\\texttt{ART} in generating Illumina reads.",
-                      "In the legend, numbers inside parentheses",
-                      "indicate the number of threads used.")
-```
+Again, `jackalope` outperformed both `ART` and `SimLoRD` in terms of speed
+(Figure \@ref(fig:sequencing-perf-test-plot)).
+Using multiple threads was most useful when many reads were generated:
+For at least 10M Illumina reads and at least 1M PacBio reads, using 4 threads
+reduced the time taken for jobs by $\sim$ 50 \%.
+All three programs used very little memory, and the amount did not depend strongly
+on the number of reads generated.
+`ART` used 9.4 MB and `SimLoRD` used 54.0--61.2 MB.
+`jackalope` used 76.5--79.4 MB for Illumina reads and 101.3--110.1 MB for PacBio reads.
 
-```{r illumina-perf-test-inputs, echo = FALSE, eval = TRUE, fig.width=80/25.4, fig.height=120/25.4, fig.cap=ill_plot_cap}
+
+
+```{r illumina-perf-test-sub-plot, echo = FALSE, eval = TRUE}
 
 # one column, two-thirds page width, or two columns (80 mm, 112 mm, or 169 mm, respectively)
 
@@ -737,86 +768,49 @@ ill_runs <- bind_rows(crossing(prog = "art", nreads = c(0.1, 1, 10), threads = 1
                                threads = c(1,4), rep = 1:n_reps)) %>% 
     as.list() %>% 
     {pmap_dfr(., one_run)} %>% 
-    mutate(nreads = factor(nreads, levels = sort(unique(nreads))),
+    mutate(nreads = factor(nreads, levels = sort(unique(nreads)),
+                           labels = c("100k", "1M", "10M")),
            type = paste(prog, threads, sep = "__"),
-           type = factor(type, levels = c("jackalope__1", "jackalope__4", "art__1"),
-                         labels = c("jackalope (1)", "jackalope (4)", 
-                                    "ART (1)")))
+           type = factor(type, levels = c("jackalope__4", "jackalope__1", "art__1")))
+
+
+# # To look at the exact numbers:
+# ill_runs %>% 
+#     group_by(nreads, threads, prog) %>% 
+#     summarize(sec = mean(sec), Mb = mean(Mb))
+
+
+
+
+# For jittering:
+set.seed(1266364465)
 
 ill_time <- ill_runs %>%
-    filter(!is.na(sec)) %>% 
-    ggplot(aes(1, sec)) +
+    ggplot(aes(type, sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
     geom_jitter(aes(fill = type), height = 0, width = 0.25, 
                 shape = 21, color = "gray40") +
     scale_y_continuous("Time taken (sec)", limits = c(0, NA)) +
-    facet_wrap(~ nreads, scales = "free_y") +
-    theme(axis.title.y = element_text(size = 11),
-          axis.text.y = element_text(size = 8),
-          axis.title.x = element_blank(),
-          axis.ticks.x = element_blank(),
-          axis.text.x = element_blank(),
-          legend.position = "top",
-          legend.text = element_text(size = 9, margin = margin(0,0,0, l = -8)),
-          legend.justification = 0.5,
-          strip.text = element_text(size = 10),
-          strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette) +
-    guides(fill = guide_legend(override.aes = list(size = 3))) +
-    NULL
-
-ill_legend <- get_legend(ill_time)
-
-ill_time <- ill_time + 
-    theme(legend.position = "none")
-
-ill_mem <- ill_runs %>% 
-    filter(!is.na(Mb)) %>% 
-    ggplot(aes(1, Mb)) +
-    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-    geom_jitter(aes(fill = type), height = 0, width = 0.25, 
-                shape = 21, color = "gray40") +
-    scale_y_continuous("Max memory used (MB)", limits = c(0, NA)) +
-    facet_wrap(~ nreads, scales = "free_y") +
-    theme(axis.title.y = element_text(size = 11),
-          axis.text.y = element_text(size = 8),
-          axis.title.x = element_blank(),
-          axis.ticks.x = element_blank(),
-          axis.text.x = element_blank(),
+    scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
+                                    expression("ART"^1))) +
+    facet_wrap(~ nreads, scales = "free_x") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          axis.title.y = element_blank(),
+          plot.margin = margin(0, 0, 0, b = 6),
+          axis.text.y = element_text(color = "black", size = 11),
           legend.position = "none",
           strip.text = element_text(size = 10),
           strip.background = element_blank()) +
     scale_fill_manual(NULL, values = perf_palette) +
+    guides(fill = guide_legend(override.aes = list(size = 3))) +
+    coord_flip() +
     NULL
-
-ill_plot <- plot_grid(ill_legend, plot_grid(ill_time, ill_mem, ncol = 1,
-                                                  labels = letters[1:2]),
-                         rel_heights = c(0.1, 1), ncol = 1)
-
-# ggsave("figs/Fig_3.pdf", ill_plot, width = 80, height = 120, units = "mm")
-
-ill_plot
 ```
 
 
-### PacBio reads
 
-I compared PacBio read simulation to SimLoRD `r citep("10.1093/bioinformatics/btw286")`.
-I tested them by having them read a 2 Mb genome from a FASTA file, simulate
-PacBio reads using default parameters, and writing them to FASTQ files.
-There were separate tests for 1, 10 and 100 thousand total reads.
-`jackalope` was tested for 1 and 4 threads, but
-`SimLoRD` could only be tested for 1.
-
-
-```{r pacbio-perf-test-inputs-caption, echo = FALSE, eval = TRUE}
-pb_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
-                      "\\texttt{SimLoRD} in generating PacBio reads.",
-                      "In the legend, numbers inside parentheses",
-                      "indicate the number of threads used.")
-```
-
-```{r illumina-perf-test-inputs, echo = FALSE, eval = TRUE, fig.width=80/25.4, fig.height=120/25.4, fig.cap=pb_plot_cap}
+```{r pacbio-perf-test-sub-plot, echo = FALSE, eval = TRUE}
 
 # one column, two-thirds page width, or two columns (80 mm, 112 mm, or 169 mm, respectively)
 
@@ -844,6 +838,13 @@ one_run <- function(prog_, nreads_, threads_, rep_) {
     return(.df)
 }
 
+
+# # To look at the exact numbers:
+# pb_runs %>% 
+#     group_by(nreads, threads, prog) %>% 
+#     summarize(sec = mean(sec), Mb = mean(Mb))
+
+
 n_reps <- 10
 pb_runs <- bind_rows(crossing(prog = "simlord", nreads = c(1, 10, 100), threads = 1,
                                rep = 1:n_reps),
@@ -851,68 +852,58 @@ pb_runs <- bind_rows(crossing(prog = "simlord", nreads = c(1, 10, 100), threads 
                                threads = c(1,4), rep = 1:n_reps)) %>% 
     as.list() %>% 
     {pmap_dfr(., one_run)} %>% 
-    mutate(nreads = factor(nreads, levels = sort(unique(nreads))),
+    mutate(nreads = factor(nreads, levels = sort(unique(nreads)),
+                           labels = paste0(sort(unique(nreads)), "k")),
            type = paste(prog, threads, sep = "__"),
-           type = factor(type, levels = c("jackalope__1", "jackalope__4", "simlord__1"),
-                         labels = c("jackalope (1)", "jackalope (4)", 
-                                    "SimLoRD (1)")))
+           type = factor(type, levels = c("jackalope__4", "jackalope__1", "simlord__1")))
+
+# For jittering:
+set.seed(1101201550)
+
 
 pb_time <- pb_runs %>%
-    filter(!is.na(sec)) %>% 
-    ggplot(aes(1, sec)) +
+    ggplot(aes(type, sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
     geom_jitter(aes(fill = type), height = 0, width = 0.25, 
                 shape = 21, color = "gray40") +
     scale_y_continuous("Time taken (sec)", limits = c(0, NA)) +
-    facet_wrap(~ nreads, scales = "free_y") +
-    theme(axis.title.y = element_text(size = 11),
-          axis.text.y = element_text(size = 8),
-          axis.title.x = element_blank(),
-          axis.ticks.x = element_blank(),
-          axis.text.x = element_blank(),
-          legend.position = "top",
-          legend.text = element_text(size = 9, margin = margin(0,0,0, l = -8)),
-          legend.justification = 0.5,
-          strip.text = element_text(size = 10),
-          strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette) +
-    guides(fill = guide_legend(override.aes = list(size = 3))) +
-    NULL
-
-
-
-pb_legend <- get_legend(pb_time)
-
-pb_time <- pb_time + 
-    theme(legend.position = "none")
-
-
-pb_mem <- pb_runs %>%
-    filter(!is.na(Mb)) %>% 
-    ggplot(aes(1, Mb)) +
-    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-    geom_jitter(aes(fill = type), height = 0, width = 0.25, 
-                shape = 21, color = "gray40") +
-    scale_y_continuous("Max memory used (MB)", limits = c(0, NA)) +
-    facet_wrap(~ nreads, scales = "free_y") +
-    theme(axis.title.y = element_text(size = 11),
-          axis.text.y = element_text(size = 8),
-          axis.title.x = element_blank(),
-          axis.ticks.x = element_blank(),
-          axis.text.x = element_blank(),
+    scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
+                                    expression("SimLoRD"^1))) +
+    facet_wrap(~ nreads, scales = "free_x") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          axis.title.y = element_blank(),
+          plot.margin = margin(0, 0, 0, t = 6),
+          axis.text.y = element_text(color = "black", size = 11),
           legend.position = "none",
           strip.text = element_text(size = 10),
           strip.background = element_blank()) +
     scale_fill_manual(NULL, values = perf_palette) +
+    guides(fill = guide_legend(override.aes = list(size = 3))) +
+    coord_flip() +
     NULL
 
-pb_plot <- plot_grid(pb_legend, plot_grid(pb_time, pb_mem, ncol = 1,
-                                                  labels = letters[1:2]),
-                         rel_heights = c(0.1, 1), ncol = 1)
+```
 
-# ggsave("figs/Fig_4.pdf", pb_plot, width = 80, height = 120, units = "mm")
 
-pb_plot
+
+```{r sequencing-perf-test-plot-caption, echo = FALSE, eval = TRUE}
+seq_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
+                      "(A) \\texttt{ART} in generating Illumina reads and",
+                      "(B) \\texttt{SimLoRD} in generating PacBio reads.",
+                      "Sub-panels indicate the number of reads generated.",
+                      "Superscripts in the y-axis labels indicate",
+                      "the number of threads used.")
+```
+
+```{r sequencing-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=112/25.4, fig.cap=seq_plot_cap}
+
+seq_plot <- plot_grid(ill_time, pb_time, ncol = 1, labels = LETTERS[1:2],
+                      label_fontface = "plain")
+
+ggsave("figs/Fig_3.pdf", seq_plot, width = 112, height = 112, units = "mm")
+
+seq_plot
 ```
 
 
