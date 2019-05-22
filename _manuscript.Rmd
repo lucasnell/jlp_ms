@@ -58,12 +58,6 @@ old_ref <- function(key, parenth = TRUE) {
         citet(bibtex::read.bib(file = 'old_refs.bib')[key])
     }
 }
-no_auth <- function(key) gsub("@", "-@", key)
-old_new <- function(old, new) {
-    old_ <- old_ref(old)
-    new_ <- citep(new)
-    paste(gsub("\\]", "", old_), gsub("\\[", "", new_), sep = "; ")
-}
 # Sort citations as they'll appear in the in-text citation: by year, then name
 sort_cit <- function(citation) {
     split_cit <- {str_split(citation, "; ")[[1]]} %>%
@@ -83,17 +77,6 @@ prefix <- function(pre, citation) {
     output <- sprintf(fmt = "[%s %s]", pre, sorted_cit)
     return(output)
 }
-suffix <- function(citation, suf) {
-    sorted_cit <- sort_cit(citation)
-    output <- sprintf(fmt = "[%s %s]", sorted_cit, suf)
-    return(output)
-}
-prefix_suffix <- function(pre, citation, suf) {
-    sorted_cit <- sort_cit(citation)
-    output <- sprintf(fmt = "[%s %s %s]", pre, sorted_cit, suf)
-    return(output)
-}
-
 # Allows you to specify the title yourself for calls to `citation` inside `citep`
 keep_title <- function(pkg_name, set_title = NULL, index = NULL) {
     z <- citation(pkg_name)
@@ -105,88 +88,36 @@ keep_title <- function(pkg_name, set_title = NULL, index = NULL) {
     }
     return(citep(z))
 }
-
-# Function to print data frames for LaTeX output using booktabs package
-pretty_df <- function(df_, caption = NULL, edit_nums = FALSE) {
-    edit_nums_fxn <- function(.df){
-        .df %>%
-            mutate_if(is.numeric,
-                      function(x) {
-                          x %>% sprintf(fmt = '%.4g') %>%
-                              sapply(., parse_scinot)
-                      })
-    }
-    if (edit_nums) {
-        if (is(df_, 'list')) {
-            df_ <- lapply(df_, edit_nums_fxn)
-        } else {
-            df_ <- edit_nums_fxn(df_)
-        }
-    }
-    kable_obj <- knitr::kable(df_, format = 'latex', booktabs = TRUE,
-                              caption = caption, escape = FALSE)
-    kable_str <- unlist(str_split(kable_obj, '\n'))
-    kable_str <- kable_str[kable_str != "\\addlinespace"]
-    for (i in 1:(length(kable_str)-1)) {
-        if (grepl('^ &', kable_str[i]) & !grepl('^ &', kable_str[(i+1)]) &
-            !grepl('^\\bottomrule', kable_str[(i+1)])) {
-            kable_str[i] <- str_c(kable_str[i], "\n", "\\addlinespace")
-        }
-    }
-    new_kable_str <- str_c(kable_str, collapse = '\n')
-    kable_obj[1] <- new_kable_str
-    return(kable_obj)
-}
-
-# Removes "e+X" or "e-X" (X is a 2-character number like "04" or "22"), converts to
-# "2 \times 10^Z" for LaTeX (Z is a normal number like "4" or "-22")
-pretty_num <- function(num, sigfigs = 2) {
-    
-    nstr <- sprintf(fmt = paste0("%.",sigfigs,"g"), num)
-    
-    if (str_detect(nstr, 'e-0')) {
-        nstr <- str_replace(nstr, "e-0", " \\\\times 10^\\{-") %>% str_c("}")
-    } else if (str_detect(nstr, 'e-')) {
-        nstr <- str_replace(nstr, "e-", " \\\\times 10^\\{-") %>% str_c("}")
-    } else if (str_detect(nstr, 'e\\+0')) {
-        nstr <- str_replace(nstr, "e\\+0", " \\\\times 10^")
-    } else if (str_detect(nstr, 'e\\+')) {
-        nstr <- str_replace(nstr, "e\\+", " \\\\times 10^")
-    }
-    return(nstr)
-}
 ```
 
 
 ## Abstract
 
-High-throughput sequencing (HTS) is central to the study of population genomics.
+High-throughput sequencing (HTS) is central to the study of population genomics
+and has an increasingly important role in constructing phylogenies.
 Choices in sampling design for sequencing projects can include 
-sequencing platform, depth of coverage, and number of individuals to sample.
+a wide range of factors, including sequencing platform, depth of coverage, and
+bioinformatic tools.
 These choices are most often informed by previous work on highly diverged species, 
-which ignores species- and population-specific genomic characteristics, demographies, 
+which ignores species- and population-specific genomic characteristics
 and evolutionary histories.
-Simulating sequencing based on available genomic data better informs sampling
-strategies.
-
-However, current methods provide only rudimentary ways to simulate population
-histories.
-More recent pipelines have been developed that can simulate complex evolutionary 
-
-
-Here I present the R package `jackalope` that efficiently 
-(i) reads and simulates reference genomes;
-(ii) generates variants using summary statistics, phylogenies, 
+Simulating sequencing based on available genomic data better informs research design.
+However, most current methods provide only rudimentary ways to simulate past
+evolutionary events.
+More recent pipelines have been developed that can simulate more complex scenarios,
+but they involve installing and learning to operate multiple separate programs.
+Here I present the R package `jackalope` that simply and efficiently simulates
+(i\) variants from reference genomes and
+(ii\) reads from both Illumina and Pacific Biosciences (PacBio) platforms.
+It can either read reference genomes from FASTA files or simulate new ones.
+Genomic variants can be simulated using summary statistics, phylogenies, 
 Variant Call Format (VCF) files, and coalescent simulations---the latter of which can
-include selection, recombination, and demographic fluctuations;
-(iii) simulates sequencing error, mapping qualities, multiplexing, and
-optical/PCR duplicates;
-and
-(iv) writes outputs to standard file formats.
+include selection, recombination, and demographic fluctuations.
 `jackalope` can simulate single, paired-end, or mate-pair Illumina reads,
 as well as reads from Pacific BioSciences.
-
-
+These simulations include sequencing errors, mapping qualities, multiplexing,
+and optical/PCR duplicates.
+All outputs can be written to standard file formats.
 Most functions are written in C++ to improve performance, and I employed OpenMP to 
 allow for parallel processing.
 `jackalope` is available on GitHub
@@ -286,16 +217,19 @@ Access to these libraries uses the R packages
 to improve portability.
 An overview of the methods are show in Figure \@ref(fig:jackalope-overview-figure).
 
-```{r jackalope-overview-cap, include=FALSE, eval = TRUE}
+
+```{r jackalope-overview-cap, echo=FALSE, eval = TRUE}
 go_cap <- paste("Overview of primary \\texttt{jackalope} functions, classes,",
                 "inputs, and outputs.",
-                "Circles \\texttt{sub_models} and \\texttt{vars_functions}",
+                "Circles \\texttt{sub\\_models} and \\texttt{vars\\_functions}",
                 "refer to multiple functions; see text for details.",
                 "$\\theta$ indicates the population-scaled mutation rate.")
 ```
-```{r jackalope-overview-figure, out.width="100%", out.height="100%", fig.cap=go_cap, echo = FALSE, eval = TRUE}
-knitr::include_graphics("figs/jackalope.pdf", dpi = NA)
+```{r jackalope-overview-figure, fig.cap=go_cap, echo = FALSE, eval = TRUE}
+knitr::include_graphics("figs/Fig_1.pdf", dpi = NA)
 ```
+
+
 
 
 
