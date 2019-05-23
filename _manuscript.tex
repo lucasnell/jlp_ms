@@ -1,18 +1,24 @@
+\PassOptionsToPackage{unicode=true}{hyperref} % options for packages loaded elsewhere
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames*,x11names*}{xcolor}
+%
 \documentclass[12pt,]{article}
 \usepackage{lmodern}
 \usepackage{setspace}
-\setstretch{1.5}
+\setstretch{2}
+\usepackage{bbm}
 \usepackage{amssymb,amsmath}
 \usepackage{ifxetex,ifluatex}
 \usepackage{fixltx2e} % provides \textsubscript
 \ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
   \usepackage[T1]{fontenc}
   \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
 \else % if luatex or xelatex
   \ifxetex
     \usepackage{mathspec}
   \else
-    \usepackage{fontspec}
+    \usepackage{unicode-math}
   \fi
   \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
 \fi
@@ -20,20 +26,26 @@
 \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
 % use microtype if available
 \IfFileExists{microtype.sty}{%
-\usepackage{microtype}
+\usepackage[]{microtype}
 \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
 }{}
-\usepackage[margin=1in,letterpaper]{geometry}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\usepackage{xcolor}
 \usepackage{hyperref}
-\PassOptionsToPackage{usenames,dvipsnames}{color} % color is loaded by hyperref
-\hypersetup{unicode=true,
+\hypersetup{
             pdftitle={jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator},
             colorlinks=true,
-            linkcolor=Maroon,
+            linkcolor=Blue,
             citecolor=Blue,
             urlcolor=Blue,
             breaklinks=true}
 \urlstyle{same}  % don't use monospace font for urls
+\usepackage[left=2.5cm,right=2.5cm,top=3cm,bottom=3cm]{geometry}
 \usepackage{color}
 \usepackage{fancyvrb}
 \newcommand{\VerbBar}{|}
@@ -72,8 +84,11 @@
 \newcommand{\VariableTok}[1]{#1}
 \newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.00,0.50,0.50}{#1}}
 \newcommand{\WarningTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{\textbf{#1}}}
-\usepackage{longtable,booktabs}
-\usepackage{graphicx,grffile}
+\usepackage[labelfont=bf]{caption}
+    \usepackage{longtable,booktabs}
+            % Fix footnotes in tables (requires footnote package)
+        \IfFileExists{footnote.sty}{\usepackage{footnote}\makesavenoteenv{longtable}}{}
+    \usepackage{graphicx,grffile}
 \makeatletter
 \def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
 \def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
@@ -82,12 +97,6 @@
 % margins by default, and it is still possible to overwrite the defaults
 % using explicit options in \includegraphics[width, height, ...]{}
 \setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
-\IfFileExists{parskip.sty}{%
-\usepackage{parskip}
-}{% else
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{6pt plus 2pt minus 1pt}
-}
 \setlength{\emergencystretch}{3em}  % prevent overfull lines
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
@@ -102,33 +111,72 @@
 \renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
 \fi
 
-%%% Use protect on footnotes to avoid problems with footnotes in titles
-\let\rmarkdownfootnote\footnote%
-\def\footnote{\protect\rmarkdownfootnote}
+% set default figure and tabke placement
+\usepackage{float}
+\makeatletter
+\def\fps@figure{H}
+\def\fps@table{H}
+\makeatother
 
-%%% Change title format to be more compact
-\usepackage{titling}
+% Add S to the beginning of figure and table labels if it's supplemental section
 
-% Create subtitle command for use in maketitle
-\providecommand{\subtitle}[1]{
-  \posttitle{
-    \begin{center}\large#1\end{center}
-    }
-}
 
-\setlength{\droptitle}{-2em}
+\usepackage{authblk,etoolbox}
+\renewcommand\Affilfont{\small}
+\makeatletter
+% % patch \maketitle so that it doesn't center
+% \patchcmd{\@maketitle}{center}{flushleft}{}{}
+% \patchcmd{\@maketitle}{center}{flushleft}{}{}
 
-  \title{jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator}
-    \pretitle{\vspace{\droptitle}\centering\huge}
-  \posttitle{\par}
-    \author{}
-    \preauthor{}\postauthor{}
-    \date{}
-    \predate{}\postdate{}
-  
+% patch the patch by authblk so that the author block is flush left
+\def\maketitle{{%
+  \renewenvironment{tabular}[2][]
+    {\begin{flushleft}}
+    {\end{flushleft}}
+  \AB@maketitle}}
+\makeatother
+
+
+\providecommand{\subtitle}[1]{\Huge{#1}}
+
+\title{
+    jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator
+            }
+            \author[1]{Lucas A. Nell}
+                \affil[1]{Department of Integrative Biology, University of Wisconsin--Madison}
+    % % \author{true}
+% % \date{}
+\date{}
+
+\newcommand{\mean}[1]{\text{mean}\left( #1 \right)}
+\newcommand{\var}[1]{\text{var}\left( #1 \right)}
+
+% Removing extra space around \left( and \right)
+\let\originalleft\left
+\let\originalright\right
+\renewcommand{\left}{\mathopen{}\mathclose\bgroup\originalleft}
+\renewcommand{\right}{\aftergroup\egroup\originalright}
+
+
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{makecell}
+\usepackage{rotating} % To display tables in landscape
+\usepackage{siunitx} % Required for alignment
+
+
+\usepackage{lineno}
+\linenumbers
+
 
 \begin{document}
-\maketitle
+
+            \maketitle
+        
+
+
+
+\raggedright
 
 \hypertarget{abstract}{%
 \subsection{Abstract}\label{abstract}}
@@ -160,8 +208,6 @@ and optical/PCR duplicates.
 All outputs can be written to standard file formats.
 Most functions are written in C++ to improve performance, and I employed OpenMP to
 allow for parallel processing.
-\texttt{jackalope} is available on GitHub
-(\url{https://github.com/lucasnell/jackalope}).
 
 \textbf{Keywords:} sequencing simulator, population genomics, phylogenomics,
 Illumina, Pacific Biosciences, Pool-seq
@@ -186,7 +232,7 @@ Recently, pipelines have been developed that use multiple programs
 to simulate complex evolutionary histories and HTS on the resulting populations
 or species.
 \texttt{TreeToReads} can simulate sequences along a single phylogenetic tree
-(McTavish et al., 2017), and
+(McTavish et al., 2017)
 \texttt{NGSphy} can generate sequences from multiple gene trees
 (Escalona, Rocha, \& Posada, 2018);
 both generate Illumina reads.
@@ -229,12 +275,14 @@ Package \texttt{RcppProgress} provides the thread-safe progress bar
 (Forner, 2018).
 All input and output files can have \texttt{gzip} or \texttt{bgzip} compression, using the
 \texttt{zlib} and
-\texttt{htslib} (Li et al., 2009) libraries.
+\texttt{htslib}
+(Li et al., 2009)
+libraries.
 Access to these libraries uses the R packages
 \texttt{zlibbioc} (Morgan, 2019) and
 \texttt{Rhtslib} (Hayden \& Morgan, 2019)
 to improve portability.
-An overview of the methods are show in Figure \ref{fig:jackalope-overview-figure}.
+An overview of the methods is show in Figure \ref{fig:jackalope-overview-figure}.
 
 \begin{figure}
 \centering
@@ -246,14 +294,16 @@ An overview of the methods are show in Figure \ref{fig:jackalope-overview-figure
 \subsubsection{\texorpdfstring{The \texttt{ref\_genome} class}{The ref\_genome class}}\label{the-ref_genome-class}}
 
 Haploid reference genomes are represented by the class \texttt{ref\_genome}, an
-R6 (Chang, 2019) class that acts as a wrapper around a pointer to
+\texttt{R6} (Chang, 2019)
+class that acts as a wrapper around a pointer to
 an underlying C++ object that stores all the sequence information.
 They can be generated from FASTA files using the function \texttt{read\_fasta}.
 This function also accepts FASTA index files---created using
 \texttt{samtools\ faidx}---for faster processing.
 If a reference genome is not available, the \texttt{create\_genome} function creates
 a reference genome of given equilibrium nucleotide distributions.
-Sequence lengths are drawn from a gamma distribution (Li et al., 2011)
+Sequence lengths are drawn from a gamma distribution
+(Li et al., 2011)
 with a mean and standard deviation provided by the user.
 
 The access provided by the R class \texttt{ref\_genome} is designed to both
@@ -302,15 +352,17 @@ The first two methods directly specify numbers and locations of mutations and
 therefore do not require any phylogenomic methods in \texttt{jackalope}.
 First, a variant call format (VCF) file can directly specify mutations for each
 variant (function \texttt{vars\_vcf}).
-This method works using the \texttt{vcfR} package (Knaus \& Grünwald, 2016, 2017) and
+This method works using the \texttt{vcfR} package
+(Knaus \& Grünwald, 2017) and
 is the only method that does not require any molecular-evolution information.
 Second, matrices of segregating sites from coalescent output can provide the locations
 of mutations (function \texttt{vars\_ssites}).
 Molecular evolution information passed to \texttt{create\_variants} then informs the sampling
 for the type of mutation at each site.
 The segregating-site information can take the form of
-(1) a coalescent-simulator object from the \texttt{scrm} (Paul R. Staab, Sha Zhu, Dirk Metzler, \& Gerton Lunter, 2015) or
-\texttt{coala} (Paul R. Staab \& Dirk Metzler, 2016) package, or
+(1) a coalescent-simulator object from the \texttt{scrm}
+(Staab, Zhu, Metzler, \& Lunter, 2015) or
+\texttt{coala} (Staab \& Metzler, 2016) package, or
 (2) a file containing output from a coalescent simulator in the format of the
 \texttt{ms} (Hudson, 2002) or
 \texttt{msms} (Ewing \& Hermisson, 2010) programs.
@@ -380,7 +432,9 @@ and variation in mutation rates among sites.
 Substitutions use the \texttt{sub\_models} group of functions,
 indels use the \texttt{indels} function,
 and among-site variation uses the \texttt{site\_var} function.
-A table of rates from Sung et al. (2016) is included in the package
+A table of rates from
+Sung et al. (2016)
+is included in the package
 as a guide for reasonable rates to use.
 
 Each substitution model uses its own function of the pattern \texttt{sub\_M} for model \texttt{M},
@@ -407,10 +461,12 @@ nucleotides; indel rates do not differ among nucleotides.
 The \texttt{indels} function also requires information about the relative rates of
 indels of different sizes, which can be provided in 3 different ways.
 First, rates can be proportional to \(\exp(-u)\) for indel length \(u\) from
-1 to the maximum possible length, \(M\) (Albers et al., 2010).
+1 to the maximum possible length, \(M\)
+(Albers et al., 2010).
 Second, rates can be generated from a Lavalette distribution,
 where the rate for length \(u\) is proportional to
-\(\left[{u M / (M - u + 1)}\right]^{-a}\) (Fletcher \& Yang, 2009).
+\(\left[{u M / (M - u + 1)}\right]^{-a}\)
+(Fletcher \& Yang, 2009).
 Third, relative rates can be specified directly by providing a length-\(M\)
 numeric vector of positive values.
 Indels up to 1 Mb are allowed.
@@ -470,7 +526,8 @@ Function \texttt{illumina} simulates single, paired-ended, or mate-pair Illumina
 while \texttt{pacbio} simulates reads from the Pacific Biosciences (PacBio) platform.
 Illumina read simulation is based on the \texttt{ART} program
 (Huang, Li, Myers, \& Marth, 2011), and
-PacBio read simulation is based on \texttt{SimLoRD} (Stöcker, Köster, \& Rahmann, 2016).
+PacBio read simulation is based on \texttt{SimLoRD}
+(Stöcker, Köster, \& Rahmann, 2016).
 Each was re-coded in C++ to more seemlessly integrate into \texttt{jackalope}.
 Function inputs emulate the program they were based on.
 
@@ -504,7 +561,7 @@ gene trees produced by the following \texttt{scrm} command:
 \end{Highlighting}
 \end{Shaded}
 
-I used the HKY85 (Hasegawa et al., 1985, 1984) substitution model
+I used the HKY85 substitution model
 with an overall mutation rate of 0.001 substitutions per site per unit of time
 (where one unit of time is equal to a branch length of 1).
 I did not include indels because \texttt{Seq-Gen} cannot simulate them.
@@ -667,7 +724,8 @@ repetitive regions.
 
 Here, I will demonstrate how to generate population-genomic data of a type that might
 be used to estimate the divergence between two populations.
-I first use the \texttt{scrm} package (Paul R. Staab et al., 2015) to conduct
+I first use the \texttt{scrm} package (Staab et al., 2015)
+to conduct
 coalescent simulations that will generate segregating sites for 40 haploid variants
 from the reference genome.
 Twenty of the variants are from one population, twenty from another.
@@ -748,7 +806,7 @@ FASTQ files:
 This section shows how \texttt{jackalope} can generate variants from a phylogeny, then
 simulate sequencing data from those variants to test phylogeny reconstruction methods.
 First, I generated a random coalescent tree of 10 species using the \texttt{ape} package
-(Paradis \& Schliep, 2018).
+\texttt{citep(citation("ape"))}.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -916,8 +974,9 @@ assumptions of much more complex evolutionary histories than most current HTS
 simulation platforms allow.
 
 \hypertarget{references}{%
-\section*{References}\label{references}}
-\addcontentsline{toc}{section}{References}
+\section{References}\label{references}}
+
+\setstretch{1}
 
 \hypertarget{refs}{}
 \leavevmode\hypertarget{ref-Albers_2010}{}%
@@ -968,11 +1027,8 @@ Jukes, T. H., \& Cantor, C. R. (1969). Evolution of protein molecules. In H. N. 
 \leavevmode\hypertarget{ref-Kimura_1980}{}%
 Kimura, M. (1980). A simple method for estimating evolutionary rates of base substitutions through comparative studies of nucleotide sequences. \emph{Journal of Molecular Evolution}, \emph{16}(2), 111--120. \url{https://doi.org/10.1007/bf01731581}
 
-\leavevmode\hypertarget{ref-Knaus_2016}{}%
-Knaus, B. J., \& Grünwald, N. J. (2016). VcfR: An r package to manipulate and visualize VCF format data. \emph{BioRxiv}. Retrieved from \url{http://dx.doi.org/10.1101/041277}
-
 \leavevmode\hypertarget{ref-Knaus_2017}{}%
-Knaus, B. J., \& Grünwald, N. J. (2017). VCFR: A package to manipulate and visualize variant call format data in R. \emph{Molecular Ecology Resources}, \emph{17}(1), 44--53. Retrieved from \url{http://dx.doi.org/10.1111/1755-0998.12549}
+Knaus, B. J., \& Grünwald, N. J. (2017). VCFR: A package to manipulate and visualize variant call format data in R. \emph{Molecular Ecology Resources}, \emph{17}(1), 44--53.
 
 \leavevmode\hypertarget{ref-Kronmal_1979}{}%
 Kronmal, R. A., \& Peterson, A. V. (1979). On the alias method for generating random variables from a discrete distribution. \emph{The American Statistician}, \emph{33}(4), 214--218. \url{https://doi.org/10.1080/00031305.1979.10482697}
@@ -998,17 +1054,17 @@ O'Neill, M. E. (2014). \emph{PCG: a family of simple fast space-efficient statis
 \leavevmode\hypertarget{ref-Paradis_2018}{}%
 Paradis, E., \& Schliep, K. (2018). Ape 5.0: An environment for modern phylogenetics and evolutionary analyses in R. \emph{Bioinformatics}, \emph{35}, 526--528.
 
-\leavevmode\hypertarget{ref-Paul_R._Staab_2016}{}%
-Paul R. Staab, \& Dirk Metzler. (2016). Coala: An R framework for coalescent simulation. \emph{Bioinformatics}. \url{https://doi.org/10.1093/bioinformatics/btw098}
-
-\leavevmode\hypertarget{ref-Paul_R._Staab_2015}{}%
-Paul R. Staab, Sha Zhu, Dirk Metzler, \& Gerton Lunter. (2015). scrm: Efficiently simulating long sequences using the approximated coalescent with recombination. \emph{Bioinformatics}, \emph{31}(10), 1680--1682. Retrieved from \url{http://bioinformatics.oxfordjournals.org/content/31/10/1680}
-
 \leavevmode\hypertarget{ref-Rambaut_1997}{}%
 Rambaut, A., \& Grass, N. C. (1997). Seq-gen: An application for the monte carlo simulation of DNA sequence evolution along phylogenetic trees. \emph{Bioinformatics}, \emph{13}(3), 235--238. \url{https://doi.org/10.1093/bioinformatics/13.3.235}
 
 \leavevmode\hypertarget{ref-R_Core_Team_2019}{}%
 R Core Team. (2019). \emph{R: a language and environment for statistical computing}. Vienna, Austria: R Foundation for Statistical Computing. Retrieved from \url{https://www.R-project.org/}
+
+\leavevmode\hypertarget{ref-Paul_R._Staab_2016}{}%
+Staab, P. R., \& Metzler, D. (2016). Coala: An R framework for coalescent simulation. \emph{Bioinformatics}. \url{https://doi.org/10.1093/bioinformatics/btw098}
+
+\leavevmode\hypertarget{ref-Paul_R._Staab_2015}{}%
+Staab, P. R., Zhu, S., Metzler, D., \& Lunter, G. (2015). scrm: Efficiently simulating long sequences using the approximated coalescent with recombination. \emph{Bioinformatics}, \emph{31}(10), 1680--1682.
 
 \leavevmode\hypertarget{ref-St_cker_2016}{}%
 Stöcker, B. K., Köster, J., \& Rahmann, S. (2016). SimLoRD: Simulation of long read data. \emph{Bioinformatics}, \emph{32}(17), 2704--2706. \url{https://doi.org/10.1093/bioinformatics/btw286}
@@ -1036,6 +1092,23 @@ Yang, Z. (2006). \emph{Computational molecular evolution}. New York, NY, USA: Ox
 
 \leavevmode\hypertarget{ref-Yang_1994}{}%
 Yang, Z. B. (1994). Estimating the pattern of nucleotide substitution. \emph{Journal of Molecular Evolution}, \emph{39}(1), 105--111.
+
+\setstretch{2}
+
+\hypertarget{data-accessibility}{%
+\section{Data Accessibility}\label{data-accessibility}}
+
+\texttt{jackalope} and its documentation are available on GitHub
+(\url{https://github.com/lucasnell/jackalope}).
+The package will soon be submitted to CRAN \texttt{https://CRAN.R-project.org}.
+The version used in this manuscript was 0.1.0.
+
+\hypertarget{author-contributions}{%
+\section{Author Contributions}\label{author-contributions}}
+
+L.A.N. conceived and designed the project, wrote the code, and wrote the manuscript.
+
+
 
 
 \end{document}

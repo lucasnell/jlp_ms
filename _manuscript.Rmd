@@ -2,20 +2,27 @@
 title: "jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator"
 bibliography: "references.bib"
 csl: "apa.csl"
+author:
+    - name: Lucas A. Nell
+      nums: "1"
+affil:
+    - name: Department of Integrative Biology, University of Wisconsin--Madison
+      num: "1"
 fontsize: 12pt
-geometry: margin=1in,letterpaper
+geometry: left=2.5cm,right=2.5cm,top=3cm,bottom=3cm
 documentclass: article
 tables: true
 graphics: true
 colorlinks: true
 mathspec: true
-linestretch: 1.5
+linestretch: 2
 sectionbreaks: true
 sectionnumbering: true
 raggedtoc: true
 output: 
     bookdown::pdf_document2:
         fig_caption: yes
+        template: template.tex
         keep_tex: yes
         number_sections: no
         toc: no
@@ -1123,6 +1130,31 @@ simulation platforms allow.
 
 # References
 
+\setstretch{1}
+
 <div id="refs"></div>
 
+\setstretch{2}
+
+
+# Data Accessibility
+
+
+`jackalope` and its documentation are available on GitHub
+(https://github.com/lucasnell/jackalope).
+The package will soon be submitted to CRAN `https://CRAN.R-project.org`.
+The version used in this manuscript was 0.1.0.
+
+
+<!-- The stable version of `jackalope` is available on CRAN -->
+<!-- (https://CRAN.R-project.org/package=jackalope), -->
+<!-- and the development version is on GitHub -->
+<!-- (https://github.com/lucasnell/jackalope). -->
+
+
+
+
+# Author Contributions
+
+L.A.N. conceived and designed the project, wrote the code, and wrote the manuscript.
 
