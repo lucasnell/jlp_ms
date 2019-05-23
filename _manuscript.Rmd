@@ -28,7 +28,6 @@ editor_options:
 ```{r setup, include=FALSE, cache = FALSE}
 suppressPackageStartupMessages({
     library(knitr)
-    library(knitcitations)
     library(tidyverse)
     library(cowplot)
     library(jackalope)
@@ -46,47 +45,6 @@ theme_set(theme_classic() +
 if (!isTRUE(getOption('knitr.in.progress'))) {
     options("device" = "quartz")
     grDevices::graphics.off()
-}
-
-cleanbib()
-options("citation_format" = "pandoc", knitr.graphics.auto_pdf = TRUE)
-
-old_ref <- function(key, parenth = TRUE) {
-    if (parenth) {
-        citep(bibtex::read.bib(file = 'old_refs.bib')[key])
-    } else {
-        citet(bibtex::read.bib(file = 'old_refs.bib')[key])
-    }
-}
-# Sort citations as they'll appear in the in-text citation: by year, then name
-sort_cit <- function(citation) {
-    split_cit <- {str_split(citation, "; ")[[1]]} %>%
-        str_replace_all("\\[|\\]", "")
-    years <- split_cit %>%
-        str_split("_") %>% 
-        map_chr(~ tail(.x, 1))
-    names <- split_cit %>% 
-        str_split("_") %>% 
-        map_chr(~ head(.x, -1) %>% str_c(collapse = "_"))
-    output <- split_cit[order(years, names)] %>% 
-        str_c(collapse = "; ")
-    return(output)
-}
-prefix <- function(pre, citation) {
-    sorted_cit <- sort_cit(citation)
-    output <- sprintf(fmt = "[%s %s]", pre, sorted_cit)
-    return(output)
-}
-# Allows you to specify the title yourself for calls to `citation` inside `citep`
-keep_title <- function(pkg_name, set_title = NULL, index = NULL) {
-    z <- citation(pkg_name)
-    if (!is.null(index)) z <- z[index]
-    if (is.null(set_title)) {
-        z$title <- sprintf("{%s}", z$title)
-    } else {
-        z$title <- set_title
-    }
-    return(citep(z))
 }
 ```
 
@@ -120,14 +78,6 @@ and optical/PCR duplicates.
 All outputs can be written to standard file formats.
 Most functions are written in C++ to improve performance, and I employed OpenMP to 
 allow for parallel processing.
-`jackalope` is available on GitHub
-(https://github.com/lucasnell/jackalope).
-
-
-<!-- The stable version of `jackalope` is available on CRAN -->
-<!-- (https://CRAN.R-project.org/package=jackalope), -->
-<!-- and the development version is on GitHub -->
-<!-- (https://github.com/lucasnell/jackalope). -->
 
 
 
@@ -144,7 +94,7 @@ Illumina, Pacific Biosciences, Pool-seq
 
 High-throughput sequencing (HTS) is a cost-effective approach to generate vast amounts
 of genomic data and has revolutionized the study of genomes
-`r citep("10.1038/nrg2626")`.
+[@Metzker_2009].
 The combination of massive datasets, sequencing errors, and potentially complex
 evolutionary histories make bioinformatic pipelines an important aspect of
 research using HTS.
@@ -152,7 +102,7 @@ Many bioinformatic tools exist, and new programs that are more accurate and
 computationally efficient are constantly being developed.
 To test these tools against known parameter values, simulation of HTS data is needed.
 Although there are many sequence simulators currently available
-`r prefix("reviewed in", citep("10.1038/nrg.2016.57"))`,
+[reviewed in @Escalona_2016],
 most have only rudimentary ways to generate variants from a reference genome.
 
 
@@ -160,9 +110,9 @@ Recently, pipelines have been developed that use multiple programs
 to simulate complex evolutionary histories and HTS on the resulting populations
 or species.
 `TreeToReads` can simulate sequences along a single phylogenetic tree 
-`r citep("10.1186/s12859-017-1592-1")`, and
+[@McTavish_2017]
 `NGSphy` can generate sequences from multiple gene trees
-`r citep("10.1093/bioinformatics/bty146")`;
+[@Escalona_2018];
 both generate Illumina reads.
 These pipelines are quite powerful and useful to those seeking to simulate
 HTS data under realistic evolutionary scenarios.
@@ -174,7 +124,7 @@ entire process is not as computationally efficient as a single standalone progra
 
 In the present paper I introduce `jackalope`, the first available high-throughput
 DNA-sequencing simulator for R
-`r keep_title("base", "{R:} A Language and Environment for Statistical Computing")`.
+[@R_Core_Team_2019].
 Designed for efficient memory use, flexibility, and speed,
 `jackalope` combines the functionality of an HTS simulator with that of a
 phylogenomics simulator.
@@ -202,20 +152,22 @@ Lastly, I demonstrate the usefulness of `jackalope` through three usage examples
 ## Features and methods
 
 Most code is written in C++ and interfaces with R using the `Rcpp` package
-`r citep(citation("Rcpp")[1])`.
+[@Eddelbuettel_2011].
 I used OpenMP to allow for parallel processing and
 the `PCG` family of thread-safe, pseudo-random number generators
-`r old_ref("Oneill_2014pcg")`.
+[@Oneill_2014pcg].
 Package `RcppProgress` provides the thread-safe progress bar
-`r citep(citation("RcppProgress"))`.
+[@Forner_2018].
 All input and output files can have `gzip` or `bgzip` compression, using the
 `zlib` and
-`htslib` `r citep(":10.1093/bioinformatics/btp352")` libraries.
+`htslib` 
+[@Li_2009]
+libraries.
 Access to these libraries uses the R packages
-`zlibbioc` `r citep(citation("zlibbioc"))` and
-`Rhtslib` `r citep(citation("Rhtslib"))`
+`zlibbioc` [@Morgan_2019] and
+`Rhtslib` [@Hayden_2019]
 to improve portability.
-An overview of the methods are show in Figure \@ref(fig:jackalope-overview-figure).
+An overview of the methods is show in Figure \@ref(fig:jackalope-overview-figure).
 
 
 ```{r jackalope-overview-cap, echo=FALSE, eval = TRUE}
@@ -238,14 +190,16 @@ knitr::include_graphics("figs/Fig_1.pdf", dpi = NA)
 ### The `ref_genome` class
 
 Haploid reference genomes are represented by the class `ref_genome`, an
-R6 `r citep(citation("R6"))` class that acts as a wrapper around a pointer to 
+`R6` [@Chang_2019]
+class that acts as a wrapper around a pointer to 
 an underlying C++ object that stores all the sequence information.
 They can be generated from FASTA files using the function `read_fasta`.
 This function also accepts FASTA index files---created using 
 `samtools faidx`---for faster processing.
 If a reference genome is not available, the `create_genome` function creates 
 a reference genome of given equilibrium nucleotide distributions.
-Sequence lengths are drawn from a gamma distribution `r citep("10.1093/molbev/msr011")`
+Sequence lengths are drawn from a gamma distribution
+[@Li_2011]
 with a mean and standard deviation provided by the user.
 
 
@@ -299,18 +253,20 @@ The first two methods directly specify numbers and locations of mutations and
 therefore do not require any phylogenomic methods in `jackalope`.
 First, a variant call format (VCF) file can directly specify mutations for each
 variant (function `vars_vcf`).
-This method works using the `vcfR` package `r citep(citation("vcfR"))` and
+This method works using the `vcfR` package 
+[@Knaus_2017] and
 is the only method that does not require any molecular-evolution information.
 Second, matrices of segregating sites from coalescent output can provide the locations
 of mutations (function `vars_ssites`).
 Molecular evolution information passed to `create_variants` then informs the sampling
 for the type of mutation at each site.
 The segregating-site information can take the form of 
-(1\) a coalescent-simulator object from the `scrm` `r citep(citation("scrm"))` or
-`coala` `r citep(citation("coala"))` package, or
+(1\) a coalescent-simulator object from the `scrm`
+[@Paul_R._Staab_2015] or
+`coala` [@Paul_R._Staab_2016] package, or
 (2\) a file containing output from a coalescent simulator in the format of the
-`ms` `r citep("10.1093/bioinformatics/18.2.337")` or 
-`msms` `r citep("10.1093/bioinformatics/btq322")` programs.
+`ms` [@Hudson_2002] or 
+`msms` [@Ewing_2010] programs.
 
 
 The last three methods simulate sequences along phylogenies.
@@ -321,7 +277,7 @@ One tree can be used for all genome sequences, or each sequence can use a separa
 In the second method, users can pass an estimate for $\theta$, the population-scaled
 mutation rate (function `vars_theta`).
 A random coalescent tree is first generated using the `rcoal` function
-in the `ape` package `r citep(citation("ape"))`.
+in the `ape` package [@Paradis_2018].
 Then, its total tree length is scaled to be
 $\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ variants and an equilibrium
 mutation rate of $\mu$.
@@ -335,7 +291,7 @@ For the phylogenomic methods, variants are simulated along tree branches by
 generating exponential wait times
 for the Markov "jump" chain for each sequence,
 where the rate of the exponential distribution is the sum of mutation rates for
-all nucleotides in the sequence `r old_ref("Yang_2006")`.
+all nucleotides in the sequence [@Yang_2006].
 At each jump, a position on the sequence is sampled with a probability proportional to
 the mutation rate for that position.
 A position's mutation rate is the product of its "gamma distance"
@@ -367,7 +323,7 @@ Mutation-type sampling is performed by creating 4 vectors (one for each nucleoti
 each containing all possible mutation types:
 substitutions to other nucleotides and insertions/deletions of all specified lengths.
 I then use alias sampling
-`r citep(list("10.1049/el:19740097", "10.1080/00031305.1979.10482697"))`
+[@Kronmal_1979; @Walker_1974]
 to sample within this vector.
 
 
@@ -382,7 +338,9 @@ and variation in mutation rates among sites.
 Substitutions use the `sub_models` group of functions,
 indels use the `indels` function,
 and among-site variation uses the `site_var` function.
-A table of rates from `r old_ref("Sung_2016", FALSE)` is included in the package
+A table of rates from 
+@Sung_2016
+is included in the package
 as a guide for reasonable rates to use.
 
 
@@ -390,14 +348,14 @@ Each substitution model uses its own function of the pattern `sub_M` for model `
 and the provided `sub_models` documentation includes information to help
 users choose among them.
 The following substitution models can be employed:
-TN93 `r old_ref('TN93')`,
-JC69 `r old_ref('JC69')`,
-K80 `r citep("10.1007/BF01731581")`,
-F81 `r citep("10.1007/BF01734359")`,
-HKY85 `r old_ref(c('Hasegawa_1985', 'Hasegawa_1984'))`, 
-F84 `r old_ref("Thorne_1992")`,
-GTR `r old_ref("Tavare_1986gtr")`,
-and UNREST `r old_ref("Yang_1994")`.
+TN93 [@TN93],
+JC69 [@JC69],
+K80 [@Kimura_1980],
+F81 [@Felsenstein_1981],
+HKY85 [@Hasegawa_1985; @Hasegawa_1984],
+F84 [@Thorne_1992],
+GTR [@Tavare_1986gtr],
+and UNREST [@Yang_1994].
 If using the UNREST model, equilibrium nucleotide frequencies ($\mathbf{\pi}$) are 
 calculated by solving for $\mathbf{\pi} \mathbf{Q} = 0$, where $\mathbf{Q}$ is the
 substitution rate matrix.
@@ -411,10 +369,12 @@ nucleotides; indel rates do not differ among nucleotides.
 The `indels` function also requires information about the relative rates of
 indels of different sizes, which can be provided in 3 different ways.
 First, rates can be proportional to $\exp(-u)$ for indel length $u$ from
-1 to the maximum possible length, $M$ `r citep("10.1101/gr.112326.110")`.
+1 to the maximum possible length, $M$ 
+[@Albers_2010].
 Second, rates can be generated from a Lavalette distribution, 
 where the rate for length $u$ is proportional to
-$\left[{u M / (M - u + 1)}\right]^{-a}$ `r citep("10.1093/molbev/msp098")`.
+$\left[{u M / (M - u + 1)}\right]^{-a}$ 
+[@Fletcher_2009].
 Third, relative rates can be specified directly by providing a length-$M$
 numeric vector of positive values.
 Indels up to 1 Mb are allowed.
@@ -480,8 +440,9 @@ Reads are output to FASTQ files.
 Function `illumina` simulates single, paired-ended, or mate-pair Illumina reads,
 while `pacbio` simulates reads from the Pacific Biosciences (PacBio) platform.
 Illumina read simulation is based on the `ART` program
-`r citep("10.1093/bioinformatics/btr708")`, and
-PacBio read simulation is based on `SimLoRD` `r citep("10.1093/bioinformatics/btw286")`.
+[@Huang_2011], and
+PacBio read simulation is based on `SimLoRD` 
+[@St_cker_2016].
 Each was re-coded in C++ to more seemlessly integrate into `jackalope`.
 Function inputs emulate the program they were based on.
 
@@ -507,7 +468,7 @@ For each test, 10 runs of each program were tested in random order.
 ### Creating variants
 
 For creating variants, I compared `jackalope` to `Seq-Gen`
-`r citep("10.1093/bioinformatics/13.3.235")`.
+[@Rambaut_1997].
 I tested each program by having them simulate a 2 Mb, 20 Mb, and 200 Mb genome
 split evenly among 20 sequences, then generate 8 variants from that genome using
 gene trees produced by the following `scrm` command:
@@ -516,7 +477,7 @@ gene trees produced by the following `scrm` command:
 scrm 8 20 -T -seed 1829812441 253160851 137767610 > scrm.tree
 ```
 
-I used the HKY85 `r old_ref(c('Hasegawa_1985', 'Hasegawa_1984'))` substitution model
+I used the HKY85 substitution model
 with an overall mutation rate of 0.001 substitutions per site per unit of time
 (where one unit of time is equal to a branch length of 1).
 I did not include indels because `Seq-Gen` cannot simulate them.
@@ -649,8 +610,8 @@ var_plot
 
 For both Illumina and PacBio read generation in `jackalope`, I tested their performance
 in comparison to the programs they were based on: 
-`ART` `r citep("10.1093/bioinformatics/btr708")` and
-`SimLoRD` `r citep("10.1093/bioinformatics/btw286")`, respectively.
+`ART` [@Huang_2011] and
+`SimLoRD` [@St_cker_2016], respectively.
 All these tests consisted of reading a 2 Mb genome from a FASTA file, simulating
 reads, and writing them to FASTQ files.
 For Illumina sequencing, these were $2 \times 150$ reads from the HiSeq 2500 platform,
@@ -858,7 +819,7 @@ These examples only show how to produce the output from `jackalope`, as
 a review of different pipelines is beyond the scope of the present manuscript.
 
 For an example reference assembly, I used the *Drosophila melanogaster* assembly
-(version 6.27) downloaded from `flybase.org` `r citep("10.1093/nar/gky1003")`.
+(version 6.27) downloaded from `flybase.org` [@Thurmond_2018].
 After downloading, I read the compressed FASTA file, filtered out
 scaffolds by using a size threshold, and manually removed the sex chromosomes
 using the following code:
@@ -943,7 +904,8 @@ illumina(ref, out_prefix = "ill_mp", seq_sys = "MSv3",
 
 Here, I will demonstrate how to generate population-genomic data of a type that might
 be used to estimate the divergence between two populations.
-I first use the `scrm` package `r citep(citation("scrm"))` to conduct 
+I first use the `scrm` package [@Paul_R._Staab_2015]
+to conduct 
 coalescent simulations that will generate segregating sites for 40 haploid variants
 from the reference genome.
 Twenty of the variants are from one population, twenty from another.
@@ -1005,7 +967,7 @@ illumina(vars, out_prefix = "vars_illumina", n_reads = 500e6, paired = TRUE,
 This section shows how `jackalope` can generate variants from a phylogeny, then
 simulate sequencing data from those variants to test phylogeny reconstruction methods.
 First, I generated a random coalescent tree of 10 species using the  `ape` package
-`r citep(citation("ape"))`.
+`citep(citation("ape"))`.
 
 ```{r examples-phylogeny-tree, eval = TRUE}
 tree <- ape::rcoal(10)
@@ -1161,6 +1123,6 @@ simulation platforms allow.
 
 # References
 
-```{r biblio, message = FALSE, eval = TRUE, echo = FALSE}
-write.bibtex(file="references.bib")
-```
+<div id="refs"></div>
+
+

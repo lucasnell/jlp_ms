@@ -1,6 +1,6 @@
 ---
 title: 'Supplementary Information for:'
-subtitle: "jackelope: a swift, light-weight phylogenomic and high-throughput sequencing simulator"
+subtitle: "jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator"
 author:
     - name: Lucas A. Nell
       nums: "1"
