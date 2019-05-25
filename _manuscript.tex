@@ -38,7 +38,7 @@
 \usepackage{xcolor}
 \usepackage{hyperref}
 \hypersetup{
-            pdftitle={jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator},
+            pdftitle={jackalope: a swift, lightweight phylogenomic and high-throughput sequencing simulator},
             colorlinks=true,
             linkcolor=Blue,
             citecolor=Blue,
@@ -140,7 +140,7 @@
 \providecommand{\subtitle}[1]{\Huge{#1}}
 
 \title{
-    jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator
+    jackalope: a swift, lightweight phylogenomic and high-throughput sequencing simulator
             }
             \author[1]{Lucas A. Nell}
                 \affil[1]{Department of Integrative Biology, University of Wisconsin--Madison}
@@ -202,7 +202,7 @@ Genomic variants can be simulated using summary statistics, phylogenies,
 Variant Call Format (VCF) files, and coalescent simulations---the latter of which can
 include selection, recombination, and demographic fluctuations.
 \texttt{jackalope} can simulate single, paired-end, or mate-pair Illumina reads,
-as well as reads from Pacific BioSciences.
+as well as reads from Pacific Biosciences.
 These simulations include sequencing errors, mapping qualities, multiplexing,
 and optical/PCR duplicates.
 All outputs can be written to standard file formats.
@@ -283,12 +283,6 @@ Access to these libraries uses the R packages
 \texttt{Rhtslib} (Hayden \& Morgan, 2019)
 to improve portability.
 An overview of the methods is show in Figure \ref{fig:jackalope-overview-figure}.
-
-\begin{figure}
-\centering
-\includegraphics{figs/Fig_1.pdf}
-\caption{\label{fig:jackalope-overview-figure}Overview of primary \texttt{jackalope} functions, classes, inputs, and outputs. Circles \texttt{sub\_models} and \texttt{vars\_functions} refer to multiple functions; see text for details. \(\theta\) indicates the population-scaled mutation rate.}
-\end{figure}
 
 \hypertarget{the-ref_genome-class}{%
 \subsubsection{\texorpdfstring{The \texttt{ref\_genome} class}{The ref\_genome class}}\label{the-ref_genome-class}}
@@ -540,10 +534,11 @@ Using known inputs, I compared predicted to observed values of outputs,
 and \texttt{jackalope} conformed closely to expectations
 (Supporting Information Figures S1--S12).
 
-Performance comparisons to existing programs were run on a late-2013 MacBook
+I compared the performance of \texttt{jackalope} to existing programs on a MacBook
 Pro running macOS Mojave (version 10.14.4) with a 2.6GHz Intel Core i5 processor
 and 8 GB RAM.
-Time and maximum memory used were measured by using the \texttt{time} command from the terminal.
+Elapsed time and maximum memory used were measured by using the GNU \texttt{time} program
+(\texttt{/usr/bin/time} from the terminal).
 For each test, 10 runs of each program were tested in random order.
 
 \hypertarget{creating-variants-1}{%
@@ -551,6 +546,8 @@ For each test, 10 runs of each program were tested in random order.
 
 For creating variants, I compared \texttt{jackalope} to \texttt{Seq-Gen}
 (Rambaut \& Grass, 1997).
+I chose \texttt{Seq-Gen} because it is used by \texttt{TreeToReads} and because it can generate
+sequences based on gene trees.
 I tested each program by having them simulate a 2 Mb, 20 Mb, and 200 Mb genome
 split evenly among 20 sequences, then generate 8 variants from that genome using
 gene trees produced by the following \texttt{scrm} command:
@@ -584,12 +581,6 @@ and another that only loaded \texttt{jackalope} used \(\sim 70\) MB.
 At the 20 Mb genome size, however, \texttt{jackalope} used slightly less memory than \texttt{Seq-Gen},
 and for a 200 Mb genome size, \texttt{jackalope} used 38 \% less memory.
 
-\begin{figure}
-\centering
-\includegraphics{_manuscript_files/figure-latex/variants-perf-test-plot-1.pdf}
-\caption{\label{fig:variants-perf-test-plot}Performance comparison between \texttt{jackalope} and \texttt{Seq-Gen} in generating variants from a reference genome. Sub-panels indicate the size of the genome from which variants were generated. Superscripts in the y-axis labels indicate the number of threads used.}
-\end{figure}
-
 \hypertarget{generating-sequencing-reads}{%
 \subsubsection{Generating sequencing reads}\label{generating-sequencing-reads}}
 
@@ -615,12 +606,6 @@ All three programs used very little memory, and the amount did not depend strong
 on the number of reads generated.
 \texttt{ART} used 9.4 MB and \texttt{SimLoRD} used 54.0--61.2 MB.
 \texttt{jackalope} used 76.5--79.4 MB for Illumina reads and 101.3--110.1 MB for PacBio reads.
-
-\begin{figure}
-\centering
-\includegraphics{_manuscript_files/figure-latex/sequencing-perf-test-plot-1.pdf}
-\caption{\label{fig:sequencing-perf-test-plot}Performance comparison between \texttt{jackalope} and (A) \texttt{ART} in generating Illumina reads and (B) \texttt{SimLoRD} in generating PacBio reads. Sub-panels indicate the number of reads generated. Superscripts in the y-axis labels indicate the number of threads used.}
-\end{figure}
 
 \hypertarget{example-usage}{%
 \subsection{Example usage}\label{example-usage}}
@@ -1098,15 +1083,37 @@ Yang, Z. B. (1994). Estimating the pattern of nucleotide substitution. \emph{Jou
 \hypertarget{data-accessibility}{%
 \section{Data Accessibility}\label{data-accessibility}}
 
-\texttt{jackalope} and its documentation are available on GitHub
-(\url{https://github.com/lucasnell/jackalope}).
-The package will soon be submitted to CRAN \texttt{https://CRAN.R-project.org}.
+\texttt{jackalope} is open source, under the MIT license.
+Its code is available on GitHub
+(\url{https://github.com/lucasnell/jackalope}), and
+the documentation can be found at \url{https://jackalope.lucasnell.com}.
+The package will soon be submitted to CRAN.
 The version used in this manuscript was 0.1.0.
+Code for the example usage, validation, and performance is available on GitHub at
+\url{https://github.com/lucasnell/jlp_ms}.
 
 \hypertarget{author-contributions}{%
 \section{Author Contributions}\label{author-contributions}}
 
 L.A.N. conceived and designed the project, wrote the code, and wrote the manuscript.
+
+\begin{figure}
+\centering
+\includegraphics{figs/Fig_1.pdf}
+\caption{\label{fig:jackalope-overview-figure}Overview of primary \texttt{jackalope} functions, classes, inputs, and outputs. Circles \texttt{sub\_models} and \texttt{vars\_functions} refer to multiple functions; see text for details. \(\theta\) indicates the population-scaled mutation rate.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{_manuscript_files/figure-latex/variants-perf-test-plot-1.pdf}
+\caption{\label{fig:variants-perf-test-plot}Performance comparison between \texttt{jackalope} and \texttt{Seq-Gen} in generating variants from a reference genome. Sub-panels indicate the size of the genome from which variants were generated. Superscripts in the y-axis labels indicate the number of threads used.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{_manuscript_files/figure-latex/sequencing-perf-test-plot-1.pdf}
+\caption{\label{fig:sequencing-perf-test-plot}Performance comparison between \texttt{jackalope} and (A) \texttt{ART} in generating Illumina reads and (B) \texttt{SimLoRD} in generating PacBio reads. Sub-panels indicate the number of reads generated. Superscripts in the y-axis labels indicate the number of threads used.}
+\end{figure}
 
 
 

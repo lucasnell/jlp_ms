@@ -1,5 +1,5 @@
 ---
-title: "jackalope: a swift, light-weight phylogenomic and high-throughput sequencing simulator"
+title: "jackalope: a swift, lightweight phylogenomic and high-throughput sequencing simulator"
 bibliography: "references.bib"
 csl: "apa.csl"
 author:
@@ -79,12 +79,13 @@ Genomic variants can be simulated using summary statistics, phylogenies,
 Variant Call Format (VCF) files, and coalescent simulations---the latter of which can
 include selection, recombination, and demographic fluctuations.
 `jackalope` can simulate single, paired-end, or mate-pair Illumina reads,
-as well as reads from Pacific BioSciences.
+as well as reads from Pacific Biosciences.
 These simulations include sequencing errors, mapping qualities, multiplexing,
 and optical/PCR duplicates.
 All outputs can be written to standard file formats.
 Most functions are written in C++ to improve performance, and I employed OpenMP to 
 allow for parallel processing.
+
 
 
 
@@ -183,9 +184,6 @@ go_cap <- paste("Overview of primary \\texttt{jackalope} functions, classes,",
                 "Circles \\texttt{sub\\_models} and \\texttt{vars\\_functions}",
                 "refer to multiple functions; see text for details.",
                 "$\\theta$ indicates the population-scaled mutation rate.")
-```
-```{r jackalope-overview-figure, fig.cap=go_cap, echo = FALSE, eval = TRUE}
-knitr::include_graphics("figs/Fig_1.pdf", dpi = NA)
 ```
 
 
@@ -465,10 +463,11 @@ and `jackalope` conformed closely to expectations
 (Supporting Information Figures S1--S12).
 
 
-Performance comparisons to existing programs were run on a late-2013 MacBook
+I compared the performance of `jackalope` to existing programs on a MacBook
 Pro running macOS Mojave (version 10.14.4) with a 2.6GHz Intel Core i5 processor
 and 8 GB RAM.
-Time and maximum memory used were measured by using the `time` command from the terminal.
+Elapsed time and maximum memory used were measured by using the GNU `time` program
+(`/usr/bin/time` from the terminal).
 For each test, 10 runs of each program were tested in random order.
 
 
@@ -476,6 +475,8 @@ For each test, 10 runs of each program were tested in random order.
 
 For creating variants, I compared `jackalope` to `Seq-Gen`
 [@Rambaut_1997].
+I chose `Seq-Gen` because it is used by `TreeToReads` and because it can generate
+sequences based on gene trees.
 I tested each program by having them simulate a 2 Mb, 20 Mb, and 200 Mb genome
 split evenly among 20 sequences, then generate 8 variants from that genome using
 gene trees produced by the following `scrm` command:
@@ -518,7 +519,7 @@ var_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
                       "the number of threads used.")
 ```
 
-```{r variants-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=112/25.4, fig.cap=var_plot_cap}
+```{r variants-perf-test-plot-make, echo = FALSE, eval = TRUE}
 
 
 # one column, two-thirds page width, or two columns (80 mm, 112 mm, or 169 mm, respectively)
@@ -607,10 +608,7 @@ var_mem <- var_runs %>%
 var_plot <- plot_grid(var_time, var_mem, ncol = 1)
 
 ggsave("figs/Fig_2.pdf", var_plot, width = 112, height = 112, units = "mm")
-
-var_plot
 ```
-
 
 
 ### Generating sequencing reads
@@ -798,15 +796,13 @@ seq_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
                       "the number of threads used.")
 ```
 
-```{r sequencing-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=112/25.4, fig.cap=seq_plot_cap}
-
+```{r sequencing-perf-test-plot-make, echo = FALSE, eval = TRUE}
 seq_plot <- plot_grid(ill_time, pb_time, ncol = 1, labels = LETTERS[1:2],
                       label_fontface = "plain")
-
 ggsave("figs/Fig_3.pdf", seq_plot, width = 112, height = 112, units = "mm")
-
-seq_plot
 ```
+
+
 
 
 
@@ -1140,10 +1136,14 @@ simulation platforms allow.
 # Data Accessibility
 
 
-`jackalope` and its documentation are available on GitHub
-(https://github.com/lucasnell/jackalope).
-The package will soon be submitted to CRAN `https://CRAN.R-project.org`.
+`jackalope` is open source, under the MIT license.
+Its code is available on GitHub
+(https://github.com/lucasnell/jackalope), and
+the documentation can be found at https://jackalope.lucasnell.com.
+The package will soon be submitted to CRAN.
 The version used in this manuscript was 0.1.0.
+Code for the example usage, validation, and performance is available on GitHub at
+https://github.com/lucasnell/jlp_ms.
 
 
 <!-- The stable version of `jackalope` is available on CRAN -->
@@ -1158,3 +1158,18 @@ The version used in this manuscript was 0.1.0.
 
 L.A.N. conceived and designed the project, wrote the code, and wrote the manuscript.
 
+
+
+```{r jackalope-overview-figure, fig.cap=go_cap, echo = FALSE, eval = TRUE}
+knitr::include_graphics("figs/Fig_1.pdf", dpi = NA)
+```
+
+
+```{r variants-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=112/25.4, fig.cap=var_plot_cap}
+var_plot
+```
+
+
+```{r sequencing-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=112/25.4, fig.cap=seq_plot_cap}
+seq_plot
+```
