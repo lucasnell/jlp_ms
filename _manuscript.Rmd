@@ -1,7 +1,7 @@
 ---
 title: "jackalope: a swift, lightweight phylogenomic and high-throughput sequencing simulator"
 bibliography: "references.bib"
-csl: "apa.csl"
+csl: "molecular-ecology.csl"
 author:
     - name: Lucas A. Nell
       nums: "1"
