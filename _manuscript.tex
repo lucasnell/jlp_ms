@@ -38,7 +38,7 @@
 \usepackage{xcolor}
 \usepackage{hyperref}
 \hypersetup{
-            pdftitle={jackalope: a swift, lightweight phylogenomic and high-throughput sequencing simulator},
+            pdftitle={jackalope: a swift, versatile phylogenomic and high-throughput sequencing simulator},
             colorlinks=true,
             linkcolor=Blue,
             citecolor=Blue,
@@ -140,7 +140,7 @@
 \providecommand{\subtitle}[1]{\Huge{#1}}
 
 \title{
-    jackalope: a swift, lightweight phylogenomic and high-throughput sequencing simulator
+    jackalope: a swift, versatile phylogenomic and high-throughput sequencing simulator
             }
             \author[1]{Lucas A. Nell}
                 \affil[1]{Department of Integrative Biology, University of Wisconsin--Madison}
@@ -172,7 +172,7 @@
 \begin{document}
 
             \maketitle
-        
+
 
 
 
@@ -183,31 +183,26 @@
 
 High-throughput sequencing (HTS) is central to the study of population genomics
 and has an increasingly important role in constructing phylogenies.
-Choices in sampling design for sequencing projects can include
-a wide range of factors, including sequencing platform, depth of coverage, and
+Choices in research design for sequencing projects can include
+a wide range of factors, such as sequencing platform, depth of coverage, and
 bioinformatic tools.
-These choices are most often informed by previous work on highly diverged species,
-which ignores species- and population-specific genomic characteristics
-and evolutionary histories.
-Simulating sequencing based on available genomic data better informs research design.
-However, most current methods provide only rudimentary ways to simulate past
-evolutionary events.
-More recent pipelines have been developed that can simulate more complex scenarios,
-but they involve installing and learning to operate multiple separate programs.
+Simulating HTS data better informs these decisions.
+However, current standalone HTS simulators cannot generate genomic variants under
+even somewhat complex evolutionary scenarios, which greatly reduces their usefulness
+for fields such as population genomics and phylogenomics.
 Here I present the R package \texttt{jackalope} that simply and efficiently simulates
 (i) variants from reference genomes and
 (ii) reads from both Illumina and Pacific Biosciences (PacBio) platforms.
-It can either read reference genomes from FASTA files or simulate new ones.
-Genomic variants can be simulated using summary statistics, phylogenies,
-Variant Call Format (VCF) files, and coalescent simulations---the latter of which can
-include selection, recombination, and demographic fluctuations.
+Genomic variants can be simulated using phylogenies, gene trees,
+coalescent-simulation output, population-genomic summary statistics,
+and Variant Call Format (VCF) files.
 \texttt{jackalope} can simulate single, paired-end, or mate-pair Illumina reads,
 as well as reads from Pacific Biosciences.
 These simulations include sequencing errors, mapping qualities, multiplexing,
 and optical/PCR duplicates.
-All outputs can be written to standard file formats.
-Most functions are written in C++ to improve performance, and I employed OpenMP to
-allow for parallel processing.
+It can read reference genomes from FASTA files and can simulate new ones,
+and all outputs can be written to standard file formats.
+\texttt{jackalope} is available for Mac, Windows, and Linux systems.
 
 \textbf{Keywords:} sequencing simulator, population genomics, phylogenomics,
 Illumina, Pacific Biosciences, Pool-seq
@@ -223,34 +218,42 @@ evolutionary histories make bioinformatic pipelines an important aspect of
 research using HTS.
 Many bioinformatic tools exist, and new programs that are more accurate and
 computationally efficient are constantly being developed.
-To test these tools against known parameter values, simulation of HTS data is needed.
+Simulation of HTS data is needed to test these tools.
 Although there are many sequence simulators currently available
 (reviewed in Escalona, Rocha, \& Posada, 2016),
 most have only rudimentary ways to generate variants from a reference genome.
+For example, both \texttt{Mason} (Holtgrewe, 2010) and \texttt{GemSIM} (McElroy, Luciani, \& Thomas, 2012) place mutations
+randomly throughout genome sequences, the former based on per-site mutation rates
+and the latter on a set number of mutations per variant haplotype.
+In either case, these simulators are not useful for researchers interested
+in simulating HTS data to test more complex evolutionary questions, such as
+(a) how demographic changes and selection interact to affect genome-wide diversity or
+(b) how incongruence between gene trees might affect reconstructed phylogenies.
 
 Recently, pipelines have been developed that use multiple programs
 to simulate complex evolutionary histories and HTS on the resulting populations
 or species.
-\texttt{TreeToReads} can simulate sequences along a single phylogenetic tree
-(McTavish et al., 2017)
-\texttt{NGSphy} can generate sequences from multiple gene trees
-(Escalona, Rocha, \& Posada, 2018);
-both generate Illumina reads.
-These pipelines are quite powerful and useful to those seeking to simulate
-HTS data under realistic evolutionary scenarios.
-However, both pipelines require the installation of multiple programs to use them,
+\texttt{TreeToReads} (McTavish et al., 2017) simulates sequences along a single
+phylogenetic tree using \texttt{Seq-Gen} (Rambaut \& Grass, 1997)
+and generates Illumina reads using \texttt{ART} (Huang, Li, Myers, \& Marth, 2011).
+The newer pipeline \texttt{NGSphy} (Escalona, Rocha, \& Posada, 2018) uses \texttt{INDELible} (Fletcher \& Yang, 2009)
+for more mutation options than \texttt{Seq-Gen} and
+can simulate along multiple gene trees via \texttt{SimPhy} (Mallo, Oliveira Martins, \& Posada, 2015).
+These pipelines are quite powerful.
+However, they both require the installation of multiple programs to use them,
 and the vast array of features creates a steep learning curve when getting started.
 Additionally, the lack of integration between inner programs means that the
 entire process is not as computationally efficient as a single standalone program.
 
-In the present paper I introduce \texttt{jackalope}, the first available high-throughput
-DNA-sequencing simulator for R
-(R Core Team, 2019).
-Designed for efficient memory use, flexibility, and speed,
-\texttt{jackalope} combines the functionality of an HTS simulator with that of a
+In the present paper I introduce \texttt{jackalope}, an R (R Core Team, 2019) package
+that combines the functionality of an HTS simulator with that of a
 phylogenomics simulator.
-Genomes can be derived from FASTA files or simulated in silico.
-\texttt{jackalope} can create variants from the reference genome based on basic
+I chose the R platform because of its simple integration with C++ code via
+the \texttt{Rcpp} package (Eddelbuettel \& François, 2011).
+The interface with R allows the user greater flexibility, while the underlying
+C++ code improves memory use and speed.
+\texttt{jackalope} can read genomes from FASTA files or simulate them in silico.
+It can also create variants from the reference genome based on basic
 population-genomic summary statistics, phylogenies, gene trees,
 Variant Call Format (VCF) files, or matrices of segregating sites.
 These variants can be simulated based on any of several popular
@@ -359,7 +362,7 @@ The segregating-site information can take the form of
 \texttt{coala} (Staab \& Metzler, 2016) package, or
 (2) a file containing output from a coalescent simulator in the format of the
 \texttt{ms} (Hudson, 2002) or
-\texttt{msms} (Ewing \& Hermisson, 2010) programs.
+\texttt{msms} (Ewing \& Hermisson, 2010) program.
 
 The last three methods simulate sequences along phylogenies.
 In the first of these methods,
@@ -519,11 +522,13 @@ Reads are output to FASTQ files.
 Function \texttt{illumina} simulates single, paired-ended, or mate-pair Illumina reads,
 while \texttt{pacbio} simulates reads from the Pacific Biosciences (PacBio) platform.
 Illumina read simulation is based on the \texttt{ART} program
-(Huang, Li, Myers, \& Marth, 2011), and
+(Huang et al., 2011), and
 PacBio read simulation is based on \texttt{SimLoRD}
 (Stöcker, Köster, \& Rahmann, 2016).
 Each was re-coded in C++ to more seemlessly integrate into \texttt{jackalope}.
-Function inputs emulate the program they were based on.
+Function inputs emulate the program they were based on,
+and users are encouraged in each function's documentation to also cite
+\texttt{ART} or \texttt{SimLoRD}.
 
 \hypertarget{validation-and-performance}{%
 \subsection{Validation and performance}\label{validation-and-performance}}
@@ -548,6 +553,8 @@ For creating variants, I compared \texttt{jackalope} to \texttt{Seq-Gen}
 (Rambaut \& Grass, 1997).
 I chose \texttt{Seq-Gen} because it is used by \texttt{TreeToReads} and because it can generate
 sequences based on gene trees.
+It is relatively simple and written in C, so it should provide a conservative
+estimate of how well \texttt{jackalope} performs against similar programs.
 I tested each program by having them simulate a 2 Mb, 20 Mb, and 200 Mb genome
 split evenly among 20 sequences, then generate 8 variants from that genome using
 gene trees produced by the following \texttt{scrm} command:
@@ -579,20 +586,22 @@ associated with loading R:
 An R script that simply printed an empty string used \(\sim 55\) MB memory,
 and another that only loaded \texttt{jackalope} used \(\sim 70\) MB.
 At the 20 Mb genome size, however, \texttt{jackalope} used slightly less memory than \texttt{Seq-Gen},
-and for a 200 Mb genome size, \texttt{jackalope} used 38 \% less memory.
+and for a 200 Mb genome size, \texttt{jackalope} used \(38 \%\) less memory.
 
 \hypertarget{generating-sequencing-reads}{%
 \subsubsection{Generating sequencing reads}\label{generating-sequencing-reads}}
 
-For both Illumina and PacBio read generation in \texttt{jackalope}, I tested their performance
-in comparison to the programs they were based on:
+For both Illumina and PacBio read generation in \texttt{jackalope}, I compared their performance
+to the programs they were based on:
 \texttt{ART} (Huang et al., 2011) and
 \texttt{SimLoRD} (Stöcker et al., 2016), respectively.
+\texttt{ART} has the added benefit of being used for both \texttt{NSGphy} and \texttt{TreesToReads}.
 All these tests consisted of reading a 2 Mb genome from a FASTA file, simulating
 reads, and writing them to FASTQ files.
-For Illumina sequencing, these were \(2 \times 150\) reads from the HiSeq 2500 platform,
+No ALN or SAM/BAM files were written by any of the programs.
+For Illumina sequencing, I generated \(2 \times 150\) reads from the HiSeq 2500 platform,
 and tests were conducted for 100 thousand, 1 million, and 10 million total reads.
-For PacBio sequencing, these were reads generated using default parameters,
+For PacBio sequencing, I generated reads using default parameters,
 and tests were conducted for 1, 10, and 100 thousand total reads.
 \texttt{jackalope} was tested for 1 and 4 threads, but
 neither \texttt{ART} nor \texttt{SimLoRD} allowed the use of more than 1.
@@ -601,7 +610,7 @@ Again, \texttt{jackalope} outperformed both \texttt{ART} and \texttt{SimLoRD} in
 (Figure \ref{fig:sequencing-perf-test-plot}).
 Using multiple threads was most useful when many reads were generated:
 For at least 10M Illumina reads and at least 1M PacBio reads, using 4 threads
-reduced the time taken for jobs by \(\sim\) 50 \%.
+reduced the elapsed time for jobs by \(\sim 50 \%\).
 All three programs used very little memory, and the amount did not depend strongly
 on the number of reads generated.
 \texttt{ART} used 9.4 MB and \texttt{SimLoRD} used 54.0--61.2 MB.
@@ -614,7 +623,8 @@ This section provides brief examples of how \texttt{jackalope} can be used
 to generate sequencing data that can inform some common sampling decisions for HTS
 studies.
 These examples only show how to produce the output from \texttt{jackalope}, as
-a review of different pipelines is beyond the scope of the present manuscript.
+a review of different bioinformatic programs that would process these data
+is beyond the scope of the present manuscript.
 
 For an example reference assembly, I used the \emph{Drosophila melanogaster} assembly
 (version 6.27) downloaded from \texttt{flybase.org} (Thurmond et al., 2018).
@@ -667,7 +677,7 @@ test strategies for how to assemble a similar genome using HTS data.
 The first strategy is to use only PacBio sequencing.
 The PacBio Sequel system produces up to 500,000 reads per
 Single Molecule, Real-Time (SMRT) cell, so you could
-run the following for two cells:
+run the following for two cells (with the file \texttt{pacbio\_R1.fq} as output):
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -739,7 +749,7 @@ This results in the following set of variants:
 ##                            << Variants object >>
 ## # Variants: 40
 ## # Mutations: 440,203
-## 
+##
 ##                         << Reference genome info: >>
 ## < Set of 5 sequences >
 ## # Total size: 110,338,337 bp
@@ -752,7 +762,7 @@ This results in the following set of variants:
 \end{verbatim}
 
 For a file of true divergences from the reference genome, the \texttt{write\_vcf} function
-writes the \texttt{variants} object to a VCF file:
+writes the \texttt{variants} object to VCF file \texttt{variants.vcf}:
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -791,7 +801,7 @@ FASTQ files:
 This section shows how \texttt{jackalope} can generate variants from a phylogeny, then
 simulate sequencing data from those variants to test phylogeny reconstruction methods.
 First, I generated a random coalescent tree of 10 species using the \texttt{ape} package
-\texttt{citep(citation("ape"))}.
+(Paradis \& Schliep, 2018).
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -814,7 +824,7 @@ This results in the following \texttt{variants} object:
 ##                            << Variants object >>
 ## # Variants: 10
 ## # Mutations: 301,710
-## 
+##
 ##                         << Reference genome info: >>
 ## < Set of 5 sequences >
 ## # Total size: 110,338,337 bp
@@ -888,7 +898,7 @@ This results in the following \texttt{variants} object:
 ##                            << Variants object >>
 ## # Variants: 24
 ## # Mutations: 613,142
-## 
+##
 ##                         << Reference genome info: >>
 ## < Set of 5 sequences >
 ## # Total size: 110,338,337 bp
@@ -1000,6 +1010,9 @@ Hasegawa, M., Yano, T.-a., \& Kishino, H. (1984). A new molecular clock of mitoc
 \leavevmode\hypertarget{ref-Hayden_2019}{}%
 Hayden, N., \& Morgan, M. (2019). \emph{Rhtslib: HTSlib high-throughput sequencing library as an r package}.
 
+\leavevmode\hypertarget{ref-Holtgrewe_2010}{}%
+Holtgrewe, M. (2010). Masona read simulator for second generation sequencing data. \emph{Technical Report Freie Universität Berlin}.
+
 \leavevmode\hypertarget{ref-Huang_2011}{}%
 Huang, W., Li, L., Myers, J. R., \& Marth, G. T. (2011). ART: A next-generation sequencing read simulator. \emph{Bioinformatics}, \emph{28}(4), 593--594. doi: \href{https://doi.org/10.1093/bioinformatics/btr708}{10.1093/bioinformatics/btr708}
 
@@ -1023,6 +1036,12 @@ Li, H., Handsaker, B., Wysoker, A., Fennell, T., Ruan, J., Homer, N., \ldots{} a
 
 \leavevmode\hypertarget{ref-Li_2011}{}%
 Li, X., Zhu, C., Lin, Z., Wu, Y., Zhang, D., Bai, G., \ldots{} Yu, J. (2011). Chromosome size in diploid eukaryotic species centers on the average length with a conserved boundary. \emph{Molecular Biology and Evolution}, \emph{28}(6), 1901--1911. doi: \href{https://doi.org/10.1093/molbev/msr011}{10.1093/molbev/msr011}
+
+\leavevmode\hypertarget{ref-Mallo_2015}{}%
+Mallo, D., Oliveira Martins, L. de, \& Posada, D. (2015). SimPhy: Phylogenomic simulation of gene, locus, and species trees. \emph{Systematic Biology}, \emph{65}(2), 334--344.
+
+\leavevmode\hypertarget{ref-McElroy_2012}{}%
+McElroy, K. E., Luciani, F., \& Thomas, T. (2012). GemSIM: General, error-model based simulator of next-generation sequencing data. \emph{BMC Genomics}, \emph{13}(1), 74.
 
 \leavevmode\hypertarget{ref-McTavish_2017}{}%
 McTavish, E. J., Pettengill, J., Davis, S., Rand, H., Strain, E., Allard, M., \& Timme, R. E. (2017). TreeToReads - a pipeline for simulating raw reads from phylogenies. \emph{BMC Bioinformatics}, \emph{18}(1). doi: \href{https://doi.org/10.1186/s12859-017-1592-1}{10.1186/s12859-017-1592-1}
@@ -1087,7 +1106,7 @@ Yang, Z. B. (1994). Estimating the pattern of nucleotide substitution. \emph{Jou
 Its code is available on GitHub
 (\url{https://github.com/lucasnell/jackalope}), and
 the documentation can be found at \url{https://jackalope.lucasnell.com}.
-The package will soon be submitted to CRAN.
+The package has been submitted to CRAN.
 The version used in this manuscript was 0.1.0.
 Code for the example usage, validation, and performance is available on GitHub at
 \url{https://github.com/lucasnell/jlp_ms}.
@@ -1099,20 +1118,20 @@ L.A.N. conceived and designed the project, wrote the code, and wrote the manuscr
 
 \begin{figure}
 \centering
-\includegraphics{figs/Fig_1.pdf}
+\includegraphics{Fig_1.pdf}
 \caption{\label{fig:jackalope-overview-figure}Overview of primary \texttt{jackalope} functions, classes, inputs, and outputs. Circles \texttt{sub\_models} and \texttt{vars\_functions} refer to multiple functions; see text for details. \(\theta\) indicates the population-scaled mutation rate.}
 \end{figure}
 
 \begin{figure}
 \centering
 \includegraphics{_manuscript_files/figure-latex/variants-perf-test-plot-1.pdf}
-\caption{\label{fig:variants-perf-test-plot}Performance comparison between \texttt{jackalope} and \texttt{Seq-Gen} in generating variants from a reference genome. Sub-panels indicate the size of the genome from which variants were generated. Superscripts in the y-axis labels indicate the number of threads used.}
+\caption{\label{fig:variants-perf-test-plot}Performance comparison between \texttt{jackalope} and \texttt{Seq-Gen} in generating variants from a reference genome. Sub-panel columns indicate the size of the genome from which variants were generated. Superscripts in the y-axis labels indicate the number of threads used.}
 \end{figure}
 
 \begin{figure}
 \centering
 \includegraphics{_manuscript_files/figure-latex/sequencing-perf-test-plot-1.pdf}
-\caption{\label{fig:sequencing-perf-test-plot}Performance comparison between \texttt{jackalope} and (A) \texttt{ART} in generating Illumina reads and (B) \texttt{SimLoRD} in generating PacBio reads. Sub-panels indicate the number of reads generated. Superscripts in the y-axis labels indicate the number of threads used.}
+\caption{\label{fig:sequencing-perf-test-plot}Performance comparison between \texttt{jackalope} and (A) \texttt{ART} in generating Illumina reads and (B) \texttt{SimLoRD} in generating PacBio reads. Sub-panel columns indicate the number of reads generated. Superscripts in the y-axis labels indicate the number of threads used.}
 \end{figure}
 
 
