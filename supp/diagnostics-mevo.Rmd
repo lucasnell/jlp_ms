@@ -123,7 +123,7 @@ var_set <- create_variants(ref, vars_phylo(tree),
 
 substitutions <- map(0:(pars$n_seqs-1),
                      function(s) {
-                         Z <- jackalope:::examine_mutations(var_set_ptr = var_set$genomes,
+                         Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
                                                      var_ind = 0, seq_ind = s) %>%
                          .[["sub"]]
                      return(Z)
@@ -200,7 +200,7 @@ rates_ <- jackalope:::create_mevo(ref, sub = Q, ins = insertions, NULL, NULL, 10
 
 insertions <- map(0:(pars$n_seqs-1),
              function(s) {
-                 Z <- jackalope:::examine_mutations(var_set_ptr = var_set$genomes,
+                 Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
                                                  var_ind = 0, seq_ind = s) %>%
                      .[["ins"]]
                  # Anything over `pars$M[1]` is >1 mutation
@@ -238,7 +238,7 @@ rates_ <- jackalope:::create_mevo(ref, sub = Q, del = deletions, NULL, NULL, 100
 
 deletions <- map(0:(pars$n_seqs-1),
                   function(s) {
-                      Z <- jackalope:::examine_mutations(var_set_ptr = var_set$genomes,
+                      Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
                                                       var_ind = 0, seq_ind = s) %>%
                           .[["del"]]
                       # Anything over `pars$M[1]` is >1 mutation
@@ -319,7 +319,7 @@ var_set <- create_variants(ref, vars_phylo(tree), sub = Q,
 
 pos_df <- map_dfr(0:(ref$n_seqs()-1),
     function(s) {
-        Z <- jackalope:::examine_mutations(var_set_ptr = var_set$genomes,
+        Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
                                         var_ind = 0, seq_ind = s) %>%
             .[["pos"]]
         return(tibble(seq = as.integer(s), pos = as.integer(Z)))
@@ -405,7 +405,7 @@ var_set <- create_variants(ref, vars_phylo(tree), sub = Q, n_threads = 4)
 
 mutations <- lapply(0:(pars$n_vars-1),
                     function(v) {
-                        Z <- jackalope:::view_mutations(var_set_ = var_set$genomes,
+                        Z <- jackalope:::view_mutations(var_set_ = var_set$ptr(),
                                                      var_ind = v)
                         Zseq <- Z[,"seq"]
                         Z <- Z[, c("old_pos", "size_mod", "nucleos")]
