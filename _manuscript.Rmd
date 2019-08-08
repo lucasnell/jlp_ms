@@ -172,15 +172,27 @@ the `PCG` family of thread-safe, pseudo-random number generators
 Package `RcppProgress` provides the thread-safe progress bar
 [@Forner_2018].
 All input and output files can have `gzip` or `bgzip` compression, using the
-`zlib` and
-`htslib` 
-[@Li_2009]
-libraries.
+`zlib` and `htslib` [@Li_2009] libraries.
 Access to these libraries uses the R packages
-`zlibbioc` [@Morgan_2019] and
-`Rhtslib` [@Hayden_2019]
-to improve portability.
-An overview of the methods is shown in Figure \@ref(fig:jackalope-overview-figure).
+`zlibbioc` [@Morgan_2019] and `Rhtslib` [@Hayden_2019] to improve portability.
+
+
+There are two classes in `jackalope`, one that stores information on reference genomes
+(`ref_genome`), the other storing information on sets of variants (`variants`).
+Both classes are `R6` [@Chang_2019] classes that wrap pointers to underlying C++ objects.
+Those C++ objects store all the information.
+Reference genomes are simply vectors of chromosome names and sequence strings.
+Variants are nested vectors of mutation information, not entire variant genomes;
+this dramatically reduces memory usage.
+I chose `R6` classes because they allow for fields that cannot be manipulated from
+outside the class; I made the pointers to C++ objects private to prevent users
+from accidentally manipulating them.
+Methods in `jackalope`'s classes allow the user to view and manipulate aspects of the
+C++ objects.
+Structuring the classes this way provides a high degree of flexibility and
+minimizes the chances of copying of large objects in memory.
+An overview of how these classes are created and used to produce output files is shown
+in Figure \@ref(fig:jackalope-overview-figure).
 
 
 ```{r jackalope-overview-cap, echo=FALSE, eval = TRUE}
@@ -195,41 +207,46 @@ go_cap <- paste("Overview of primary \\texttt{jackalope} functions, classes,",
 
 
 
+### Reference genomes
 
-
-### The `ref_genome` class
-
-Haploid reference genomes are represented by the class `ref_genome`, an
-`R6` [@Chang_2019]
-class that acts as a wrapper around a pointer to 
-an underlying C++ object that stores all the sequence information.
-They can be generated from FASTA files using the function `read_fasta`.
-This function also accepts FASTA index files---created using 
-`samtools faidx`---for faster processing.
-If a reference genome is not available, the `create_genome` function creates 
-a reference genome of given equilibrium nucleotide distributions.
-Sequence lengths are drawn from a Gamma distribution
-[@Li_2011]
+Haploid reference genomes can be generated from FASTA files, optionally with index files---created using `samtools faidx`---that speed up processing.
+<!-- create_genome -->
+If a reference genome is not available, one can be 
+simulated based on given equilibrium nucleotide distributions.
+Chromosome lengths are drawn from a Gamma distribution
 with a mean and standard deviation provided by the user.
-
-
-The access provided by the R class `ref_genome` is designed to both 
-maximize flexibility and minimize copying and the chances of
-printing extremely large strings to the console.
-Methods in `ref_genome` allow the user to view the
-number of sequences, sequence sizes, sequence names, individual sequence strings,
-and nucleotide proportions (GC or otherwise).
-Users can also edit sequence names, remove one or more sequences by name,
-and add sequences manually.
-Method `filter_sequences` filters genomes by the minimum sequence size or
-by the smallest sequence that retains a given proportion of total reference
-sequence if sequences are sorted by descending size.
-Using method `merge_sequences`, users can shuffle reference sequences and
-merge them into one.
-Method `replace_Ns` replaces any `N`s in the reference sequence with nucleotides
-that are sampled with weights proportional to their equilibrium distributions 
+The Gamma distribution was chosen because of its flexibility and due to evidence
+that it works well for chromosome sizes in diploid eukaryotes [@Li_2011].
+<!-- methods -->
+Users can view the number of chromosomes, chromosome sizes, chromosome names,
+individual chromosome strings, and nucleotide proportions (GC or otherwise).
+They can also edit chromosome names, remove one or more chromosomes by name,
+and add chromosomes manually.
+All `N`s in the reference genome can be replaced with nucleotides
+that are sampled with weights proportional to their equilibrium distributions
 (provided by the user).
-Reference genomes can be written to FASTA files using the `write_fasta` function.
+If the reference genome contains scaffolds or contigs, you can filter them by size or
+merge them into one.
+<!-- write -->
+Reference genomes can be written to FASTA files.
+
+
+
+The second class (`variants`) stores haploid variant information.
+It does not store whole variant genomes, but
+rather just their mutation information---this dramatically reduces memory usage.
+<!-- methods -->
+The user can view the number of chromosomes/variants,
+variant chromosome sizes, chromosome/variant names, and individual
+variant-chromosome strings.
+Users can also edit variant names, remove one or more variants by name,
+add blank variants, duplicate existing variants, and manually add mutations.
+<!-- write -->
+Variant information can be written to VCF files, where each variant can optionally be
+considered one of multiple haplotypes for samples with ploidy levels > 1.
+Alternatively, variant genomes can be written to separate FASTA files.
+
+
 
 
 
@@ -243,7 +260,7 @@ To organize a potentially large amount of information that can be input to this 
 I added helper functions that handle parts of the input.
 There are helper functions for the higher-level method information
 (information from phylogenies, coalescent simulations, etc.) and
-for various aspects of the molecular evolution (substitutions, indels, and among-site
+for various aspects of the molecular evolution (substitutions, indels [insertions and deletions], and among-site
 variability in mutation rates).
 The first subsection below outlines the higher-level information functions, and
 the second subsection details the molecular evolution functions.
@@ -283,7 +300,8 @@ The last three variant-creation methods simulate sequences using phylogenomic in
 In the first of these methods,
 phylogenetic tree(s) can be directly input from either `phylo` object(s) or
 NEWICK file(s) (function `vars_phylo`).
-One tree can be used for all genome sequences, or each sequence can use a separate tree.
+A single phylogenetic tree can be used for all genome sequences, or
+each sequence can use a separate, independent tree.
 In the second method, users can pass an estimate for $\theta$, the population-scaled
 mutation rate (function `vars_theta`).
 A random coalescent tree is first generated using the `rcoal` function
@@ -297,29 +315,50 @@ gene trees that can differ both within and among reference sequences
 Similarly to simulations using coalescent segregating sites, gene trees can be
 from `scrm` or `coala` objects, or from `ms`-style output files.
 
-For the phylogenomic methods, variants are simulated along tree branches by
-generating exponential wait times
-for the Markov "jump" chain for each sequence,
-where the rate of the exponential distribution is the sum of mutation rates for
-all nucleotides in the sequence [@Yang_2006].
-At each jump, a position on the sequence is sampled with a probability proportional to
-the mutation rate for that position.
-A position's mutation rate is the product of its "gamma distance"
-(determined by among-site variability in mutation rates) and the overall mutation rate
-for the nucleotide at that position
-(determined by the summed indel and substitution rates).
-After sampling a position, a mutation type is sampled with probabilities
-proportional to the rate of each mutation type for the nucleotide
-present at the sampled position.
-Jumps are performed until the summed length of all jumps is greater than the
+
+For the phylogenomic methods, variants are simulated along tree branches 
+using the Doob--Gillespie algorithm [@Doob_1942; @Gillespie_1976].
+I used this method because it only requires instantaneous rates rather than the
+calculation of a transition-probability matrix, which makes it easily used
+for indels [@Yang_2006].
+It starts by using the reference genome sequences as those for the root of the tree.
+Then, for each sequence and branch, waiting times are generated that represent
+the time until the next mutation occurs somewhere on the sequence.
+Wait times are generated from an exponential distribution with a rate equal to the
+sum of mutation rates for all nucleotides in the sequence.
+When a mutation occurs, a position on the sequence and a mutation type are then sampled
+(see following paragraphs for more on these processes).
+Waiting times are generated until the sum of all times is greater than the
 branch length.
+The resulting sequence is then assigned to the daughter node on the tree.
+This process is repeated down the tree, from root to tips.
 
 
-Because sampling of mutation positions incorporates both among-site and among-nucleotide 
-variability in mutation rates,
-users can separately specify rate variation that occurs due to
-(1\) where the nucleotides are positioned on the sequence molecule and
-(2\) the chemical structures of the nucleotides themselves.
+
+<!---
+******************************************************************************
+******************************************************************************
+
+LEFT OFF
+
+******************************************************************************
+******************************************************************************
+-->
+
+<!---
+Position sampling
+-->
+
+The sequence position for a mutation is sampled with a probability proportional
+to the mutation rate for that position.
+A position's mutation rate is the product of the overall mutation rate
+for the nucleotide at that position
+(determined by the summed indel and substitution rates)
+and its "gamma distance."
+Gamma distances are mutation-rate modifiers that vary by position on the sequence,
+and they are used to generate among-site variability in mutation rates.
+
+
 To accomplish this, `jackalope` first splits each sequence into
 smaller regions, where each region contains the same gamma distance.
 The nucleotide-level rates are then summed by region and multiplied by the region's
@@ -329,12 +368,18 @@ I incorporated a binary search tree to speed this sampling.
 Simple inversion sampling is used to sample within a region.
 
 
+
+<!---
+Mutation type sampling
+-->
+
+
+A mutation type is sampled with probabilities proportional to the rate of each
+mutation type for the nucleotide present at the sampled position.
 Mutation-type sampling is performed by creating 4 vectors (one for each nucleotide),
 each containing all possible mutation types:
 substitutions to other nucleotides and insertions/deletions of all specified lengths.
-I then use alias sampling
-[@Kronmal_1979; @Walker_1974]
-to sample within this vector.
+I then use alias sampling [@Kronmal_1979; @Walker_1974] to sample within this vector.
 
 
 
@@ -343,7 +388,7 @@ to sample within this vector.
 
 Molecular evolution information is provided to the `create_variants`
 function through organizing functions that are specific to the type of information:
-substitutions, indels (insertions and deletions),
+substitutions, indels,
 and variation in mutation rates among sites.
 Substitutions use the `sub_models` group of functions,
 indels use the `indels` function,
@@ -403,37 +448,17 @@ The gamma distances can optionally be written to a BED file.
 
 
 
-### The `variants` class
-
-
-Haploid variant information is stored in the `variants` class.
-Similarly to `ref_genome`, this R6 class wraps a pointer to a C++ object
-that stores all the information, and it was designed to prevent copying of large
-objects in memory.
-The underlying C++ class does not store whole variant genomes, but
-rather just their mutation information---this dramatically reduces memory usage.
-Methods in `variants` allow the user to view the number of sequences/variants,
-variant sequence sizes, sequence/variant names, and individual variant-sequence strings.
-Users can also edit variant names, remove one or more variants by name,
-add blank variants, duplicate existing variants,
-and manually add mutations.
-Variant information can be written to VCF files using the `write_vcf` function,
-where each variant can optionally be considered one of multiple haplotypes for
-samples with ploidy levels > 1.
-Alternatively, variant genomes can be written to separate FASTA files
-using `write_fasta`.
-
 
 
 ### Simulate sequencing data
 
 
-Both R6 classes `ref_genome` and `variants` can be input to the sequencing functions
-`illumina` and `pacbio`.
-Sequences from which reads are derived are sampled with weights proportional to
+Both reference genomes and variants can be input to the sequencing functions
+for Illumina and PacBio sequencing.
+Chromosomes from which reads are derived are sampled with weights proportional to
 their length.
-If a `variants` object is provided, individual variants are sampled with equal
-probabilities by default.
+If variants are provided, individual variants are sampled with equal probabilities 
+by default.
 Alternatively, the user can specify sampling weights for each variant
 to simulate the library containing differing amounts of DNA from each.
 Both methods also allow for a probability of read duplication, which might occur
@@ -444,22 +469,20 @@ This reduces conflicts that occur when multiple threads attempt to write to disk
 at the same time.
 The size of a "full" pool can be adjusted, and larger sizes should increase both
 speed and memory usage.
-Reads are output to FASTQ files.
-
-
-Function `illumina` simulates single, paired-ended, or mate-pair Illumina reads,
-while `pacbio` simulates reads from the Pacific Biosciences (PacBio) platform.
-Illumina read simulation is based on the `ART` program
-[@Huang_2011], and
-PacBio read simulation is based on `SimLoRD` 
-[@St_cker_2016].
+Illumina reads can be single, paired-ended, or mate-pair, and I used
+methods based on the `ART` program [@Huang_2011].
+PacBio read simulation is based on `SimLoRD` [@St_cker_2016].
 Each was re-coded in C++ to more seemlessly integrate into `jackalope`.
 Function inputs emulate the program they were based on,
 and users are encouraged in each function's documentation to also cite
 `ART` or `SimLoRD`.
+<!-- write -->
+All sequencing reads are output to FASTQ files.
 
 
 
+
+# -----
 
 ## Validation and performance
 
