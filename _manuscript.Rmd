@@ -169,6 +169,8 @@ Most code is written in C++ and interfaces with R using the `Rcpp` package
 I used OpenMP to allow for parallel processing and
 the `PCG` family of thread-safe, pseudo-random number generators
 [@Oneill_2014pcg].
+I use alias sampling [@Kronmal_1979; @Walker_1974] for all weighted sampling except
+for when sampling for mutation positions.
 Package `RcppProgress` provides the thread-safe progress bar
 [@Forner_2018].
 All input and output files can have `gzip` or `bgzip` compression, using the
@@ -210,42 +212,12 @@ go_cap <- paste("Overview of primary \\texttt{jackalope} functions, classes,",
 ### Reference genomes
 
 Haploid reference genomes can be generated from FASTA files, optionally with index files---created using `samtools faidx`---that speed up processing.
-<!-- create_genome -->
 If a reference genome is not available, one can be 
 simulated based on given equilibrium nucleotide distributions.
 Chromosome lengths are drawn from a Gamma distribution
 with a mean and standard deviation provided by the user.
 The Gamma distribution was chosen because of its flexibility and due to evidence
 that it works well for chromosome sizes in diploid eukaryotes [@Li_2011].
-<!-- methods -->
-Users can view the number of chromosomes, chromosome sizes, chromosome names,
-individual chromosome strings, and nucleotide proportions (GC or otherwise).
-They can also edit chromosome names, remove one or more chromosomes by name,
-and add chromosomes manually.
-All `N`s in the reference genome can be replaced with nucleotides
-that are sampled with weights proportional to their equilibrium distributions
-(provided by the user).
-If the reference genome contains scaffolds or contigs, you can filter them by size or
-merge them into one.
-<!-- write -->
-Reference genomes can be written to FASTA files.
-
-
-
-The second class (`variants`) stores haploid variant information.
-It does not store whole variant genomes, but
-rather just their mutation information---this dramatically reduces memory usage.
-<!-- methods -->
-The user can view the number of chromosomes/variants,
-variant chromosome sizes, chromosome/variant names, and individual
-variant-chromosome strings.
-Users can also edit variant names, remove one or more variants by name,
-add blank variants, duplicate existing variants, and manually add mutations.
-<!-- write -->
-Variant information can be written to VCF files, where each variant can optionally be
-considered one of multiple haplotypes for samples with ploidy levels > 1.
-Alternatively, variant genomes can be written to separate FASTA files.
-
 
 
 
@@ -254,19 +226,149 @@ Alternatively, variant genomes can be written to separate FASTA files.
 ### Creating variants
 
 
-Haploid variants from the reference genome are generated using the
+There are three main processes that `jackalope` simulates to generate haploid variants
+from a reference genome.
+These processes inform mutation types, positions, and quantities.
+There are also five different methods of simulating variants, and not all of these
+methods use all underlying processes.
+The first three sections below describe the three processes.
+The last section outlines the five methods and which processes they use.
+
+
+
+#### Mutation types
+
+
+Mutations can be substitutions or indels (insertions / deletions).
+A table of rates from  @Sung_2016 is included in the package as a guide for
+reasonable rates to use.
+
+
+For substitutions, the following models can be employed:
+TN93 [@TN93],
+JC69 [@JC69],
+K80 [@Kimura_1980],
+F81 [@Felsenstein_1981],
+HKY85 [@Hasegawa_1985; @Hasegawa_1984],
+F84 [@Thorne_1992],
+GTR [@Tavare_1986gtr],
+and UNREST [@Yang_1994].
+If using the UNREST model, equilibrium nucleotide frequencies ($\mathbf{\pi}$) are 
+calculated by solving for $\mathbf{\pi} \mathbf{Q} = 0$, where $\mathbf{Q}$ is the
+substitution rate matrix.
+This is done by finding the left eigenvector of $\mathbf{Q}$ that
+corresponds to the eigenvalue closest to zero.
+Each substitution model uses its own function, and the provided documentation
+(under `sub_models`) includes information to help users choose among them.
+
+
+Information for insertions and deletions is provided separately, but
+the same information is needed for both.
+The first requirement is an overall rate parameter, which is for the sum among all
+nucleotides; indel rates do not differ among nucleotides.
+The relative rates of indels of different sizes can be provided in 3 different ways:
+First, rates can be proportional to $\exp(-u)$ for indel length $u$ from
+1 to the maximum possible length, $L$ [@Albers_2010].
+Second, rates can be generated from a Lavalette distribution, 
+where the rate for length $u$ is proportional to
+$\left[{u L / (L - u + 1)}\right]^{-a}$ [@Fletcher_2009].
+Third, relative rates can be specified directly by providing a length-$L$
+numeric vector of positive values.
+Indels up to 1 Mb are allowed.
+
+
+The above information is used to create 4 vectors (one for each nucleotide),
+each containing the rates of all possible mutation types:
+substitutions to other nucleotides and insertions/deletions of all specified lengths.
+After determining the position of the mutation (from the second process or from
+input data),
+I sample for a mutation type with weights proportional to the rate of each
+mutation type for the nucleotide present at the mutation position.
+
+
+
+#### Mutation positions
+
+
+The chromosomal position for a mutation is sampled with a probability proportional
+to the mutation rate for that position.
+The first factor determining a position's mutation rate is the summed indel and
+substitution rates for the nucleotide at that position.
+The second, optional factor is among-site variability in mutation rates.
+In `jackalope`, this is incorporated using a fixed-sites model [@Yang_2002],
+where different regions of each chromosome can have different rates of mutation.
+For each region, this takes the form of a "gamma distance" that modifies the
+nucleotide-associated mutation rates for positions within its region.
+For position $i$ inside region $j$, the overall mutation rate is $\zeta_i \gamma_j$,
+where $\zeta_i$ is the mutation rate associated with the nucleotide at position $i$ and
+$\gamma_j$ is the gamma distance for region $j$.
+Gamma distances can be generated from a Gamma distribution (with a fixed mean of 1)
+for regions of uniform size.
+Alternatively, both gamma distances and region sizes can be passed manually.
+
+
+To perform this sampling, `jackalope` first sums the overall mutation rates for each
+region ($\sum_i \zeta_i \gamma_j$ for region $j$ and all $i$ positions inside it).
+It then uses these total rates as weights to sample regions;
+I incorporated a binary search tree to speed this sampling.
+Simple inversion sampling is used to sample within a region, and weights here 
+are simply the nucleotide-associated mutation rates.
+
+
+
+#### Mutation quantities
+
+
+Mutation quantities are sampled when phylogenomic methods are employed.
+I used the Doob--Gillespie algorithm [@Doob_1942; @Gillespie_1976] because
+it only requires instantaneous rates rather than the
+calculation of a transition-probability matrix, making it easily used
+for indels [@Yang_2006].
+The process evolves chromosomal sequences along simple phylogenetic trees, and 
+the number of mutations occurring along a particular tree branch is proportional to
+the branch's length.
+All chromosomes evolve independently, and each chromosome can optionally use a
+different phylogenetic tree.
+If recombination is included, multiple phylogenetic trees ("gene trees") are used
+per chromosome, and chromosomal regions referred to by different gene trees
+evolve independently.
+For the next paragraph, "sequence" refers to a region of DNA that evolves 
+independently: a whole chromosome in the case of one phylogenetic tree,
+or a chromosomal region in the case of gene trees.
+
+
+Evolving sequences along phylogenetic trees starts by using the reference genome
+sequences as those for the root of the tree.
+Then, for each sequence and branch, waiting times are generated that represent
+the time until the next mutation occurs somewhere on the sequence.
+Wait times are generated from an exponential distribution with a rate equal to the
+sum of mutation rates for all nucleotides in the sequence.
+Waiting times (and resulting mutations) are generated until the sum of all times
+is greater than the branch length.
+The resulting sequence is then assigned to the daughter node on the tree.
+This process is repeated down the tree, from root to tips.
+
+
+#------
+
+#### Methods
+
+
+
+
+using the
 `create_variants` function.
 To organize a potentially large amount of information that can be input to this function,
 I added helper functions that handle parts of the input.
 There are helper functions for the higher-level method information
 (information from phylogenies, coalescent simulations, etc.) and
-for various aspects of the molecular evolution (substitutions, indels [insertions and deletions], and among-site
+for various aspects of the molecular evolution (substitutions, indels, and among-site
 variability in mutation rates).
 The first subsection below outlines the higher-level information functions, and
 the second subsection details the molecular evolution functions.
 
 
-#### Higher-level method information
+#### xx - Higher-level method information
 
 There are five ways to generate variants from the reference genome, and
 each has a function associated with it.
@@ -316,145 +418,15 @@ Similarly to simulations using coalescent segregating sites, gene trees can be
 from `scrm` or `coala` objects, or from `ms`-style output files.
 
 
-For the phylogenomic methods, variants are simulated along tree branches 
-using the Doob--Gillespie algorithm [@Doob_1942; @Gillespie_1976].
-I used this method because it only requires instantaneous rates rather than the
-calculation of a transition-probability matrix, which makes it easily used
-for indels [@Yang_2006].
-It starts by using the reference genome sequences as those for the root of the tree.
-Then, for each sequence and branch, waiting times are generated that represent
-the time until the next mutation occurs somewhere on the sequence.
-Wait times are generated from an exponential distribution with a rate equal to the
-sum of mutation rates for all nucleotides in the sequence.
-When a mutation occurs, a position on the sequence and a mutation type are then sampled
-(see following paragraphs for more on these processes).
-Waiting times are generated until the sum of all times is greater than the
-branch length.
-The resulting sequence is then assigned to the daughter node on the tree.
-This process is repeated down the tree, from root to tips.
 
 
-
-<!---
-******************************************************************************
-******************************************************************************
-
-LEFT OFF
-
-******************************************************************************
-******************************************************************************
--->
-
-<!---
-Position sampling
--->
-
-The sequence position for a mutation is sampled with a probability proportional
-to the mutation rate for that position.
-A position's mutation rate is the product of the overall mutation rate
-for the nucleotide at that position
-(determined by the summed indel and substitution rates)
-and its "gamma distance."
-Gamma distances are mutation-rate modifiers that vary by position on the sequence,
-and they are used to generate among-site variability in mutation rates.
+# -----
 
 
-To accomplish this, `jackalope` first splits each sequence into
-smaller regions, where each region contains the same gamma distance.
-The nucleotide-level rates are then summed by region and multiplied by the region's
-gamma distance to get the region's overall rate.
-I used these total rates as weights to sample regions, and
-I incorporated a binary search tree to speed this sampling.
-Simple inversion sampling is used to sample within a region.
+### Simulating sequencing data
 
 
-
-<!---
-Mutation type sampling
--->
-
-
-A mutation type is sampled with probabilities proportional to the rate of each
-mutation type for the nucleotide present at the sampled position.
-Mutation-type sampling is performed by creating 4 vectors (one for each nucleotide),
-each containing all possible mutation types:
-substitutions to other nucleotides and insertions/deletions of all specified lengths.
-I then use alias sampling [@Kronmal_1979; @Walker_1974] to sample within this vector.
-
-
-
-
-#### Molecular evolution
-
-Molecular evolution information is provided to the `create_variants`
-function through organizing functions that are specific to the type of information:
-substitutions, indels,
-and variation in mutation rates among sites.
-Substitutions use the `sub_models` group of functions,
-indels use the `indels` function,
-and among-site variation uses the `site_var` function.
-A table of rates from 
-@Sung_2016
-is included in the package
-as a guide for reasonable rates to use.
-
-
-Each substitution model uses its own function of the pattern `sub_M` for model `M`,
-and the provided `sub_models` documentation includes information to help
-users choose among them.
-The following substitution models can be employed:
-TN93 [@TN93],
-JC69 [@JC69],
-K80 [@Kimura_1980],
-F81 [@Felsenstein_1981],
-HKY85 [@Hasegawa_1985; @Hasegawa_1984],
-F84 [@Thorne_1992],
-GTR [@Tavare_1986gtr],
-and UNREST [@Yang_1994].
-If using the UNREST model, equilibrium nucleotide frequencies ($\mathbf{\pi}$) are 
-calculated by solving for $\mathbf{\pi} \mathbf{Q} = 0$, where $\mathbf{Q}$ is the
-substitution rate matrix.
-This is done by finding the left eigenvector of $\mathbf{Q}$ that
-corresponds to the eigenvalue closest to zero.
-
-
-Providing insertion and deletion information is organized in the `indels` function.
-It first requires an overall rate parameter, which is for the sum among all
-nucleotides; indel rates do not differ among nucleotides.
-The `indels` function also requires information about the relative rates of
-indels of different sizes, which can be provided in 3 different ways.
-First, rates can be proportional to $\exp(-u)$ for indel length $u$ from
-1 to the maximum possible length, $L$
-[@Albers_2010].
-Second, rates can be generated from a Lavalette distribution, 
-where the rate for length $u$ is proportional to
-$\left[{u L / (L - u + 1)}\right]^{-a}$ 
-[@Fletcher_2009].
-Third, relative rates can be specified directly by providing a length-$M$
-numeric vector of positive values.
-Indels up to 1 Mb are allowed.
-
-
-Among-site variation in mutation rates, specified in the `site_var` function,
-is included either by generating gamma distances from a distribution
-or by passing them manually.
-Gamma distances are generated from a Gamma distribution with a fixed mean of 1
-and with a shape parameter provided by the user; 
-a proportion of these regions can optionally be invariant.
-Users can also pass a list of matrices, one for each reference sequence,
-with a gamma distance and end point for each sequence region.
-The gamma distances can optionally be written to a BED file.
-
-
-
-
-
-
-### Simulate sequencing data
-
-
-Both reference genomes and variants can be input to the sequencing functions
-for Illumina and PacBio sequencing.
+Both reference genomes and variants can be simulated for Illumina and PacBio sequencing.
 Chromosomes from which reads are derived are sampled with weights proportional to
 their length.
 If variants are provided, individual variants are sampled with equal probabilities 
@@ -476,13 +448,22 @@ Each was re-coded in C++ to more seemlessly integrate into `jackalope`.
 Function inputs emulate the program they were based on,
 and users are encouraged in each function's documentation to also cite
 `ART` or `SimLoRD`.
-<!-- write -->
+
+
+
+### Writing output
+
+Reference genomes and variants can be written to FASTA files; the latter
+has a separate file for each variant.
+Variant information can also be written to VCF files, where each variant can
+optionally be considered one of multiple haplotypes for samples with ploidy levels > 1.
+The gamma distances for among-site heterogeneity are optionally saved as a BED file.
+Simulated gene trees can be written to `ms`-style output files, and phylogenies can be
+written to NEWICK files using `ape::write.tree`.
 All sequencing reads are output to FASTQ files.
 
 
 
-
-# -----
 
 ## Validation and performance
 
