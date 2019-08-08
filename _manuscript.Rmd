@@ -180,7 +180,7 @@ Access to these libraries uses the R packages
 `zlibbioc` [@Morgan_2019] and
 `Rhtslib` [@Hayden_2019]
 to improve portability.
-An overview of the methods is show in Figure \@ref(fig:jackalope-overview-figure).
+An overview of the methods is shown in Figure \@ref(fig:jackalope-overview-figure).
 
 
 ```{r jackalope-overview-cap, echo=FALSE, eval = TRUE}
@@ -1150,19 +1150,14 @@ simulation platforms allow.
 
 
 `jackalope` is open source, under the MIT license.
-Its code is available on GitHub
-(https://github.com/lucasnell/jackalope), and
-the documentation can be found at https://jackalope.lucasnell.com.
-The package has been submitted to CRAN.
-The version used in this manuscript was 0.1.0.
+The stable version of `jackalope` is available on CRAN
+(https://CRAN.R-project.org/package=jackalope),
+and the development version is on GitHub
+(https://github.com/lucasnell/jackalope).
+The documentation can be found at https://jackalope.lucasnell.com.
+The version used in this manuscript was 0.1.3.
 Code for the example usage, validation, and performance is available on GitHub at
 https://github.com/lucasnell/jlp_ms.
-
-
-<!-- The stable version of `jackalope` is available on CRAN -->
-<!-- (https://CRAN.R-project.org/package=jackalope), -->
-<!-- and the development version is on GitHub -->
-<!-- (https://github.com/lucasnell/jackalope). -->
 
 
 
