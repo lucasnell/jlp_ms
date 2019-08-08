@@ -111,7 +111,7 @@ most have only rudimentary ways to generate variants from a reference genome.
 For example, both `Mason` [@Holtgrewe_2010] and `GemSIM` [@McElroy_2012] place mutations
 randomly throughout genome sequences, the former based on per-site mutation rates
 and the latter on a set number of mutations per variant haplotype.
-In either case, these simulators are not useful for researchers interested
+In either case, simulations alone are not useful for researchers interested
 in simulating HTS data to test more complex evolutionary questions, such as
 (a\) how demographic changes and selection interact to affect genome-wide diversity or
 (b\) how incongruence between gene trees might affect reconstructed phylogenies.
@@ -141,9 +141,9 @@ I chose the R platform because of its simple integration with C++ code via
 the `Rcpp` package [@Eddelbuettel_2011].
 The interface with R allows the user greater flexibility, while the underlying
 C++ code improves memory use and speed.
-`jackalope` can read genomes from FASTA files or simulate them in silico.
-It can also create variants from the reference genome based on basic 
-population-genomic summary statistics, phylogenies, gene trees, 
+`jackalope` can read genomes from FASTA files or simulate them *in silico*.
+It can also create variants from the reference genome based on basic
+population-genomic summary statistics, phylogenies, gene trees,
 Variant Call Format (VCF) files, or matrices of segregating sites.
 These variants can be simulated based on any of several popular
 molecular-evolution models.
@@ -208,7 +208,7 @@ This function also accepts FASTA index files---created using
 `samtools faidx`---for faster processing.
 If a reference genome is not available, the `create_genome` function creates 
 a reference genome of given equilibrium nucleotide distributions.
-Sequence lengths are drawn from a gamma distribution
+Sequence lengths are drawn from a Gamma distribution
 [@Li_2011]
 with a mean and standard deviation provided by the user.
 
@@ -379,11 +379,11 @@ nucleotides; indel rates do not differ among nucleotides.
 The `indels` function also requires information about the relative rates of
 indels of different sizes, which can be provided in 3 different ways.
 First, rates can be proportional to $\exp(-u)$ for indel length $u$ from
-1 to the maximum possible length, $M$ 
+1 to the maximum possible length, $L$
 [@Albers_2010].
 Second, rates can be generated from a Lavalette distribution, 
 where the rate for length $u$ is proportional to
-$\left[{u M / (M - u + 1)}\right]^{-a}$ 
+$\left[{u L / (L - u + 1)}\right]^{-a}$ 
 [@Fletcher_2009].
 Third, relative rates can be specified directly by providing a length-$M$
 numeric vector of positive values.
