@@ -259,7 +259,7 @@ The outputs of these functions are meant to be passed to the `vars_info` argumen
 in `create_variants`.
 
 
-The first two methods directly specify numbers and locations of mutations and
+The first two variant creation methods directly specify numbers and locations of mutations and
 therefore do not require any phylogenomic methods in `jackalope`.
 First, a variant call format (VCF) file can directly specify mutations for each
 variant (function `vars_vcf`).
@@ -279,7 +279,7 @@ The segregating-site information can take the form of
 `msms` [@Ewing_2010] program.
 
 
-The last three methods simulate sequences along phylogenies.
+The last three variant-creation methods simulate sequences using phylogenomic information.
 In the first of these methods,
 phylogenetic tree(s) can be directly input from either `phylo` object(s) or
 NEWICK file(s) (function `vars_phylo`).
