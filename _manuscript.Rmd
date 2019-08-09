@@ -349,78 +349,42 @@ The resulting sequence is then assigned to the daughter node on the tree.
 This process is repeated down the tree, from root to tips.
 
 
-#------
 
 #### Methods
 
 
-
-
-using the
-`create_variants` function.
-To organize a potentially large amount of information that can be input to this function,
-I added helper functions that handle parts of the input.
-There are helper functions for the higher-level method information
-(information from phylogenies, coalescent simulations, etc.) and
-for various aspects of the molecular evolution (substitutions, indels, and among-site
-variability in mutation rates).
-The first subsection below outlines the higher-level information functions, and
-the second subsection details the molecular evolution functions.
-
-
-#### xx - Higher-level method information
-
 There are five ways to generate variants from the reference genome, and
-each has a function associated with it.
-The names of these functions follow the form `vars_X` for method `X`,
-and information on all of the function can be found in the `vars_functions` documentation.
-The outputs of these functions are meant to be passed to the `vars_info` argument
-in `create_variants`.
-
-
-The first two variant creation methods directly specify numbers and locations of mutations and
-therefore do not require any phylogenomic methods in `jackalope`.
-First, a variant call format (VCF) file can directly specify mutations for each
-variant (function `vars_vcf`).
+information on all the methods can be found in the `vars_functions` documentation.
+First, a variant call format (VCF) file can directly specify mutations for each variant.
 This method works using the `vcfR` package 
 [@Knaus_2017] and
-is the only method that does not require any molecular-evolution information.
-Second, matrices of segregating sites from coalescent output can provide the locations
-of mutations (function `vars_ssites`).
-Molecular evolution information passed to `create_variants` then informs the sampling
-for the type of mutation at each site.
+is the only method that does not require any mutation-type information.
+Second, segregating sites from coalescent output can provide the locations of mutations.
 The segregating-site information can take the form of 
 (1\) a coalescent-simulator object from the `scrm`
 [@Paul_R._Staab_2015] or
 `coala` [@Paul_R._Staab_2016] package, or
 (2\) a file containing output from a coalescent simulator in the format of the
-`ms` [@Hudson_2002] or 
-`msms` [@Ewing_2010] program.
+`ms` [@Hudson_2002] or`msms` [@Ewing_2010] program.
+For this method, the user must provide mutation-type information only.
 
 
-The last three variant-creation methods simulate sequences using phylogenomic information.
-In the first of these methods,
-phylogenetic tree(s) can be directly input from either `phylo` object(s) or
-NEWICK file(s) (function `vars_phylo`).
-A single phylogenetic tree can be used for all genome sequences, or
-each sequence can use a separate, independent tree.
-In the second method, users can pass an estimate for $\theta$, the population-scaled
-mutation rate (function `vars_theta`).
+The remaining methods involve phylogenetic tree(s) that inform mutation quantities,
+and require information on mutation types and positions from the user.
+In the third method, phylogenetic tree(s) can be directly input from either
+`phylo` object(s) or NEWICK file(s)---either one tree for all chromosomes or one
+per chromosome.
+Fourth, users can pass an estimate for $\theta$, the population-scaled mutation rate.
 A random coalescent tree is first generated using the `rcoal` function
 in the `ape` package [@Paradis_2018].
 Then, its total tree length is scaled to be
 $\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ variants and an equilibrium
 mutation rate of $\mu$.
 The last method allows for simulation of recombination by simulating along
-gene trees that can differ both within and among reference sequences
-(function `vars_gtrees`).
+gene trees that can differ both within and among reference sequences.
 Similarly to simulations using coalescent segregating sites, gene trees can be
 from `scrm` or `coala` objects, or from `ms`-style output files.
 
-
-
-
-# -----
 
 
 ### Simulating sequencing data
