@@ -381,7 +381,7 @@ Then, its total tree length is scaled to be
 $\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ variants and an equilibrium
 mutation rate of $\mu$.
 The last method allows for simulation of recombination by simulating along
-gene trees that can differ both within and among reference sequences.
+gene trees that can differ both within and among reference chromosomes.
 Similarly to simulations using coalescent segregating sites, gene trees can be
 from `scrm` or `coala` objects, or from `ms`-style output files.
 
@@ -455,10 +455,11 @@ sequences based on gene trees.
 It is relatively simple and written in C, so it should provide a conservative
 estimate of how well `jackalope` performs against similar programs.
 I tested each program by having them simulate a 2 Mb, 20 Mb, and 200 Mb genome
-split evenly among 20 sequences, then generate 8 variants from that genome using
-gene trees produced by the following `scrm` command:
+split evenly among 20 chromosomes, then generate 8 variants from that genome using
+gene trees produced by the commandline version of `scrm`.
 
-```{bash scrm-test}
+```{bash scrm-test, echo = FALSE}
+# No longer including this in manuscript
 scrm 8 20 -T -seed 1829812441 253160851 137767610 > scrm.tree
 ```
 
@@ -827,10 +828,11 @@ print(ref)
 ```
 
 
-For molecular-evolution information, I used the TN93 model,
+For mutation-type information, I used the TN93 substitution model,
 an insertion rate of `2e-5` for lengths from 1 to 10,
 and
 a deletion rate of `1e-5` for lengths from 1 to 40.
+
 
 ```{r examples-mevo-objects, eval = TRUE}
 sub <- sub_TN93(pi_tcag = c(0.1, 0.2, 0.3, 0.4),
@@ -867,44 +869,35 @@ illumina(ref, out_prefix = "illumina", n_reads = 500e6, paired = TRUE,
 ```
 
 
-The last strategy combines 1 lane of $2 \times 100$bp Illumina HiSeq 2500 sequencing
-with 1 flow cell of $2 \times 250$bp mate-pair sequencing on an Illumina MiSeq v3.
-The mate-pair sequencing uses longer fragments (defaults are mean of 400 and
-standard deviation of 100) to better cover highly
-repetitive regions.
 
-```{r examples-reads-for-assembly-illumina}
-illumina(ref, out_prefix = "ill_pe", n_reads = 500e6, paired = TRUE,
-         read_length = 100)
-illumina(ref, out_prefix = "ill_mp", seq_sys = "MSv3",
-         read_length = 250, n_reads = 50e6, matepair = TRUE, 
-         frag_mean = 3000, frag_sd = 500)
-```
-
-
-
+#-----
 
 ### Estimating divergence between populations
 
-Here, I will demonstrate how to generate population-genomic data of a type that might
-be used to estimate the divergence between two populations.
-I first use the `scrm` package [@Paul_R._Staab_2015]
-to conduct 
-coalescent simulations that will generate segregating sites for 40 haploid variants
-from the reference genome.
-Twenty of the variants are from one population, twenty from another.
-The symmetrical migration rate is 100 individuals per generation.
-To generate many mutations, I set the population-scaled mutation rate
-($\theta = 4 N_0 \mu$) to `1000` for this example.
-
-```{r examples-divergence-scrm, eval = TRUE}
+```{r examples-divergence-scrm, eval = TRUE, echo=FALSE}
 ssites <- scrm(paste("40", ref$n_seqs(), "-t 1000 -I 2 20 20 100"))
 ```
 
-Using the previously created objects for molecular evolution information (`sub`,
-`ins`, and `del`), I create variants from the reference genome:
 
-```{r examples-divergence-create, eval = TRUE}
+Here, I will demonstrate how to generate population-genomic data of a type that might
+be used to estimate the divergence between two populations.
+I first used the `scrm` package [@Paul_R._Staab_2015]
+to conduct coalescent simulations that will generate segregating sites for 40
+haploid variants from the reference genome (object `ssites`).
+Twenty of the variants are from one population, twenty from another.
+The symmetrical migration rate is 100 individuals per generation,
+and the population-scaled mutation rate ($\theta = 4 N_0 \mu$) is quite high (`1000`).
+The `scrm` command for this is `40 5 -t 1000 -I 2 20 20 100`.
+Using the previously created objects for mutation-type information and the
+`vars_ssites` function that checks and organizes the coalescent output object,
+I create variants from the reference genome.
+I also write the true variant information to VCF file `variants.vcf`.
+
+```{r examples-divergence-create-for-show}
+vars <- create_variants(ref, vars_ssites(ssites), sub, ins, del)
+write_vcf(vars, "variants")
+```
+```{r examples-divergence-create, eval = TRUE, echo = FALSE}
 vars <- create_variants(ref, vars_ssites(ssites), sub, ins, del)
 ```
 
@@ -915,27 +908,8 @@ print(vars)
 ```
 
 
-For a file of true divergences from the reference genome, the `write_vcf` function
-writes the `variants` object to VCF file `variants.vcf`:
-
-```{r examples-divergence-write-vcf}
-write_vcf(vars, "variants")
-```
-
-
 Lastly, I simulate 1 lane of $2 \times 100$bp Illumina HiSeq 2500 sequencing.
-In this case, individuals within a population are pooled, and the population
-sequences are derived from are identified by barcodes.
-
-```{r examples-divergence-illumina-pool}
-illumina(vars, out_prefix = "vars_illumina", n_reads = 500e6, paired = TRUE,
-         read_length = 100, barcodes = c(rep("AACCGCGG", 20), 
-                                         rep("GGTTATAA", 20)))
-```
-
-
-The below example instead has each individual variant's reads output to separate
-FASTQ files:
+In this case, each individual variant's reads are output to separate FASTQ files.
 
 ```{r examples-divergence-illumina-individual}
 illumina(vars, out_prefix = "vars_illumina", n_reads = 500e6, paired = TRUE,
@@ -948,17 +922,17 @@ illumina(vars, out_prefix = "vars_illumina", n_reads = 500e6, paired = TRUE,
 
 #### From one phylogenetic tree
 
-This section shows how `jackalope` can generate variants from a phylogeny, then
-simulate sequencing data from those variants to test phylogeny reconstruction methods.
-First, I generated a random coalescent tree of 10 species using the  `ape` package
-[@Paradis_2018].
-
-```{r examples-phylogeny-tree, eval = TRUE}
+```{r examples-phylogeny-tree, eval = TRUE, echo = FALSE}
 tree <- ape::rcoal(10)
 ```
 
-Then I input that to the `create_variants` function alongside the molecular evolution
-information.
+This section shows how `jackalope` can generate variants from a phylogeny, then
+simulate sequencing data from those variants to test phylogeny reconstruction methods.
+First, I simulated a coalescent phylogeny of 10 species (object `tree`) using
+`ape::rcoal(10)` [@Paradis_2018].
+Function `vars_phylo` organizes and checks the `tree` object, and
+including it with the mutation-type information allows me to create variants based
+on this phylogeny:
 
 ```{r examples-phylogeny-tree-create-for-show}
 vars <- create_variants(ref, vars_phylo(tree), sub, ins, del)
@@ -966,13 +940,6 @@ vars <- create_variants(ref, vars_phylo(tree), sub, ins, del)
 ```{r examples-phylogeny-tree-create-for-eval, eval = TRUE, echo = FALSE}
 vars <- create_variants(ref, vars_phylo(tree), sub, ins, del,
                         n_threads = 4)
-```
-
-
-This results in the following `variants` object:
-
-```{r examples-phylogeny-tree-variants-print, echo = FALSE, eval = TRUE}
-print(vars)
 ```
 
 
@@ -988,21 +955,7 @@ illumina(vars, out_prefix = "phylo_tree", seq_sys = "MSv3",
 
 #### From gene trees
 
-Similar to the section above, the ultimate goal here is to test phylogeny
-reconstruction methods.
-The difference in this section is that instead of using a single, straightforward
-phylogeny, I use multiple gene trees per sequence.
-In the species used in these simulations, species 3 diverged from 1 and 2 at $t = 1.0$,
-where $t$ indicates time into the past and is in units of $4 N_0$ generations.
-Species 1 and 2 diverged at $t = 0.5$.
-I assume a recombination rate of $1 / (4 N_0)$ recombination events per sequence
-per generation.
-Because each sequence is a different length and the length is required for including
-a recombination rate, I had to run `scrm` separately for each sequence.
-There are 4 diploid individuals sampled per species.
-
-
-```{r examples-phylogeny-gtrees-scrm, eval = TRUE}
+```{r examples-phylogeny-gtrees-scrm, eval = TRUE, echo=FALSE}
 # Run scrm for one sequence size:
 one_seq <- function(size) {
     sims <- scrm(
@@ -1024,6 +977,20 @@ one_seq <- function(size) {
 gtrees <- list(trees = lapply(ref$sizes(), one_seq))
 ```
 
+Similar to the section above, the ultimate goal here is to test phylogeny
+reconstruction methods.
+The difference in this section is that instead of using a single, straightforward
+phylogeny, I use multiple gene trees per chromosome.
+In the species used in these simulations, species 3 diverged from 1 and 2 at $t = 1.0$,
+where $t$ indicates time into the past and is in units of $4 N_0$ generations.
+Species 1 and 2 diverged at $t = 0.5$.
+I assume a recombination rate of $1 / (4 N_0)$ recombination events per chromosome
+per generation.
+There are 4 diploid individuals sampled per species.
+I used `scrm` to simulate the gene trees (command
+`24 1 -T -r 1 1000 -I 3 8 8 8 0 -ej 1.0 3 1 -ej 0.5 2 1` for a chromosome size of 1000), producing the object `gtrees`.
+
+
 ```{r examples-phylogeny-gtrees-create-variants, echo = FALSE, eval = TRUE}
 # Takes ~1.5 min
 vars <- create_variants(ref, vars_gtrees(gtrees),
@@ -1032,13 +999,6 @@ vars <- create_variants(ref, vars_gtrees(gtrees),
 ```
 ```{r examples-phylogeny-gtrees-create-variants-for-show}
 vars <- create_variants(ref, vars_gtrees(gtrees), sub, ins, del)
-```
-
-
-This results in the following `variants` object:
-
-```{r examples-phylogeny-gtrees-variants-print, echo = FALSE, eval = TRUE}
-print(vars)
 ```
 
 
@@ -1082,6 +1042,8 @@ illumina(ref, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
 
 
 
+
+#-----
 
 
 
