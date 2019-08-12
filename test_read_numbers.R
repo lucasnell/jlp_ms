@@ -154,6 +154,40 @@ test_that("no problems with Run B", {
 
 
 
+# Because this one doesn't take tons of time, I'll try it with sep. files, too.
+
+illumina(varsB, out_prefix = sprintf("%s/%s", odir, "ill-B"),
+         n_reads = 1e5, paired = TRUE,
+         read_length = 250, overwrite = TRUE,
+         sep_files = TRUE)
+
+test_that("no problems with Run B - sep. files", {
+
+    for (tt in tree$tip.label) {
+
+        # Check that files for forward and reverse reads exist:
+        expect_true(sprintf("%s_%s_R1.fq", "ill-B", tt) %in% list.files(odir))
+        expect_true(sprintf("%s_%s_R2.fq", "ill-B", tt) %in% list.files(odir))
+
+        # Read FASTQ files into memory:
+        fastq1 <- readLines(sprintf("%s/%s_%s_R1.fq", odir, "ill-B", tt))
+        fastq2 <- readLines(sprintf("%s/%s_%s_R2.fq", odir, "ill-B", tt))
+
+        expect_equal(length(fastq1), length(fastq2))
+        n_lines <- length(fastq1)
+        # Every 4th line (starting with the 1st) should always start with "@"
+        expect_true(all(grepl("^@", fastq1[seq(1, n_lines, 4)])))
+        expect_true(all(grepl("^@", fastq2[seq(1, n_lines, 4)])))
+        # Every 4th line (starting with the 3rd) should only ever be "+"
+        expect_identical(fastq1[seq(3, n_lines, 4)], rep("+", n_lines / 4))
+        expect_identical(fastq2[seq(3, n_lines, 4)], rep("+", n_lines / 4))
+
+    }
+
+})
+
+
+
 #' =================================================================================
 #' =================================================================================
 #' Run C:
