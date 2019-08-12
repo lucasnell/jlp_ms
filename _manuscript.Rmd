@@ -41,7 +41,7 @@ suppressPackageStartupMessages({
     library(scrm)
     library(ape)
 })
-knitr::opts_chunk$set(echo = TRUE, cache = FALSE, eval = FALSE, dev = 'quartz_pdf')
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE, eval = FALSE, dev = "quartz_pdf")
 # Color palette for performance testing:
 perf_palette <- viridisLite::viridis(5, begin = 0.1)[c(1, 4, 5)]
 
@@ -299,8 +299,8 @@ In `jackalope`, this is incorporated using a fixed-sites model [@Yang_2002],
 where different regions of each chromosome can have different rates of mutation.
 For each region, this takes the form of a "gamma distance" that modifies the
 nucleotide-associated mutation rates for positions within its region.
-For position $i$ inside region $j$, the overall mutation rate is $\zeta_i \gamma_j$,
-where $\zeta_i$ is the mutation rate associated with the nucleotide at position $i$ and
+For position $i$ inside region $j$, the overall mutation rate is $\mu_i \gamma_j$,
+where $\mu_i$ is the mutation rate associated with the nucleotide at position $i$ and
 $\gamma_j$ is the gamma distance for region $j$.
 Gamma distances can be generated from a Gamma distribution (with a fixed mean of 1)
 for regions of uniform size.
@@ -308,7 +308,7 @@ Alternatively, both gamma distances and region sizes can be passed manually.
 
 
 To perform this sampling, `jackalope` first sums the overall mutation rates for each
-region ($\sum_i \zeta_i \gamma_j$ for region $j$ and all $i$ positions inside it).
+region ($\sum_i \mu_i \gamma_j$ for region $j$ and all $i$ positions inside it).
 It then uses these total rates as weights to sample regions;
 I incorporated a binary search tree to speed this sampling.
 Simple inversion sampling is used to sample within a region, and weights here 
@@ -324,7 +324,7 @@ I used the Doob--Gillespie algorithm [@Doob_1942; @Gillespie_1976] because
 it only requires instantaneous rates rather than the
 calculation of a transition-probability matrix, making it easily used
 for indels [@Yang_2006].
-The process evolves chromosomal sequences along simple phylogenetic trees, and 
+The process evolves chromosomal sequences along phylogenetic trees, and 
 the number of mutations occurring along a particular tree branch is proportional to
 the branch's length.
 All chromosomes evolve independently, and each chromosome can optionally use a
@@ -342,7 +342,9 @@ sequences as those for the root of the tree.
 Then, for each sequence and branch, waiting times are generated that represent
 the time until the next mutation occurs somewhere on the sequence.
 Wait times are generated from an exponential distribution with a rate equal to the
-sum of mutation rates for all nucleotides in the sequence.
+sum of mutation rates for all nucleotides in the sequence
+(i.e., $\sum_j \sum_i \mu_i \gamma_j$ for all $j$ in the sequence and all $i$ in
+the $j$th region).
 Waiting times (and resulting mutations) are generated until the sum of all times
 is greater than the branch length.
 The resulting sequence is then assigned to the daughter node on the tree.
@@ -359,28 +361,28 @@ First, a variant call format (VCF) file can directly specify mutations for each 
 This method works using the `vcfR` package 
 [@Knaus_2017] and
 is the only method that does not require any mutation-type information.
-Second, segregating sites from coalescent output can provide the locations of mutations.
+Second, segregating sites from coalescent output can provide the variants and locations 
+at which mutations occur.
+The user provides information to sample mutation types at each segregating site.
 The segregating-site information can take the form of 
 (1\) a coalescent-simulator object from the `scrm`
 [@Paul_R._Staab_2015] or
 `coala` [@Paul_R._Staab_2016] package, or
 (2\) a file containing output from a coalescent simulator in the format of the
-`ms` [@Hudson_2002] or`msms` [@Ewing_2010] program.
-For this method, the user must provide mutation-type information only.
+`ms` [@Hudson_2002] or `msms` [@Ewing_2010] program.
 
 
 The remaining methods involve phylogenetic tree(s) that inform mutation quantities,
 and require information on mutation types and positions from the user.
 In the third method, phylogenetic tree(s) can be directly input from either
-`phylo` object(s) or NEWICK file(s)---either one tree for all chromosomes or one
-per chromosome.
+`phylo` object(s) or NEWICK file(s).
 Fourth, users can pass an estimate for $\theta$, the population-scaled mutation rate.
 A random coalescent tree is first generated using the `rcoal` function
 in the `ape` package [@Paradis_2018].
 Then, its total tree length is scaled to be
 $\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ variants and an equilibrium
 mutation rate of $\mu$.
-The last method allows for simulation of recombination by simulating along
+The last method allows for recombination by simulating along
 gene trees that can differ both within and among reference chromosomes.
 Similarly to simulations using coalescent segregating sites, gene trees can be
 from `scrm` or `coala` objects, or from `ms`-style output files.
@@ -821,23 +823,15 @@ ref$rm_seqs(c("X", "Y"))
 ```
 
 
-This resulted in the following `ref_genome` object:
 
-```{r examples-print-assembly, eval = TRUE, echo = FALSE}
-print(ref)
-```
-
-
-For mutation-type information, I used the TN93 substitution model,
+For mutation-type information, I used the JC69 substitution model,
 an insertion rate of `2e-5` for lengths from 1 to 10,
 and
 a deletion rate of `1e-5` for lengths from 1 to 40.
 
 
 ```{r examples-mevo-objects, eval = TRUE}
-sub <- sub_TN93(pi_tcag = c(0.1, 0.2, 0.3, 0.4),
-                alpha_1 = 0.0001, alpha_2 = 0.0002,
-                beta = 0.00015)
+sub <- sub_JC69(lambda = 1e-4)
 ins <- indels(rate = 2e-5, max_length = 10)
 del <- indels(rate = 1e-5, max_length = 40)
 ```
@@ -870,12 +864,11 @@ illumina(ref, out_prefix = "illumina", n_reads = 500e6, paired = TRUE,
 
 
 
-#-----
 
 ### Estimating divergence between populations
 
 ```{r examples-divergence-scrm, eval = TRUE, echo=FALSE}
-ssites <- scrm(paste("40", ref$n_seqs(), "-t 1000 -I 2 20 20 100"))
+ssites <- scrm(paste("40", ref$n_seqs(), "-t 10 -I 2 20 20 100"))
 ```
 
 
@@ -886,34 +879,28 @@ to conduct coalescent simulations that will generate segregating sites for 40
 haploid variants from the reference genome (object `ssites`).
 Twenty of the variants are from one population, twenty from another.
 The symmetrical migration rate is 100 individuals per generation,
-and the population-scaled mutation rate ($\theta = 4 N_0 \mu$) is quite high (`1000`).
-The `scrm` command for this is `40 5 -t 1000 -I 2 20 20 100`.
+and the population-scaled mutation rate ($\theta = 4 N_0 \mu$) is 10.
+The `scrm` command for this is `40 5 -t 10 -I 2 20 20 100`.
 Using the previously created objects for mutation-type information and the
 `vars_ssites` function that checks and organizes the coalescent output object,
-I create variants from the reference genome.
-I also write the true variant information to VCF file `variants.vcf`.
+I create variants from the reference genome:
 
 ```{r examples-divergence-create-for-show}
 vars <- create_variants(ref, vars_ssites(ssites), sub, ins, del)
-write_vcf(vars, "variants")
 ```
 ```{r examples-divergence-create, eval = TRUE, echo = FALSE}
 vars <- create_variants(ref, vars_ssites(ssites), sub, ins, del)
 ```
 
-This results in the following set of variants:
-
-```{r examples-divergence-create-print, eval = TRUE, echo = FALSE}
-print(vars)
-```
-
 
 Lastly, I simulate 1 lane of $2 \times 100$bp Illumina HiSeq 2500 sequencing.
 In this case, each individual variant's reads are output to separate FASTQ files.
+I also write the true variant information to a VCF file.
 
 ```{r examples-divergence-illumina-individual}
 illumina(vars, out_prefix = "vars_illumina", n_reads = 500e6, paired = TRUE,
          read_length = 100, sep_files = TRUE)
+write_vcf(vars, "variants")
 ```
 
 
@@ -945,10 +932,12 @@ vars <- create_variants(ref, vars_phylo(tree), sub, ins, del,
 
 Now I can generate data for 1 flow cell of $2 \times 250$bp sequencing
 on an Illumina MiSeq v3.
+I also write the true phylogenetic tree to a NEWICK file.
 
 ```{r examples-phylogeny-tree-illumina}
 illumina(vars, out_prefix = "phylo_tree", seq_sys = "MSv3",
          read_length = 250, n_reads = 50e6)
+ape::write.tree(tree, "true.tree")
 ```
 
 
@@ -989,6 +978,8 @@ per generation.
 There are 4 diploid individuals sampled per species.
 I used `scrm` to simulate the gene trees (command
 `24 1 -T -r 1 1000 -I 3 8 8 8 0 -ej 1.0 3 1 -ej 0.5 2 1` for a chromosome size of 1000), producing the object `gtrees`.
+As for the other variant-creation methods, function `vars_gtrees` checks and organizes
+information from the `gtrees` object.
 
 
 ```{r examples-phylogeny-gtrees-create-variants, echo = FALSE, eval = TRUE}
@@ -1002,48 +993,17 @@ vars <- create_variants(ref, vars_gtrees(gtrees), sub, ins, del)
 ```
 
 
-To store mutation information by diploid sample, the `write_vcf` function writes
-the `variants` object to a VCF file.
-It assigns haplotypes to diploid samples using a matrix for the
-`sample_matrix` argument, where each row represents the variants for a particular
-sample.
-Ploidy level is not limited by `jackalope`, so polyploidy is easily simulated
-by having more columns in the matrix.
-The matrix for this set of diploid samples might look something like this
-(only showing the first 5 rows below):
-
-```{r sample-matrix-example, echo = FALSE, eval = TRUE}
-samp_mat <- matrix(1:vars$n_vars(), ncol = 2, byrow = TRUE)
-{
-    print(samp_mat[1:5,])
-    cat("         ...\n")
-}
-```
-
-
-Using the matrix above assigns variants 1 and 2 to sample 1, variants 3 and 4 to
-sample 2, and so on.
-If the matrix is named `samp_mat`, we would use it to write the VCF file as follows:
-
-```{r examples-phylogeny-write-vcf}
-write_vcf(vars, out_prefix = "var_gtrees",
-          sample_matrix = samp_mat)
-```
-
-
 Now I can generate data for 1 flow cell of $2 \times 250$bp sequencing
 on an Illumina MiSeq v3.
+I also write the true gene trees to a `ms`-style file.
 
 ```{r examples-phylogeny-gtrees-illumina}
 illumina(ref, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
          read_length = 250, n_reads = 50e6)
+write_gtrees(gtrees, "gtrees")
 ```
 
 
-
-
-
-#-----
 
 
 
