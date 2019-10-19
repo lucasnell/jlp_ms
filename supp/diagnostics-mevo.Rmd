@@ -8,14 +8,14 @@ editor_options:
 suppressPackageStartupMessages({
     library(jackalope)
     library(tidyverse)
-    library(scrm)
     library(grid)
     library(ape)
 })
 knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = 'quartz_pdf')
 # knitr::opts_knit$set(root.dir = normalizePath(".."))
-if (isTRUE(getOption('knitr.in.progress'))) knitr::knit_theme$set(knitr::knit_theme$get("acid"))
-
+if (isTRUE(getOption('knitr.in.progress'))) {
+  knitr::knit_theme$set(knitr::knit_theme$get("acid"))
+}
 if (!isTRUE(getOption('knitr.in.progress'))) {
     options("device" = "quartz")
     grDevices::graphics.off()
@@ -46,41 +46,31 @@ set.seed(1087437799)
 # Set all needed molecular evolution parameters inside an environment (using TN93 method)
 pars <- new.env()
 with(pars, {
-    n_seqs <- 20
+    n_chroms <- 20
+    chrom_len <- 100e3
     # Molecular evolution parameters:
-    pi_tcag = c(0.1, 0.2, 0.3, 0.4)
-    alpha_1 = 0.25
-    alpha_2 = 0.35
-    beta = 0.5
+    pi_tcag <- c(0.1, 0.2, 0.3, 0.4)
+    alpha_1 <- 0.25
+    alpha_2 <- 0.35
+    beta <- 0.5
     #   For indels:
-    rates = c(0.2, 0.3)
-    M = c(8L, 10L)
-    a = c(0.1, 0.5)
-    n_vars = 10
+    rates <- c(0.2, 0.3)
+    M <- c(8L, 10L)
+    a <- c(0.1, 0.5)
+    n_vars <- 10
     #   For site variability:
-    shape = 0.5
-    region_size = 1e3
-    seq_len = 100e3
-    ends = seq(region_size, seq_len, region_size)
-    mats = replicate(n_seqs,
-                     cbind(ends, rgamma(length(ends), shape = shape, rate = shape)),
-                     simplify = FALSE)
-    # Construct sequences with known number of each nucleotide
-    seqs <- rep(list(c(rep("T", 0.25 * seq_len), rep("C", 0.25 * seq_len),
-                       rep("A", 0.25 * seq_len), rep("G", 0.25 * seq_len))),
-                n_seqs)
-    seqs <- lapply(seqs, sample)
-    seqs <- sapply(seqs, paste, collapse = "")
+    shape <- 0.5
+    # Construct chromosomes with known number of each nucleotide
+    chroms <- rep(list(c(rep("T", 0.25 * chrom_len), rep("C", 0.25 * chrom_len),
+                       rep("A", 0.25 * chrom_len), rep("G", 0.25 * chrom_len))),
+                n_chroms)
+    chroms <- lapply(chroms, sample)
+    chroms <- sapply(chroms, paste, collapse = "")
 })
 
-# Make ref_genome object from a pointer to a RefGenome object based on `seqs`
-ref <- with(pars, ref_genome$new(jackalope:::make_ref_genome(seqs)))
+# Make ref_genome object from a pointer to a RefGenome object based on `chroms`
+ref <- with(pars, ref_genome$new(jackalope:::make_ref_genome(chroms)))
 ref
-
-
-# For testing: just one individual at known sites
-coal_obj <- scrm("2 20 -r 3.1 1000 -t 1000")
-coal_obj$seg_sites <- map(coal_obj$seg_sites, ~ .x[1,.x[1,] > 0,drop=FALSE])
 ```
 
 
@@ -92,12 +82,12 @@ coal_obj$seg_sites <- map(coal_obj$seg_sites, ~ .x[1,.x[1,] > 0,drop=FALSE])
 ```{r illumina-sub-cap-inputs}
 # Phylogenetic tree:
 tree <- ape::rcoal(2)
-tree$edge.length <- tree$edge.length * 0.1
+tree$edge.length <- rep(0.1, 2)
 
-Q <- sub_TN93(alpha_1 = pars$alpha_1,
-              alpha_2 = pars$alpha_2,
-              beta = pars$beta,
-              pi_tcag = pars$pi_tcag)
+sub <- sub_TN93(alpha_1 = pars$alpha_1,
+                alpha_2 = pars$alpha_2,
+                beta = pars$beta,
+                pi_tcag = pars$pi_tcag)
 
 ill_sub_cap <- paste("Observed versus predicted substitutions for simulation of",
                      "2 variants along a phylogeny.")
@@ -108,39 +98,68 @@ a branch length of `r signif(tree$edge.length[1], 3)` and with the following
 substitution rate matrix:
 
 ```{r mevo-sub-mat}
-prmatrix(Q$Q, digits = 3,
+prmatrix(sub$Q()[[1]], digits = 3,
          rowlab = paste("  ", c("T", "C", "A", "G")),
          collab = c("T", "C", "A", "G"))
 ```
 
 
+Predicted substitution counts for each chromosome are calculated using the
+transition-probability matrix for the branch length of the phylogeny multiplied
+by the chromosome size.
 
-```{r mevo-sub-rates, fig.cap=ill_sub_cap}
+
+```{r mevo-sub-rates, fig.cap=ill_sub_cap, results="hide"}
 
 # Only substitutions
-var_set <- create_variants(ref, vars_phylo(tree),
-                           sub = Q)
+var_set <- create_variants(ref, vars_phylo(tree), sub = sub)
 
-substitutions <- map(0:(pars$n_seqs-1),
+# ---------*
+# Observed values:
+# ---------*
+sub_mats <- map(0:(pars$n_chroms-1),
                      function(s) {
                          Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
-                                                     var_ind = 0, seq_ind = s) %>%
+                                                     var_ind = 0, chrom_ind = s) %>%
                          .[["sub"]]
                      return(Z)
-                 }) %>%
-    Reduce(f = `+`)
-# Predicted values:
-sub_pred <- sum(substitutions) * (Q$Q / sum(Q$Q))
+                 })
 
-sub_df <- tibble(obs = c(substitutions[lower.tri(substitutions)],
-                         substitutions[upper.tri(substitutions)]),
-                 pred = c(sub_pred[lower.tri(sub_pred)],
-                          sub_pred[upper.tri(sub_pred)]))
+# ---------*
+# Predicted values:
+# ---------*
+# Calculate probability transition matrix
+Pt <- function(t, .sub, i = 1) {
+  diag_L <- diag(as.numeric(exp(.sub$L()[[i]] * t)))
+  .sub$U()[[i]] %*% diag_L %*% .sub$Ui()[[i]]
+}
+# Expected # mutations per variant per chromosome, of each type
+e_muts <- Pt(max(ape::node.depth.edgelength(tree)), sub) * # mutations per base
+  matrix(ref$sizes()[1], 4, 4) *  # going from mutations/base to mutation/chromosome
+  matrix(0.25, 4, 4) *  # accounting for nucleotide frequencies in ref. genome
+  (1 - diag(4))  # setting diagonal to zero
+
+
+process_sub_mat <- function(sm, .id) {
+  .df <- tibble(
+    n = c(sm[lower.tri(sm)], sm[upper.tri(sm)]),
+    to = c(rep(c("T","C","A","G"), 3:0), 
+            rep(c("T","C","A","G"), 0:3)),
+    from = c(c("T","C","A","G")[c(2:4, 3:4, 4)],
+              c("T","C","A","G")[c(1, 1:2, 1:3)]),
+    id = .id) %>% 
+    mutate_at(vars(to, from), factor, levels = c("T","C","A","G"))
+  return(.df)
+}
+
+sub_df <- map2_dfr(sub_mats, 1:length(sub_mats), process_sub_mat) %>% 
+  mutate(pred = rep(process_sub_mat(e_muts, "exp")[["n"]], length(sub_mats))) %>% 
+  rename(obs = n)
 
 
 sub_df %>%
     ggplot(aes(pred, obs)) +
-    geom_point() +
+    geom_point(shape = 1) +
     geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
     scale_x_continuous("Predicted substitution count") +
     scale_y_continuous("Observed substitution count") +
@@ -163,58 +182,64 @@ ind_cap <- paste("Observed versus predicted insertions (left) and deletions (rig
 ```
 
 
+
+<!---
+
+
+LEFT OFF : EXPLAIN WHAT YOU DID TO CALCULATE THE PREDICTED VALUES AND HOW YOU
+CAPTURED THE OBSERVED VALUES.
+
+ALSO ADD `results="markup"` TO ANY CODE CHUNKS THAT WILL PRODUCE OUTPUT, SINCE 
+THE DIAGNOSTICS OUTPUTS SO MUCH INFORMATION THAT I MADE THE DEFAULT TO HIDE OUTPUT.
+
+-->
+
+
+
 ```{r mevo-indels, fig.height=3, fig.width=6, fig.cap=ind_cap}
 # Function to calculate the expected proportion of mutations that are
 # insertions or deletions of a given size:
-indel_pred <- function(u, j, q_) {
-    # < indel of type j > / < all mutations >
-    ijp <- pars$rates[j] / sum(q_)
+indel_pred <- function(u, j, b_len, chrom_size) {
     # < indel of type j and size u > / < indel of type j >
     M_ <- pars$M[j]
     a_ <- pars$a[j]
     u_ <- 1:M_
     all_ps <- {(u_ * M_) / (M_ - u_ + 1)}^(-a_)
     piju <- all_ps[u] / sum(all_ps)
-    return(ijp * piju)
+    return(pars$rates[j] * piju * b_len * chrom_size)
 }
 
-# Function to make a matrix have N columns
-make_N <- function(x, N) cbind(x, matrix(0, nrow(x), N - ncol(x)))
 
 # --------------------*
 # Insertions ----
 # --------------------*
 
 # Only insertions:
-Q <- sub_TN93(alpha_1 = 0,
-              alpha_2 = 0, beta = 0,
-              pi_tcag = pars$pi_tcag)
 insertions <- indels(rate = pars$rates[1],
                      max_length = pars$M[1],
                      a = pars$a[1])
-var_set <- create_variants(ref, vars_ssites(coal_obj),
-                           sub = Q,
-                           ins = insertions)
+ins_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree),
+                                                        ins = insertions))
 
-rates_ <- jackalope:::create_mevo(ref, sub = Q, ins = insertions, NULL, NULL, 100)$q()
+ins_info <- ins_output[grepl("^\\+-", ins_output)]
+ins_info <- map(strsplit(ins_info, " \\| "), 
+                ~ as.integer(strsplit(trimws(.x[2]), " ")[[1]]))
+ins_info <- do.call(rbind, ins_info)
 
-insertions <- map(0:(pars$n_seqs-1),
-             function(s) {
-                 Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
-                                                 var_ind = 0, seq_ind = s) %>%
-                     .[["ins"]]
-                 # Anything over `pars$M[1]` is >1 mutation
-                 if (ncol(Z) > pars$M[1]) Z <- Z[,1:pars$M[1],drop=FALSE]
-                 # Make sure it has exactly pars$M[1] columns for binding
-                 if (ncol(Z) < pars$M[1]) Z <- make_N(Z, pars$M[1])
-                 return(colSums(Z))
-             })%>%
-    do.call(what = rbind) %>%
-    colSums()
+# branch length and chromosome size info
+blcs_info <- ins_output[grepl("^\\+-", ins_output)]
+blcs_info <- map(strsplit(blcs_info, " \\| "),
+                 ~ as.numeric(strsplit(.x[1], " ")[[1]][2:3]))
+blcs_info <- do.call(rbind, blcs_info)
+
+ins_pred <- map(1:nrow(blcs_info),
+                ~ indel_pred(1:pars$M[1], 1, blcs_info[.x,2], blcs_info[.x,1])) %>% 
+  do.call(what = rbind)
 
 
-ins_df <- tibble(pred = indel_pred(1:pars$M[1], 1, rates_) * sum(insertions),
-                 obs = insertions)
+
+ins_df <- tibble(pred = as.numeric(ins_pred),
+                 obs = as.numeric(ins_info))
 
 
 
@@ -223,36 +248,32 @@ ins_df <- tibble(pred = indel_pred(1:pars$M[1], 1, rates_) * sum(insertions),
 # --------------------*
 
 # Only deletions
-Q <- sub_TN93(alpha_1 = 0,
-              alpha_2 = 0, beta = 0,
-              pi_tcag = pars$pi_tcag)
 deletions <- indels(rate = pars$rates[2],
                     max_length = pars$M[2],
                     a = pars$a[2])
-var_set <- create_variants(ref, vars_ssites(coal_obj),
-                           sub = Q,
-                           del = deletions)
+del_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree),
+                                                        del = deletions))
 
-rates_ <- jackalope:::create_mevo(ref, sub = Q, del = deletions, NULL, NULL, 100)$q()
+del_info <- del_output[grepl("^\\+-", del_output)]
+del_info <- map(strsplit(del_info, " \\| "), 
+                ~ as.integer(strsplit(trimws(.x[2]), " ")[[1]]))
+del_info <- do.call(rbind, del_info)
 
-
-deletions <- map(0:(pars$n_seqs-1),
-                  function(s) {
-                      Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
-                                                      var_ind = 0, seq_ind = s) %>%
-                          .[["del"]]
-                      # Anything over `pars$M[1]` is >1 mutation
-                      if (ncol(Z) > pars$M[2]) Z <- Z[,1:pars$M[2],drop=FALSE]
-                      # Make sure it has exactly pars$M[1] columns for binding
-                      if (ncol(Z) < pars$M[2]) Z <- make_N(Z, pars$M[2])
-                      return(colSums(Z))
-                  })%>%
-    do.call(what = rbind) %>%
-    colSums()
+# branch length and chromosome size info
+blcs_info <- del_output[grepl("^\\+-", del_output)]
+blcs_info <- map(strsplit(blcs_info, " \\| "),
+                 ~ as.numeric(strsplit(.x[1], " ")[[1]][2:3]))
+blcs_info <- do.call(rbind, blcs_info)
 
 
-del_df <- tibble(pred = indel_pred(1:pars$M[2], 2, rates_) * sum(deletions),
-                 obs = deletions)
+del_pred <- map(1:nrow(blcs_info),
+                ~ indel_pred(1:pars$M[2], 2, blcs_info[.x,2], blcs_info[.x,1])) %>% 
+  do.call(what = rbind)
+
+
+del_df <- tibble(pred = as.numeric(del_pred),
+                 obs = as.numeric(del_info))
+
 
 
 # ---------*
@@ -294,7 +315,7 @@ In this set of simulations, I had only substitutions because insertions and dele
 cause more extreme changes in overall mutation rates for regions.
 I used the same substitution rate matrix as in the "Substitution rates" section.
 For among-site variability, I used 100 manually created, equally sized regions per
-sequence, each of which had its own "gamma distance" that should be proportional
+chromosome, each of which had its own "gamma distance" that should be proportional
 to the number of mutations that occurred within it.
 After the variants were created, I counted the number of mutations per region
 and related it to its gamma distance.
@@ -309,29 +330,36 @@ sv_cap <- paste("Observed versus predicted number of mutations that occurred in"
 
 ```{r mevo-site-var, fig.cap = sv_cap}
 # Only substitutions plus gammas
-Q <- sub_TN93(alpha_1 = pars$alpha_1,
+sub <- sub_TN93(alpha_1 = pars$alpha_1,
               alpha_2 = pars$alpha_2, beta = pars$beta,
               pi_tcag = pars$pi_tcag)
-gm <- site_var(ref, mats = pars$mats[1:ref$n_seqs()])
+gm <- site_var(ref, mats = pars$mats[1:ref$n_chroms()])
 
-var_set <- create_variants(ref, vars_phylo(tree), sub = Q, 
+var_set <- create_variants(ref, vars_phylo(tree), sub = sub, 
                            gamma_mats = gm)
 
-pos_df <- map_dfr(0:(ref$n_seqs()-1),
+# sub_info <- mut_info[grepl("^__", mut_info)]
+# sub_info <- map_chr(sub_info, ~ substr(.x, nchar(.x) - 2, nchar(.x)))
+# sub_from <- substr(sub_info[1:10], 1, 1)
+# sub_to <- substr(sub_info[1:10], 3, 3)
+
+
+
+pos_df <- map_dfr(0:(ref$n_chroms()-1),
     function(s) {
         Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
-                                        var_ind = 0, seq_ind = s) %>%
+                                        var_ind = 0, chrom_ind = s) %>%
             .[["pos"]]
-        return(tibble(seq = as.integer(s), pos = as.integer(Z)))
+        return(tibble(chrom = as.integer(s), pos = as.integer(Z)))
     })
 
-gamm_df <- map_dfr(0:(ref$n_seqs()-1),
+gamm_df <- map_dfr(0:(ref$n_chroms()-1),
     function(s) {
         gamma_mat <- gm[[s+1]]
-        Z <- pos_df[pos_df$seq == s, ][["pos"]]
+        Z <- pos_df[pos_df$chrom == s, ][["pos"]]
         # Expected # mutations per gamma region:
         pred_mut = length(Z) / nrow(gamma_mat)
-        df_ <- tibble(seq = s,
+        df_ <- tibble(chrom = s,
                       gamma = gamma_mat[,2],
                       pos = gamma_mat[,1],
                       obs = jackalope:::table_gammas(gamma_mat[,1], Z))
@@ -369,7 +397,7 @@ mp_cap <- paste("Observed versus predicted numbers of unshared mutations",
                 "between", pars$n_vars, "variants created by simulating along",
                 "a phylogeny.",
                 "Each point represents the number of unshared mutations between",
-                "two variants for one of the", ref$n_seqs(), "sequences.",
+                "two variants for one of the", ref$n_chroms(), "chromosomes.",
                 "The dashed line is the 1-to-1 line.")
 
 plot(tree)
@@ -389,35 +417,35 @@ I then calculated the phylogenetic distances between them using the function
 the most recent common ancestor.
 Next, I multipled these distances by the mean mutation rate (based on the
 substitution rate matrix) and the mean number of basepairs in each reference genome
-sequence.
+chromosome.
 This gave me the predicted number of unshared mutations.
 
 
 
 ```{r mevo-phylogeny-plot, fig.cap=mp_cap}
 # Only substitutions again
-Q <- sub_TN93(alpha_1 = pars$alpha_1,
+sub <- sub_TN93(alpha_1 = pars$alpha_1,
               alpha_2 = pars$alpha_2, beta = pars$beta,
               pi_tcag = pars$pi_tcag)
 
-var_set <- create_variants(ref, vars_phylo(tree), sub = Q, n_threads = 4)
+var_set <- create_variants(ref, vars_phylo(tree), sub = sub, n_threads = 4)
 
 
 mutations <- lapply(0:(pars$n_vars-1),
                     function(v) {
                         Z <- jackalope:::view_mutations(var_set_ = var_set$ptr(),
                                                      var_ind = v)
-                        Zseq <- Z[,"seq"]
+                        Zchrom <- Z[,"chrom"]
                         Z <- Z[, c("old_pos", "size_mod", "nucleos")]
                         ZZ <- apply(Z, 1, function(xx) gsub(" ", "",
                                                             paste(xx, collapse = "_")))
-                        return(split(ZZ, Zseq))
+                        return(split(ZZ, Zchrom))
                     })
 
 
 
-shared_muts <- rep(list(matrix(0L, pars$n_vars, pars$n_vars)), ref$n_seqs())
-for (s in 1:(ref$n_seqs())) {
+shared_muts <- rep(list(matrix(0L, pars$n_vars, pars$n_vars)), ref$n_chroms())
+for (s in 1:(ref$n_chroms())) {
     for (i in 1:(pars$n_vars-1)) {
         for (j in (i+1):(pars$n_vars)) {
             muts1 <- mutations[[i]][[s]]
@@ -431,8 +459,8 @@ for (s in 1:(ref$n_seqs())) {
 
 
 # "Mutational" distances between all pairs:
-mut_dists <- rep(list(matrix(0L, pars$n_vars, pars$n_vars)), ref$n_seqs())
-for (s in 1:(ref$n_seqs())) {
+mut_dists <- rep(list(matrix(0L, pars$n_vars, pars$n_vars)), ref$n_chroms())
+for (s in 1:(ref$n_chroms())) {
     for (i in 1:(pars$n_vars-1)) {
         for (j in (i+1):pars$n_vars) {
             # Total non-shared mutations for each:
@@ -450,9 +478,9 @@ rownames(phylo_dists) <- colnames(phylo_dists) <- NULL
 phylo_dists <- phylo_dists / 2
 
 
-# Average mutation rate for ancestral sequences times total bp in each sequence:
-mu_ <- mean(jackalope:::create_mevo(ref, sub = Q, NULL, NULL, NULL, 100)$q()) *
-    mean(nchar(pars$seqs))
+# Average mutation rate for ancestral chromosomes times total bp in each chromosome:
+mu_ <- mean(jackalope:::create_mevo(ref, sub = sub, NULL, NULL, NULL, 100)$q()) *
+    mean(nchar(pars$chroms))
 
 # Expected mutational distances:
 pred_mut_dists <- mu_ * phylo_dists
@@ -462,7 +490,7 @@ phy_df <- tibble(obs = lapply(mut_dists,
                               function(x) x[lower.tri(x)]) %>%
                      do.call(what = c),
                  pred = rep(pred_mut_dists[lower.tri(pred_mut_dists)],
-                            ref$n_seqs()))
+                            ref$n_chroms()))
 
 phy_df %>%
     ggplot(aes(pred, obs)) +
