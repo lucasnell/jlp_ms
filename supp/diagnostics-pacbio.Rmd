@@ -17,7 +17,9 @@ suppressPackageStartupMessages({
 })
 knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = 'quartz_pdf')
 # knitr::opts_knit$set(root.dir = normalizePath(".."))
-if (isTRUE(getOption('knitr.in.progress'))) knitr::knit_theme$set(knitr::knit_theme$get("acid"))
+if (isTRUE(getOption('knitr.in.progress'))) {
+  knitr::knit_theme$set(knitr::knit_theme$get("acid"))
+}
 if (!isTRUE(getOption('knitr.in.progress'))) {
     options("device" = "quartz")
     grDevices::graphics.off()

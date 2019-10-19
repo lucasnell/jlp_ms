@@ -47,7 +47,7 @@ tree <- ape::rcoal(50)
 
 context("Run A")
 
-refA <- create_genome(n_seqs = 10, len_mean = 2e6 / 10)
+refA <- create_genome(n_chroms = 10, len_mean = 2e6 / 10)
 
 varsA <- create_variants(refA, vars_phylo(tree), sub, ins, del)
 
@@ -120,7 +120,7 @@ test_that("no problems with Run A", {
 
 context("Run B")
 
-refB <- create_genome(n_seqs = 10, len_mean = 100e3 / 10)
+refB <- create_genome(n_chroms = 10, len_mean = 100e3 / 10)
 
 varsB <- create_variants(refB, vars_phylo(tree), sub, ins, del)
 
@@ -203,7 +203,7 @@ test_that("no problems with Run B - sep. files", {
 context("Run C")
 
 
-refC <- create_genome(n_seqs = 10, len_mean = 2e6 / 10)
+refC <- create_genome(n_chroms = 10, len_mean = 2e6 / 10)
 
 varsC <- create_variants(refC, vars_phylo(tree), sub,
                          ins = indels(rate = 2e-3, max_length = 10),
