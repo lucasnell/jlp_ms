@@ -35,6 +35,14 @@ and among-site variation that fit expectations.
 It lastly checks that when simulating along a phylogeny, the number of 
 differences between individual variants is proportional to the phylogenetic distance
 between them.
+
+To conduct these tests, `jackalope` is compiled with `__JACKALOPE_DIAGNOSTICS`
+defined inside the `src/jackalope_config.h` file.
+This causes `jackalope` to print information about mutations as they are produced and
+about among-site variation as the rates are generated.
+In most of the sections below, I captured this console output to describe the 
+observed output from `jackalope`.
+
 The reference genome used in this section is displayed below:
 
 ```{r mevo-simulate}
@@ -58,7 +66,7 @@ with(pars, {
     M <- c(8L, 10L)
     a <- c(0.1, 0.5)
     n_vars <- 10
-    #   For site variability:
+    #   For site variation:
     shape <- 0.5
     # Construct chromosomes with known number of each nucleotide
     chroms <- rep(list(c(rep("T", 0.25 * chrom_len), rep("C", 0.25 * chrom_len),
@@ -104,9 +112,13 @@ prmatrix(sub$Q()[[1]], digits = 3,
 ```
 
 
-Predicted substitution counts for each chromosome are calculated using the
-transition-probability matrix for the branch length of the phylogeny multiplied
-by the chromosome size.
+I examined the substitutions from the output object, rather than from console diagnostics,
+because it was simpler this way since there was no among-site variation.
+I counted the number of each type of mutation (corresponding to all non-diagonal 
+elements in the rate matrix) for each chromosome and variant.
+I compared these to the predicted substitution counts, which were the product of the
+chromosome size and the transition-probability matrix for the branch length of
+the phylogeny.
 
 
 ```{r mevo-sub-rates, fig.cap=ill_sub_cap, results="hide"}
@@ -117,13 +129,17 @@ var_set <- create_variants(ref, vars_phylo(tree), sub = sub)
 # ---------*
 # Observed values:
 # ---------*
-sub_mats <- map(0:(pars$n_chroms-1),
-                     function(s) {
-                         Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
-                                                     var_ind = 0, chrom_ind = s) %>%
-                         .[["sub"]]
-                     return(Z)
-                 })
+sub_mats <- map(0:(length(tree$tip.label)-1),
+                function(v) {
+                  map(0:(pars$n_chroms-1),
+                       function(s) {
+                           Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
+                                                       var_ind = v, chrom_ind = s) %>%
+                           .[["sub"]]
+                       return(Z)
+                   })
+                }) %>% 
+  Reduce(f = c)
 
 # ---------*
 # Predicted values:
@@ -170,30 +186,24 @@ sub_df %>%
 
 ## Indel rates
 
-In this section, I simulated everything the same except that I had no substitutions
-and indel rates were $> 0$.
-In the first set of simulations, the deletion rate was zero and 
-the insertion rate was `r pars$rates[1]`.
-In the second set, the insertion rate was zero and the deletion rate was
-`r pars$rates[2]`.
+In this section, I first set the deletion rate to zero and
+the insertion rate to `r pars$rates[1]`.
+In the second set of simulations, the insertion rate was zero and the deletion
+rate was `r pars$rates[2]`.
 ```{r mevo-indels-caption}
 ind_cap <- paste("Observed versus predicted insertions (left) and deletions (right)",
                  "for simulation of 2 variants along a phylogeny.")
 ```
 
 
-
-<!---
-
-
-LEFT OFF : EXPLAIN WHAT YOU DID TO CALCULATE THE PREDICTED VALUES AND HOW YOU
-CAPTURED THE OBSERVED VALUES.
-
-ALSO ADD `results="markup"` TO ANY CODE CHUNKS THAT WILL PRODUCE OUTPUT, SINCE 
-THE DIAGNOSTICS OUTPUTS SO MUCH INFORMATION THAT I MADE THE DEFAULT TO HIDE OUTPUT.
-
--->
-
+I used the diagnostic console output from `jackalope` to examine how
+each round of indel production compared to expectations.
+For each "$\tau$-leap" (see Methods in main text for details), the console output 
+the chromosome size, $\tau$, and the number of indels of each size that were produced.
+This was important to do for each round because the chromosome size changed each time.
+The predicted number of insertions of size $u$ was the product of the overall
+insertion rate, $\tau$, chromosome size, and relative rate for size $u$.
+The same goes for deletions.
 
 
 ```{r mevo-indels, fig.height=3, fig.width=6, fig.cap=ind_cap}
@@ -283,16 +293,16 @@ del_df <- tibble(pred = as.numeric(del_pred),
 
 ins_p <- ins_df %>%
     ggplot(aes(pred, obs)) +
-    geom_point() +
-    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
+    geom_point(alpha = 0.5, shape = 1) +
+    geom_abline(size = 1, slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
     scale_x_continuous("Predicted insertion count") +
     scale_y_continuous("Observed insertion count") +
     coord_equal()
 
 del_p <- del_df %>%
     ggplot(aes(pred, obs)) +
-    geom_point() +
-    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
+    geom_point(alpha = 0.5, shape = 1) +
+    geom_abline(size = 1, slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
     scale_x_continuous("Predicted deletion count") +
     scale_y_continuous("Observed deletion count") +
     coord_equal()
@@ -311,14 +321,23 @@ grid.draw(cbind(ggplotGrob(ins_p), ggplotGrob(del_p), size = "last"))
 
 ## Among-site variation
 
-In this set of simulations, I had only substitutions because insertions and deletions
-cause more extreme changes in overall mutation rates for regions.
+In this set of simulations, I included only substitutions because indels are not
+affected by among-site variation.
 I used the same substitution rate matrix as in the "Substitution rates" section.
-For among-site variability, I used 100 manually created, equally sized regions per
-chromosome, each of which had its own "gamma distance" that should be proportional
-to the number of mutations that occurred within it.
-After the variants were created, I counted the number of mutations per region
-and related it to its gamma distance.
+For the discrete Gamma distribution used to create among-site variation, I used a shape
+value of `r pars$shape` and split the distribution into 5 categories.
+
+
+I used the diagnostic console output for this section.
+Each time a substition was generated, the console output the position,
+Gamma-distribution category (1 to 5 in this case), the original nucleotide, 
+and the new nucleotide.
+It also output when switching chromosomes, so I could match substitutions with
+chromosomes.
+I counted the number of mutations per chromosome, rate category, type of substitution.
+I compared these to predicted counts, which were the product of the
+chromosome size, number of variants, and the transition-probability matrix for the
+branch length of the phylogeny.
 
 
 
@@ -326,52 +345,76 @@ and related it to its gamma distance.
 sv_cap <- paste("Observed versus predicted number of mutations that occurred in",
                 "each region, based on each region's gamma distance.",
                 "The dashed line is the 1-to-1 line.")
+# Used to generate discrete Gamma values:
+Rcpp::sourceCpp("supp/diagnostics-mevo.cpp")
 ```
 
 ```{r mevo-site-var, fig.cap = sv_cap}
 # Only substitutions plus gammas
 sub <- sub_TN93(alpha_1 = pars$alpha_1,
               alpha_2 = pars$alpha_2, beta = pars$beta,
-              pi_tcag = pars$pi_tcag)
-gm <- site_var(ref, mats = pars$mats[1:ref$n_chroms()])
+              pi_tcag = pars$pi_tcag,
+              gamma_shape = pars$shape, 
+              gamma_k = 5)
+gammas <- discrete_gamma(5, pars$shape)
 
-var_set <- create_variants(ref, vars_phylo(tree), sub = sub, 
-                           gamma_mats = gm)
+# # Takes ~7 min
+# svar_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree), sub = sub))
+# saveRDS(svar_output, "svar_output.rds")
+svar_output <- readRDS("svar_output.rds")
 
-# sub_info <- mut_info[grepl("^__", mut_info)]
-# sub_info <- map_chr(sub_info, ~ substr(.x, nchar(.x) - 2, nchar(.x)))
-# sub_from <- substr(sub_info[1:10], 1, 1)
-# sub_to <- substr(sub_info[1:10], 3, 3)
+sub_info <- svar_output[grepl("^__", svar_output)]
+sub_info <- map(strsplit(sub_info, " "), ~ .x[-1])
+
+chroms <- gsub(">> ", "", svar_output[grepl("^>>", svar_output)])
+chrom_starts <- which(grepl("^>>", svar_output))
+chrom_subs <- map_int(1:length(chrom_starts),
+        function(i) {
+          end <- ifelse(i == length(chrom_starts), length(svar_output), 
+                        chrom_starts[i+1]-1)
+          n_subs <- sum(grepl("^__", svar_output[chrom_starts[i]:end]))
+          return(n_subs)
+        })
+
+sub_df <- tibble(pos = map_int(sub_info, ~ as.integer(.x[[1]]) + 1L),
+                 rate = map_int(sub_info, ~ as.integer(.x[[2]]) + 1L),
+                 from = map_chr(sub_info, ~ substr(.x[3], 1, 1)),
+                 to = map_chr(sub_info, ~ substr(.x[3], 3, 3))) %>% 
+  mutate(chrom = rep(chroms, chrom_subs)) %>% 
+  mutate_at(vars(chrom, rate, from, to), factor) %>% 
+  group_by(chrom, rate, from, to, .drop = FALSE) %>% 
+  summarize(obs = n()) %>% 
+  ungroup() %>% 
+  filter(from != to) %>% 
+  mutate_at(vars(chrom, from, to), paste) %>% 
+  mutate(rate = as.integer(paste(rate)))
+
+e_muts <- map(1:5, function(i) {
+  # mutations per base:
+  Pt(max(ape::node.depth.edgelength(tree)), sub, i) * 
+    # going from mutations/base to mutation/chromosome w/ rate i:
+    matrix(ref$sizes()[1] / 5, 4, 4) *  
+    # accounting for nucleotide frequencies in ref. genome:
+    matrix(0.25, 4, 4) *
+    # Accounting for the two variants:
+    2 *
+    # setting diagonal to zero:
+    (1 - diag(4)) 
+})
 
 
-
-pos_df <- map_dfr(0:(ref$n_chroms()-1),
-    function(s) {
-        Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
-                                        var_ind = 0, chrom_ind = s) %>%
-            .[["pos"]]
-        return(tibble(chrom = as.integer(s), pos = as.integer(Z)))
-    })
-
-gamm_df <- map_dfr(0:(ref$n_chroms()-1),
-    function(s) {
-        gamma_mat <- gm[[s+1]]
-        Z <- pos_df[pos_df$chrom == s, ][["pos"]]
-        # Expected # mutations per gamma region:
-        pred_mut = length(Z) / nrow(gamma_mat)
-        df_ <- tibble(chrom = s,
-                      gamma = gamma_mat[,2],
-                      pos = gamma_mat[,1],
-                      obs = jackalope:::table_gammas(gamma_mat[,1], Z))
-        df_$pred <- (df_$gamma / sum(df_$gamma)) * sum(df_$obs)
-        return(df_)
-    })
+pred_df <- map_dfr(1:5, ~ rename(process_sub_mat(e_muts[[.x]], .x), 
+                                 rate = id, pred = n)) %>% 
+  mutate_at(vars(to, from), paste)
 
 
-gamm_df %>%
+var_df <- left_join(sub_df, pred_df, by = c("to", "from", "rate"))
+
+
+var_df %>%
     ggplot(aes(pred, obs)) +
     geom_point(shape = 1, alpha = 0.25) +
-    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
+    geom_abline(size = 1, slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
     scale_x_continuous("Predicted mutation count") +
     scale_y_continuous("Observed mutation count") +
     coord_equal()
@@ -421,6 +464,17 @@ chromosome.
 This gave me the predicted number of unshared mutations.
 
 
+I used the diagnostic console output for this section.
+Each time a substition was generated, the console output the position,
+Gamma-distribution category (always 1 in this case), the original nucleotide, 
+and the new nucleotide.
+It also output when switching to a new edge on the phylogeny, so I could
+match substitutions with branch lengths.
+I counted the number of mutations tree edge and 
+compared these to predicted counts, which were the product of the chromosome size
+and the transition-probability matrix for the branch length.
+
+
 
 ```{r mevo-phylogeny-plot, fig.cap=mp_cap}
 # Only substitutions again
@@ -428,75 +482,44 @@ sub <- sub_TN93(alpha_1 = pars$alpha_1,
               alpha_2 = pars$alpha_2, beta = pars$beta,
               pi_tcag = pars$pi_tcag)
 
-var_set <- create_variants(ref, vars_phylo(tree), sub = sub, n_threads = 4)
+# # Takes ~6.5 min
+# phy_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree), sub = sub))
+# saveRDS(phy_output, "phy_output.rds")
+phy_output <- readRDS("phy_output.rds")
 
+sub_info <- phy_output[grepl("^__", phy_output)]
+sub_info <- map(strsplit(sub_info, " "), ~ .x[-1])
 
-mutations <- lapply(0:(pars$n_vars-1),
-                    function(v) {
-                        Z <- jackalope:::view_mutations(var_set_ = var_set$ptr(),
-                                                     var_ind = v)
-                        Zchrom <- Z[,"chrom"]
-                        Z <- Z[, c("old_pos", "size_mod", "nucleos")]
-                        ZZ <- apply(Z, 1, function(xx) gsub(" ", "",
-                                                            paste(xx, collapse = "_")))
-                        return(split(ZZ, Zchrom))
-                    })
+blens <- gsub("\\*\\* b_len ", "", phy_output[grepl("^\\*\\*", phy_output)])
+blen_starts <- which(grepl("^\\*\\*", phy_output))
+blen_obs <- map_int(1:length(blen_starts),
+        function(i) {
+          end <- ifelse(i == length(blen_starts), length(phy_output), 
+                        blen_starts[i+1]-1)
+          n_subs <- sum(grepl("^__", phy_output[blen_starts[i]:end]))
+          return(n_subs)
+        })
 
+blen_pred <- blens %>%
+    as.numeric() %>% 
+    map_dbl(function(t) {
+        pred_mat <- Pt(t, .sub = sub) * 
+            matrix(ref$sizes()[1], 4, 4) * 
+            matrix(0.25, 4, 4) * 
+            (1 - diag(4))
+        return(sum(pred_mat))
+    })
 
+phy_df <- tibble(obs = blen_obs, pred = blen_pred)
 
-shared_muts <- rep(list(matrix(0L, pars$n_vars, pars$n_vars)), ref$n_chroms())
-for (s in 1:(ref$n_chroms())) {
-    for (i in 1:(pars$n_vars-1)) {
-        for (j in (i+1):(pars$n_vars)) {
-            muts1 <- mutations[[i]][[s]]
-            muts2 <- mutations[[j]][[s]]
-            shared_muts[[s]][i,j] <- as.integer(sum(muts1 %in% muts2))
-            shared_muts[[s]][j,i] <- as.integer(sum(muts2 %in% muts1))
-        }
-    }
-    diag(shared_muts[[s]]) <- sapply(mutations, function(x) length(x[[s]]))
-}; rm(s, i, j, muts1, muts2)
-
-
-# "Mutational" distances between all pairs:
-mut_dists <- rep(list(matrix(0L, pars$n_vars, pars$n_vars)), ref$n_chroms())
-for (s in 1:(ref$n_chroms())) {
-    for (i in 1:(pars$n_vars-1)) {
-        for (j in (i+1):pars$n_vars) {
-            # Total non-shared mutations for each:
-            mut_dists[[s]][i,j] <- shared_muts[[s]][i,i] - shared_muts[[s]][i,j]
-            mut_dists[[s]][j,i] <- shared_muts[[s]][j,j] - shared_muts[[s]][j,i]
-        }
-    }
-}; rm(s, i, j)
-
-
-# Phylogenetic distances between all pairs:
-phylo_dists <- ape::cophenetic.phylo(tree)
-rownames(phylo_dists) <- colnames(phylo_dists) <- NULL
-# Dividing by two to get branch lengths between MRCA:
-phylo_dists <- phylo_dists / 2
-
-
-# Average mutation rate for ancestral chromosomes times total bp in each chromosome:
-mu_ <- mean(jackalope:::create_mevo(ref, sub = sub, NULL, NULL, NULL, 100)$q()) *
-    mean(nchar(pars$chroms))
-
-# Expected mutational distances:
-pred_mut_dists <- mu_ * phylo_dists
-
-
-phy_df <- tibble(obs = lapply(mut_dists,
-                              function(x) x[lower.tri(x)]) %>%
-                     do.call(what = c),
-                 pred = rep(pred_mut_dists[lower.tri(pred_mut_dists)],
-                            ref$n_chroms()))
 
 phy_df %>%
     ggplot(aes(pred, obs)) +
     geom_point(alpha = 0.5, shape = 1) +
-    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
-    scale_x_continuous("Predicted unshared mutations count") +
-    scale_y_continuous("Observed unshared mutations count") +
-    coord_equal()
+    geom_abline(size = 1, slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
+    scale_x_continuous("Predicted mutations count") +
+    scale_y_continuous("Observed mutations count") +
+    coord_equal() +
+    NULL
+
 ```

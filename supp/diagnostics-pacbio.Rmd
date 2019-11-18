@@ -146,7 +146,7 @@ ndrl_df <- tibble(obs = as.integer(table(factor(read_lens, levels = rl_mat[,1]))
 
 ndrl_df %>%
     ggplot(aes((pred), (obs))) +
-    geom_point() +
+    geom_point(shape = 1) +
     geom_abline(slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
     scale_x_continuous("Predicted read length count") +
     scale_y_continuous("Observed read length count") +
