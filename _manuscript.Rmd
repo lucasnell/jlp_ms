@@ -169,8 +169,7 @@ Most code is written in C++ and interfaces with R using the `Rcpp` package
 I used OpenMP to allow for parallel processing and
 the `PCG` family of thread-safe, pseudo-random number generators
 [@Oneill_2014pcg].
-I use alias sampling [@Kronmal_1979; @Walker_1974] for all weighted sampling except
-for when sampling for mutation positions.
+I use alias sampling [@Kronmal_1979; @Walker_1974] for all weighted sampling.
 Package `RcppProgress` provides the thread-safe progress bar
 [@Forner_2018].
 All input and output files can have `gzip` or `bgzip` compression, using the
@@ -180,19 +179,19 @@ Access to these libraries uses the R packages
 
 
 There are two classes in `jackalope`, one that stores information on reference genomes
-(`ref_genome`), the other storing information on sets of variants (`variants`).
+(`ref_genome`), the other that stores information on sets of variants (`variants`).
 Both classes are `R6` [@Chang_2019] classes that wrap pointers to underlying C++ objects.
 Those C++ objects store all the information.
 Reference genomes are simply vectors of chromosome names and sequence strings.
-Variants are nested vectors of mutation information, not entire variant genomes;
-this dramatically reduces memory usage.
-I chose `R6` classes because they allow for fields that cannot be manipulated from
-outside the class; I made the pointers to C++ objects private to prevent users
-from accidentally manipulating them.
+Variants are stored as nested vectors of mutation information.
+This can greatly reduce memory usage (unless mutation density is high), and it provides
+the ability to output VCF files based on variants.
+I chose `R6` classes because they allowed me to make the pointers to the C++ objects
+private, thereby preventing users from accidentally manipulating them.
 Methods in `jackalope`'s classes allow the user to view and manipulate aspects of the
 C++ objects.
 Structuring the classes this way provides a high degree of flexibility and
-minimizes the chances of copying of large objects in memory.
+minimizes the chances of copying large objects in memory.
 An overview of how these classes are created and used to produce output files is shown
 in Figure \@ref(fig:jackalope-overview-figure).
 
@@ -211,7 +210,8 @@ go_cap <- paste("Overview of primary \\texttt{jackalope} functions, classes,",
 
 ### Reference genomes
 
-Haploid reference genomes can be generated from FASTA files, optionally with index files---created using `samtools faidx`---that speed up processing.
+Haploid reference genomes can be generated from FASTA files, optionally with index
+files---created using `samtools faidx`---that speed up processing.
 If a reference genome is not available, one can be 
 simulated based on given equilibrium nucleotide distributions.
 Chromosome lengths are drawn from a Gamma distribution
@@ -225,24 +225,52 @@ that it works well for chromosome sizes in diploid eukaryotes [@Li_2011].
 
 ### Creating variants
 
+#### Methods
 
-There are three main processes that `jackalope` simulates to generate haploid variants
-from a reference genome.
-These processes inform mutation types, positions, and quantities.
-There are also five different methods of simulating variants, and not all of these
-methods use all underlying processes.
-The first three sections below describe the three processes.
-The last section outlines the five methods and which processes they use.
+There are five ways to generate haploid variants from the reference genome, and
+information on all the methods can be found in the documentation (under `vars_functions`).
+The first two methods do not require phylogenetic information.
+First, a Variant Call Format (VCF) file can directly specify mutations for each variant.
+This method works using the `htslib` C library and
+is the only method that does not require any molecular-evolution information.
+Second, segregating sites from coalescent output can inform the locations of mutations
+and which variants have them.
+The user provides molecular evolution information, which is then used to sample
+for mutation types at each segregating site.
+Sampling is weighted based on each mutation-type's rate.
+The segregating-site information can take the form of 
+(1\) a coalescent-simulator object from the `scrm`
+[@Paul_R._Staab_2015] or
+`coala` [@Paul_R._Staab_2016] package, or
+(2\) a file containing output from a coalescent simulator in the format of the
+`ms` [@Hudson_2002] or `msms` [@Ewing_2010] program.
+
+
+The remaining three methods use phylogenetic tree(s).
+In the third method, phylogenetic tree(s) can be directly input from either
+`phylo` object(s) or NEWICK file(s).
+Fourth, users can pass an estimate for $\theta$, the population-scaled mutation rate.
+A random coalescent tree is first generated using the `rcoal` function
+in the `ape` package [@Paradis_2018].
+Then, its total tree length is scaled to be
+$\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ variants and an equilibrium
+mutation rate of $\mu$.
+The last method allows for recombination by simulating along
+gene trees that can differ both within and among reference chromosomes.
+Similarly to simulations using coalescent segregating sites, gene trees can be
+from `scrm` or `coala` objects, or from `ms`-style output files.
 
 
 
-#### Mutation types
+#### Molecular evolution
 
 
-Mutations can be substitutions or indels (insertions / deletions).
-A table of rates from  @Sung_2016 is included in the package as a guide for
-reasonable rates to use.
+Both substitutions and indels can be simulated by `jackalope`.
+It is assumed that the substitution- and indel-producing processes are independent,
+so they are simulated separately to improve computational efficiency [@Fletcher_2009].
 
+
+##### Substitutions
 
 For substitutions, the following models can be employed:
 TN93 [@TN93],
@@ -262,6 +290,27 @@ Each substitution model uses its own function, and the provided documentation
 (under `sub_models`) includes information to help users choose among them.
 
 
+Substitution rates can also vary among sites.
+A random-sites, discrete-Gamma model is used, where sites' rates are assumed to
+be independent of one another and are derived from a Gamma distribution split into
+$K$ rate categories of equal probability [@Yang_2006].
+The Gamma distribution is constrained to have a mean of 1.
+A site's overall rate is its nucleotide's mutation rate multiplied by the
+"Gamma distance" associated with its rate category.
+The user can also specify a proportion of invariant sites.
+
+
+For the phylogenetic methods, substitutions are simulated for each branch by first
+calculating the transition-probability matrix for each Gamma category based on
+the branch length.
+Substitutions are then sampled for each site using the matrix that coincides with
+the Gamma category at that site.
+
+
+
+#### Indels
+
+
 Information for insertions and deletions is provided separately, but
 the same information is needed for both.
 The first requirement is an overall rate parameter, which is for the sum among all
@@ -277,47 +326,13 @@ numeric vector of positive values.
 Indels up to 1 Mb are allowed.
 
 
-The above information is used to create 4 vectors (one for each nucleotide),
-each containing the rates of all possible mutation types:
-substitutions to other nucleotides and insertions/deletions of all specified lengths.
-After determining the position of the mutation (from the second process or from
-input data),
-I sample for a mutation type with weights proportional to the rate of each
-mutation type for the nucleotide present at the mutation position.
 
-
-
-#### Mutation positions
-
-
-The chromosomal position for a mutation is sampled with a probability proportional
-to the mutation rate for that position.
-The first factor determining a position's mutation rate is the summed indel and
-substitution rates for the nucleotide at that position.
-The second, optional factor is among-site variability in mutation rates.
-In `jackalope`, this is incorporated using a fixed-sites model [@Yang_2002],
-where different regions of each chromosome can have different rates of mutation.
-For each region, this takes the form of a "gamma distance" that modifies the
-nucleotide-associated mutation rates for positions within its region.
-For position $i$ inside region $j$, the overall mutation rate is $\mu_i \gamma_j$,
-where $\mu_i$ is the mutation rate associated with the nucleotide at position $i$ and
-$\gamma_j$ is the gamma distance for region $j$.
-Gamma distances can be generated from a Gamma distribution (with a fixed mean of 1)
-for regions of uniform size.
-Alternatively, both gamma distances and region sizes can be passed manually.
-
-
-To perform this sampling, `jackalope` first sums the overall mutation rates for each
-region ($\sum_i \mu_i \gamma_j$ for region $j$ and all $i$ positions inside it).
-It then uses these total rates as weights to sample regions;
-I incorporated a binary search tree to speed this sampling.
-Simple inversion sampling is used to sample within a region, and weights here 
-are simply the nucleotide-associated mutation rates.
-
-
-
-#### Mutation quantities
-
+<!--- 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-->
 
 Mutation quantities are sampled when phylogenomic methods are employed.
 I used the Doob--Gillespie algorithm [@Doob_1942; @Gillespie_1976] because
@@ -351,41 +366,18 @@ The resulting sequence is then assigned to the daughter node on the tree.
 This process is repeated down the tree, from root to tips.
 
 
-
-#### Methods
-
-
-There are five ways to generate variants from the reference genome, and
-information on all the methods can be found in the `vars_functions` documentation.
-First, a variant call format (VCF) file can directly specify mutations for each variant.
-This method works using the `vcfR` package 
-[@Knaus_2017] and
-is the only method that does not require any mutation-type information.
-Second, segregating sites from coalescent output can provide the variants and locations 
-at which mutations occur.
-The user provides information to sample mutation types at each segregating site.
-The segregating-site information can take the form of 
-(1\) a coalescent-simulator object from the `scrm`
-[@Paul_R._Staab_2015] or
-`coala` [@Paul_R._Staab_2016] package, or
-(2\) a file containing output from a coalescent simulator in the format of the
-`ms` [@Hudson_2002] or `msms` [@Ewing_2010] program.
+<!--- 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-->
 
 
-The remaining methods involve phylogenetic tree(s) that inform mutation quantities,
-and require information on mutation types and positions from the user.
-In the third method, phylogenetic tree(s) can be directly input from either
-`phylo` object(s) or NEWICK file(s).
-Fourth, users can pass an estimate for $\theta$, the population-scaled mutation rate.
-A random coalescent tree is first generated using the `rcoal` function
-in the `ape` package [@Paradis_2018].
-Then, its total tree length is scaled to be
-$\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ variants and an equilibrium
-mutation rate of $\mu$.
-The last method allows for recombination by simulating along
-gene trees that can differ both within and among reference chromosomes.
-Similarly to simulations using coalescent segregating sites, gene trees can be
-from `scrm` or `coala` objects, or from `ms`-style output files.
+
+
+
+
 
 
 
@@ -441,40 +433,54 @@ and `jackalope` conformed closely to expectations
 
 
 I compared the performance of `jackalope` to existing programs on a MacBook
-Pro running macOS Mojave (version 10.14.4) with a 2.6GHz Intel Core i5 processor
+Pro running macOS Catalina (version 10.15) with a 2.6GHz Intel Core i5 processor
 and 8 GB RAM.
 Elapsed time and maximum memory used were measured by using the GNU `time` program
 (`/usr/bin/time` from the terminal).
-For each test, 10 runs of each program were tested in random order.
+For each test, 5 runs of each program were tested in random order.
 
 
 ### Creating variants
 
-For creating variants, I compared `jackalope` to `Seq-Gen`
-[@Rambaut_1997].
-I chose `Seq-Gen` because it is used by `TreeToReads` and because it can generate
-sequences based on gene trees.
-It is relatively simple and written in C, so it should provide a conservative
-estimate of how well `jackalope` performs against similar programs.
-I tested each program by having them simulate a 2 Mb, 20 Mb, and 200 Mb genome
+For creating variants, I compared `jackalope` to `INDELible`
+[@Fletcher_2009].
+I chose `INDELible` because it is used by `NGSphy` and because it can generate
+sequences with both substitutions and indels based on phylogenetic trees.
+I tested each program by having them simulate a 2 Mb and 20 Mb genome
 split evenly among 20 chromosomes, then generate 8 variants from that genome using
-gene trees produced by the commandline version of `scrm`.
+phylogenetic trees produced by the command line version of `scrm`.
+I ran separate simulations with the trees scaled to maximum tree depths of 0.1, 0.01,
+and 0.001.
+I used the HKY85 substitution model with a transition rate of 2.5 substitutions per
+site per unit of time (where one unit of time is equal to a branch length of 1),
+and a transversion rate of 1.
+Relative frequencies of nucleotides were 0.4, 0.3, 0.2, and 0.1 for T, C, A, and G,
+respectively.
+For among-site variability in substitution rates, I used
+(1\) a discrete Gamma distribution with 10 categories and a shape parameter of 0.5, and
+(2\) an invariant-site rate of 0.25.
+The total rate for insertions was 0.1 per site per unit time,
+with relative rates derived from a Lavalette distribution with $L = 541$ and $a = 1.7$.
+Deletions had the same total and relative rates.
+Output was written to FASTA files.
+`jackalope` was tested for 1 and 4 threads, but
+`INDELible` for only 1 because it cannot use multiple threads.
+
 
 ```{bash scrm-test, echo = FALSE}
 # No longer including this in manuscript
 scrm 8 20 -T -seed 1829812441 253160851 137767610 > scrm.tree
 ```
 
-I used the HKY85 substitution model
-with an overall mutation rate of 0.001 substitutions per site per unit of time
-(where one unit of time is equal to a branch length of 1).
-I did not include indels because `Seq-Gen` cannot simulate them.
-Among-site variability was generated using a Gamma distribution with a shape
-parameter of 1; in `jackalope`, the region size was 100 bp.
-Output was written to either PHYLIP format (for `Seq-Gen`) or
-FASTA files (for `jackalope`).
-`jackalope` was tested for 1 and 4 threads, but
-`Seq-Gen` for only 1 because it cannot use multiple threads.
+
+
+<!---
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-->
+
 
 `jackalope` consistently outperforms `Seq-Gen` in terms of speed, and the effect
 of using 4 threads is most pronounced at the larger genome sizes
@@ -489,9 +495,19 @@ At the 20 Mb genome size, however, `jackalope` used slightly less memory than `S
 and for a 200 Mb genome size, `jackalope` used $38 \%$ less memory.
 
 
+
+<!---
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-->
+
+
+
 ```{r variants-perf-test-plot-caption, echo = FALSE, eval = TRUE}
 var_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
-                      "\\texttt{Seq-Gen} in generating variants from a",
+                      "\\texttt{INDELible} in generating variants from a",
                       "reference genome.",
                       "Sub-panel columns indicate the size of the genome from which",
                       "variants were generated.",
@@ -504,29 +520,38 @@ var_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 
 # one column, two-thirds page width, or two columns (80 mm, 112 mm, or 169 mm, respectively)
 
-one_run <- function(prog_, gsize_, threads_, rep_) {
-    fn <- sprintf("perf_tests/seq-gen_out/runs/%s_%iMb_%ithreads_rep%i.out",
-                       prog_, gsize_, threads_, rep_)
-    lines <- read_lines(fn)
-    time_i <- which(grepl("sys$", lines))
-    mem_i <- time_i + 1
-    .time <- as.numeric(strsplit(trimws(lines[time_i]), " ")[[1]][1])
-    .mem <- as.numeric(strsplit(trimws(lines[mem_i]), " ")[[1]][1]) / 1e6
-    .df <- tibble(prog = prog_, gsize = gsize_, threads = threads_,
-                  rep = rep_, sec = .time, Mb = .mem)
+one_run <- function(gsize_, mdepth_) {
+    fn <- sprintf("perf_tests/indelible/results/%iMb__%.4f__times.txt",
+                       gsize_, mdepth_)
+    lines <- readLines(fn)
+    
+    .prog <- lines[grepl("^>>>", lines)] %>%
+      str_remove_all(">>> ") %>% 
+      str_replace_all(" - ", " ") %>% 
+      tolower()
+    .time <- lines[grepl("sys$", lines)] %>%
+      trimws() %>% 
+      str_split("\\s+") %>% 
+      map_dbl(~ as.numeric(.x[1]))
+    .mem <- lines[which(grepl("sys$", lines)) + 1] %>%
+      trimws() %>% 
+      str_split("\\s+") %>% 
+      map_dbl(~ as.numeric(.x[1]) / 1e6)
+    
+    .df <- tibble(prog = .prog, gsize = gsize_, mdepth = mdepth_, 
+                  sec = .time, Mb = .mem)
     return(.df)
 }
-n_reps <- 10
-var_runs <- rbind(expand.grid(prog_ = "seqgen", gsize_ = c(2, 20, 200), threads_ = 1,
-                              rep_ = 1:n_reps),
-                  expand.grid(prog_ = "jackalope", gsize_ = c(2, 20, 200), 
-                              threads_ = c(1,4), rep_ = 1:n_reps)) %>% 
+
+
+# var_runs <- expand.grid(gsize_ = c(2, 20, 200), threads_ = 1,
+# 200 isn't done yet
+var_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1)) %>% 
     as.list() %>% 
     {pmap_dfr(., one_run)} %>% 
     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
                           labels = paste(sort(unique(gsize)), "Mb")),
-           type = paste(prog, threads, sep = "__"),
-           type = factor(type, levels = c("jackalope__4", "jackalope__1", "seqgen__1")))
+           prog = factor(prog, levels = c("jackalope 4", "jackalope 1", "indelible")))
 
 # # To look at the exact numbers:
 # var_runs %>% 
@@ -536,15 +561,15 @@ var_runs <- rbind(expand.grid(prog_ = "seqgen", gsize_ = c(2, 20, 200), threads_
 # For jittering:
 set.seed(1283422021)
 
-var_time <- var_runs %>% 
-    ggplot(aes(type, sec)) +
+var_time <- var_runs %>%
+    ggplot(aes(prog, sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-    geom_jitter(aes(fill = type), height = 0, width = 0.25, 
+    geom_jitter(aes(fill = prog), height = 0, width = 0.25, 
                 shape = 21, color = "gray40") +
     scale_y_continuous("Elapsed time (sec)", limits = c(0, NA)) +
     scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
-                                    expression("Seq-Gen"^1))) +
-    facet_wrap(~ gsize, scales = "free_x") +
+                                    expression("INDELible"^1))) +
+    facet_grid(mdepth ~ gsize, scales = "free_x") +
     theme(axis.title = element_text(size = 11),
           axis.text = element_text(size = 8),
           axis.title.y = element_blank(),
@@ -562,30 +587,30 @@ var_time <- var_runs %>%
 
 
 
-var_mem <- var_runs %>% 
-    ggplot(aes(type, Mb)) +
-    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-    geom_jitter(aes(fill = type), height = 0, width = 0.25, 
-                shape = 21, color = "gray40") +
-    scale_y_continuous("Max memory used (MB)", limits = c(0, NA)) +
-    scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
-                                    expression("Seq-Gen"^1))) +
-    facet_wrap(~ gsize, scales = "free_x") +
-    theme(axis.title = element_text(size = 11),
-          axis.text = element_text(size = 8),
-          axis.title.y = element_blank(),
-          plot.margin = margin(0, 0, 0, t = 6),
-          axis.text.y = element_text(color = "black", size = 11),
-          legend.position = "none",
-          strip.text = element_text(size = 10),
-          strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette) +
-    guides(fill = guide_legend(override.aes = list(size = 3))) +
-    coord_flip() +
-    NULL
+# var_mem <- var_runs %>%
+#     ggplot(aes(prog, Mb)) +
+#     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
+#     geom_jitter(aes(fill = prog), height = 0, width = 0.25, 
+#                 shape = 21, color = "gray40") +
+#     scale_y_continuous("Max memory used (MB)", limits = c(0, NA)) +
+#     scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
+#                                     expression("INDELible"^1))) +
+#     facet_grid(mdepth ~ gsize, scales = "free_x") +
+#     theme(axis.title = element_text(size = 11),
+#           axis.text = element_text(size = 8),
+#           axis.title.y = element_blank(),
+#           plot.margin = margin(0, 0, 0, t = 6),
+#           axis.text.y = element_text(color = "black", size = 11),
+#           legend.position = "none",
+#           strip.text = element_text(size = 10),
+#           strip.background = element_blank()) +
+#     scale_fill_manual(NULL, values = perf_palette) +
+#     guides(fill = guide_legend(override.aes = list(size = 3))) +
+#     coord_flip() +
+#     NULL
 
 
-var_plot <- plot_grid(var_time, var_mem, ncol = 1)
+# var_plot <- plot_grid(var_time, var_mem, ncol = 1)
 
 ggsave("Fig_2.pdf", var_plot, width = 112, height = 112, units = "mm")
 ```
@@ -609,6 +634,12 @@ and tests were conducted for 1, 10, and 100 thousand total reads.
 neither `ART` nor `SimLoRD` allowed the use of more than 1.
 
 
+<!---
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-->
 
 Again, `jackalope` outperformed both `ART` and `SimLoRD` in terms of speed
 (Figure \@ref(fig:sequencing-perf-test-plot)).
@@ -620,6 +651,12 @@ on the number of reads generated.
 `ART` used 9.4 MB and `SimLoRD` used 54.0--61.2 MB.
 `jackalope` used 76.5--79.4 MB for Illumina reads and 101.3--110.1 MB for PacBio reads.
 
+<!---
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-->
 
 
 ```{r illumina-perf-test-sub-plot, echo = FALSE, eval = TRUE}
@@ -885,10 +922,8 @@ Using the previously created objects for mutation-type information and the
 `vars_ssites` function that checks and organizes the coalescent output object,
 I create variants from the reference genome:
 
-```{r examples-divergence-create-for-show}
-vars <- create_variants(ref, vars_ssites(ssites), sub, ins, del)
-```
-```{r examples-divergence-create, eval = TRUE, echo = FALSE}
+
+```{r examples-divergence-create, eval = TRUE, echo = TRUE}
 vars <- create_variants(ref, vars_ssites(ssites), sub, ins, del)
 ```
 
@@ -977,7 +1012,8 @@ I assume a recombination rate of $1 / (4 N_0)$ recombination events per chromoso
 per generation.
 There are 4 diploid individuals sampled per species.
 I used `scrm` to simulate the gene trees (command
-`24 1 -T -r 1 1000 -I 3 8 8 8 0 -ej 1.0 3 1 -ej 0.5 2 1` for a chromosome size of 1000), producing the object `gtrees`.
+`24 1 -T -r 1 1000 -I 3 8 8 8 0 -ej 1.0 3 1 -ej 0.5 2 1` for a chromosome size of 1000), 
+producing the object `gtrees`.
 As for the other variant-creation methods, function `vars_gtrees` checks and organizes
 information from the `gtrees` object.
 
@@ -998,7 +1034,7 @@ on an Illumina MiSeq v3.
 I also write the true gene trees to a `ms`-style file.
 
 ```{r examples-phylogeny-gtrees-illumina}
-illumina(ref, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
+illumina(vars, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
          read_length = 250, n_reads = 50e6)
 write_gtrees(gtrees, "gtrees")
 ```
@@ -1045,7 +1081,7 @@ The stable version of `jackalope` is available on CRAN
 and the development version is on GitHub
 (https://github.com/lucasnell/jackalope).
 The documentation can be found at https://jackalope.lucasnell.com.
-The version used in this manuscript was 0.1.3.
+The version used in this manuscript was 1.0.0.
 Code for the example usage, validation, and performance is available on GitHub at
 https://github.com/lucasnell/jlp_ms.
 
