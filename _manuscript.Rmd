@@ -1197,13 +1197,13 @@ using the following code:
 
 ```{r examples-read-assembly-for-eval, eval = TRUE, echo = FALSE}
 ref <- read_fasta("examples/dmel-6.27.fasta.gz", cut_names = TRUE)
-ref$filter_seqs(1e6, method = "size")
-ref$rm_seqs(c("X", "Y"))
+ref$filter_chroms(1e6, method = "size")
+ref$rm_chroms(c("X", "Y"))
 ```
 ```{r examples-read-assembly-for-show}
 ref <- read_fasta("dmel-6.27.fasta.gz", cut_names = TRUE)
-ref$filter_seqs(1e6, method = "size")
-ref$rm_seqs(c("X", "Y"))
+ref$filter_chroms(1e6, method = "size")
+ref$rm_chroms(c("X", "Y"))
 ```
 
 
@@ -1228,7 +1228,7 @@ test strategies for how to assemble a similar genome using HTS data.
 
 The first strategy is to use only PacBio sequencing.
 The PacBio Sequel system produces up to 500,000 reads per
-Single Molecule, Real-Time (SMRT) cell, so you could
+Single Molecule, Real-Time (SMRT) cell, so I
 run the following for two cells (with the file `pacbio_R1.fq` as output):
 
 ```{r examples-reads-for-assembly-pacbio}
@@ -1252,7 +1252,7 @@ illumina(ref, out_prefix = "illumina", n_reads = 500e6, paired = TRUE,
 ### Estimating divergence between populations
 
 ```{r examples-divergence-scrm, eval = TRUE, echo=FALSE}
-ssites <- scrm(paste("40", ref$n_seqs(), "-t 10 -I 2 20 20 100"))
+ssites <- scrm(paste("40", ref$n_chroms(), "-t 10 -I 2 20 20 100"))
 ```
 
 
@@ -1328,7 +1328,7 @@ ape::write.tree(tree, "true.tree")
 
 ```{r examples-phylogeny-gtrees-scrm, eval = TRUE, echo=FALSE}
 # Run scrm for one sequence size:
-one_seq <- function(size) {
+one_chrom <- function(size) {
     sims <- scrm(
         paste("24 1",
               # Output gene trees:
@@ -1345,7 +1345,7 @@ one_seq <- function(size) {
     return(sims$trees[[1]])
 }
 # For all sequences:
-gtrees <- list(trees = lapply(ref$sizes(), one_seq))
+gtrees <- list(trees = lapply(ref$sizes(), one_chrom))
 ```
 
 Similar to the section above, the ultimate goal here is to test phylogeny
