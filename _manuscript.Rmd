@@ -43,7 +43,7 @@ suppressPackageStartupMessages({
 })
 knitr::opts_chunk$set(echo = TRUE, cache = FALSE, eval = FALSE, dev = "quartz_pdf")
 # Color palette for performance testing:
-perf_palette <- viridisLite::viridis(5, begin = 0.1)[c(1, 4, 5)]
+perf_palette <- viridisLite::magma(5, begin = 0, end = 0.85)[c(1, 4, 5)]
 
 theme_set(theme_classic() + 
               theme(legend.background = element_blank(),
@@ -438,13 +438,13 @@ and 8 GB RAM.
 Elapsed time and maximum memory used were measured by using the GNU `time` program
 (`/usr/bin/time` from the terminal).
 For each test, 5 runs of each program were tested in random order.
-In the text, numbers presented are means from these 5 tests unless otherwise stated.
+In the text below, numbers presented are means from these 5 tests unless otherwise stated.
 
 
 ### Creating variants
 
 For creating variants, I compared `jackalope` to `INDELible`
-[@Fletcher_2009].
+[version 1.03; @Fletcher_2009].
 I chose `INDELible` because it is used by `NGSphy` and because it can generate
 sequences with both substitutions and indels based on phylogenetic trees.
 I tested each program by having them simulate a 2 Mb and 20 Mb genome
@@ -468,7 +468,7 @@ Output was written to FASTA files.
 `INDELible` for only 1 because it cannot use multiple threads.
 
 
-```{bash scrm-test, echo = FALSE}
+```{bash scrm-test, echo = FALSE, eval = FALSE}
 # No longer including this in manuscript
 scrm 8 20 -T -seed 1829812441 253160851 137767610 > scrm.tree
 ```
@@ -495,7 +495,7 @@ one_run <- function(gsize_, mdepth_) {
         map_dbl(~ as.numeric(.x[1]) / 1e6)
     
     .df <- tibble(prog = .prog, gsize = gsize_, mdepth = mdepth_, 
-                  sec = .time, Mb = .mem)
+                  sec = .time, MB = .mem)
     return(.df)
 }
 
@@ -509,7 +509,7 @@ var_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1)) %>%
 # # To look at the exact numbers:
 # var_runs %>%
 #     group_by(gsize, mdepth, prog) %>%
-#     summarize(sec = mean(sec), Mb = mean(Mb))
+#     summarize(sec = mean(sec), MB = mean(MB))
 
 
 # These numbers are used below:
@@ -518,24 +518,24 @@ low_mut_mb <- var_runs %>%
     filter(gsize == "2 Mb", mdepth == 0.001) %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
-    summarize(Mb = mean(Mb)) %>% 
-    spread("prog", "Mb") %>% 
+    summarize(MB = mean(MB)) %>% 
+    spread("prog", "MB") %>% 
     as.list()
 
 high_mut_mb <- var_runs %>%
     filter(gsize == "20 Mb", mdepth == 0.1) %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
-    summarize(Mb = mean(Mb)) %>% 
-    spread("prog", "Mb") %>% 
+    summarize(MB = mean(MB)) %>% 
+    spread("prog", "MB") %>% 
     as.list()
 
 # Average difference between jackalope with 1 vs 4 threads:
 avg_diff_threads <- var_runs %>%
     group_by(gsize, mdepth, prog) %>%
-    summarize(Mb = mean(Mb)) %>% 
+    summarize(MB = mean(MB)) %>% 
     group_by(gsize, mdepth) %>%
-    summarize(diff = Mb[prog == "jackalope 4"] - Mb[prog == "jackalope 1"]) %>% 
+    summarize(diff = MB[prog == "jackalope 4"] - MB[prog == "jackalope 1"]) %>% 
     .[["diff"]] %>% mean()
 
 ```
@@ -618,7 +618,7 @@ var_time <- var_runs %>%
 
 
 # var_mem <- var_runs %>%
-#     ggplot(aes(prog, Mb)) +
+#     ggplot(aes(prog, MB)) +
 #     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
 #     geom_jitter(aes(fill = prog), height = 0, width = 0.25,
 #                 shape = 21, color = "gray40") +
@@ -652,8 +652,8 @@ ggsave("Fig_2.pdf", var_time, width = 88, height = 88, units = "mm")
 
 For both Illumina and PacBio read generation in `jackalope`, I compared their performance
 to the programs they were based on: 
-`ART` [@Huang_2011] and
-`SimLoRD` [@St_cker_2016], respectively.
+`ART` [version 2.5.8; @Huang_2011] and
+`SimLoRD` [version 1.0.3; @St_cker_2016], respectively.
 `ART` has the added benefit of being used for both `NSGphy` and `TreesToReads`.
 All these tests consisted of reading a 2 Mb genome from a FASTA file, simulating
 reads, and writing them to FASTQ files.
@@ -693,7 +693,7 @@ one_run <- function(nreads_, .platform) {
         str_split("\\s+") %>%
         map_dbl(~ as.numeric(.x[1]) / 1e6)
     
-    .df <- tibble(prog = .prog, nreads = nreads_, sec = .time, Mb = .mem)
+    .df <- tibble(prog = .prog, nreads = nreads_, sec = .time, MB = .mem)
     
     return(.df)
 }
@@ -710,9 +710,9 @@ ill_reads_mb <- ill_runs %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     filter(nreads %in% c("100k", "10M")) %>% 
     group_by(prog, nreads) %>%
-    summarize(Mb = mean(Mb)) %>% 
+    summarize(MB = mean(MB)) %>% 
     group_by(prog) %>% 
-    summarize(diff = Mb[nreads == "10M"] - Mb[nreads == "100k"]) %>% 
+    summarize(diff = MB[nreads == "10M"] - MB[nreads == "100k"]) %>% 
     spread("prog", "diff") %>% 
     as.list()
 
@@ -720,9 +720,9 @@ ill_reads_mb <- ill_runs %>%
 ill_thread_mb <- ill_runs %>%
     filter(prog != "art") %>% 
     group_by(prog, nreads) %>%
-    summarize(Mb = mean(Mb)) %>% 
+    summarize(MB = mean(MB)) %>% 
     group_by(nreads) %>% 
-    summarize(diff = Mb[prog == "jackalope 4"] - Mb[prog == "jackalope 1"]) %>% 
+    summarize(diff = MB[prog == "jackalope 4"] - MB[prog == "jackalope 1"]) %>% 
     .[["diff"]] %>% 
     mean()
 
@@ -731,22 +731,22 @@ ill_thread_mb <- ill_runs %>%
 # # To look at the exact numbers:
 # ill_runs %>%
 #     group_by(nreads, prog) %>%
-#     summarize(sec = mean(sec), Mb = mean(Mb))
+#     summarize(sec = mean(sec), MB = mean(MB))
 
 # Used below
 
 ill_mb <- ill_runs %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
-    summarize(Mb = mean(Mb)) %>% 
-    spread("prog", "Mb") %>% 
+    summarize(MB = mean(MB)) %>% 
+    spread("prog", "MB") %>% 
     as.list()
 
 pb_mb <- pb_runs %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
-    summarize(Mb = mean(Mb)) %>% 
-    spread("prog", "Mb") %>% 
+    summarize(MB = mean(MB)) %>% 
+    spread("prog", "MB") %>% 
     as.list()
 
 
@@ -758,7 +758,7 @@ pb_runs <- map_dfr(c(1, 10, 100), one_run, .platform = "pacbio") %>%
 # # To look at the exact numbers:
 # pb_runs %>% 
 #     group_by(nreads, prog) %>% 
-#     summarize(sec = mean(sec), Mb = mean(Mb))
+#     summarize(sec = mean(sec), MB = mean(MB))
 
 
 # Extra memory for 100k reads vs 1k
@@ -766,9 +766,9 @@ pb_reads_mb <- pb_runs %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     filter(nreads %in% c("1k", "100k")) %>% 
     group_by(prog, nreads) %>%
-    summarize(Mb = mean(Mb)) %>% 
+    summarize(MB = mean(MB)) %>% 
     group_by(prog) %>% 
-    summarize(diff = Mb[nreads == "100k"] - Mb[nreads == "1k"]) %>% 
+    summarize(diff = MB[nreads == "100k"] - MB[nreads == "1k"]) %>% 
     spread("prog", "diff") %>% 
     as.list()
 
@@ -776,9 +776,9 @@ pb_reads_mb <- pb_runs %>%
 pb_thread_mb <- pb_runs %>%
     filter(prog != "simlord") %>% 
     group_by(prog, nreads) %>%
-    summarize(Mb = mean(Mb)) %>% 
+    summarize(MB = mean(MB)) %>% 
     group_by(nreads) %>% 
-    summarize(diff = Mb[prog == "jackalope 4"] - Mb[prog == "jackalope 1"]) %>% 
+    summarize(diff = MB[prog == "jackalope 4"] - MB[prog == "jackalope 1"]) %>% 
     .[["diff"]] %>% 
     mean()
 
@@ -789,7 +789,7 @@ pb_thread_mb <- pb_runs %>%
 
 
 Again, `jackalope` outperformed both `ART` and `SimLoRD` in terms of speed
-(Figure \@ref(fig:sequencing-perf-test-plot)).
+(Figure \@ref(fig:sequencing-perf-test-plot)A--B).
 Multithreading was most useful when many reads were generated:
 For at least 10M Illumina reads and at least 100k PacBio reads, using 4 threads
 reduced the elapsed time for jobs by $\sim 50 \%$.
@@ -799,7 +799,6 @@ Average memory usage was `r sprintf("%.1f", ill_mb$art)` MB for `ART` and
 `r sprintf("%.1f", pb_mb$simlord)` for `SimLoRD`.
 `jackalope` averaged `r sprintf("%.1f", ill_mb$jackalope)` MB used for Illumina reads and
 `r sprintf("%.1f", pb_mb$jackalope)` for PacBio reads.
-
 Memory usage increased only slightly with increasing read numbers in `jackalope`: 
 It increased `r sprintf("%.1g", ill_reads_mb$jackalope)` MB across the range of Illumina reads and `r sprintf("%.1g", pb_reads_mb$jackalope)` MB across the PacBio range.
 Over the Illumina range, memory usage by `ART` slightly decreased
@@ -892,14 +891,15 @@ seq_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 ### Pipeline from reference to reads
 
 
-I lastly compared the performance of `jackalope` to that of `NGSphy` [@Escalona_2018]
+I lastly compared the performance of `jackalope` to that of `NGSphy` 
+[version 1.0.13; @Escalona_2018]
 for the following pipeline: 
 generating a reference genome, simulating variants from gene trees, and
 producing Illumina reads from the variants.
 For the first two steps, I used the same parameters as I did for the comparison to
 `INDELible`.
-I did the same for the last step, except that the haploid variants were used for
-sequencing reads instead of a reference genome.
+I also used the same parameters for the last step, except that the haploid variants
+were used for sequencing reads instead of a reference genome.
 I generated 8 variants with 20 chromosomes by creating a phylogenetic tree with
 160 tips and assigning every 20 tips to the same individual using the naming
 scheme necessary for `NGSphy`.
@@ -910,16 +910,10 @@ Both `NGSphy` and `jackalope` were tested using both 1 and 4 threads.
 
 ```{r pipeline-perf-test-data, echo = FALSE, eval = TRUE}
 
-one_run <- function(gsize_, mdepth_, nreads_) {
+one_run <- function(gsize_, mdepth_, nreads_, .get_cpu = FALSE) {
     # gsize_ = 2; mdepth_ = 0.001; nreads_ = 0.1 ## rm(gsize_, mdepth_, nreads_)
     fn <- sprintf("perf_tests/ngsphy/results/%iMb__%.4f__%gM__times.txt",
                   gsize_, mdepth_, nreads_)
-    # Some combos aren't done yet
-    if (!file.exists(fn)) {
-        return(tibble(prog = paste(c("ngsphy", "jackalope"), rep(c(1,4),each=2)),
-                      gsize = gsize_, mdepth = mdepth_, nreads = nreads_,
-                      sec = NA_real_, Mb = NA_real_))
-    }
     lines <- readLines(fn)
     
     .prog <- lines[grepl("^>>>", lines)] %>%
@@ -931,13 +925,25 @@ one_run <- function(gsize_, mdepth_, nreads_) {
         trimws() %>% 
         str_split("\\s+") %>% 
         map_dbl(~ as.numeric(.x[1]))
+    
     .mem <- lines[which(grepl("sys$", lines)) + 1] %>%
         trimws() %>% 
         str_split("\\s+") %>% 
         map_dbl(~ as.numeric(.x[1]) / 1e6)
     
     .df <- tibble(prog = .prog, gsize = gsize_, mdepth = mdepth_, nreads = nreads_,
-                  sec = .time, Mb = .mem)
+                  sec = .time, MB = .mem)
+    
+    if (.get_cpu) {
+        .cpu_time <- lines[grepl("sys$", lines)] %>%
+            trimws() %>% 
+            str_split("\\s+") %>% 
+            map_dbl(~ sum(as.numeric(.x[c(3,5)])))
+        
+        .df <- .df %>% 
+            mutate(cpu_sec = .cpu_time)
+    }
+    
     return(.df)
 }
 
@@ -948,45 +954,81 @@ pip_runs <- expand.grid(gsize_ = c(2, 20),
     {pmap_dfr(., one_run)} %>% 
     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
                           labels = paste(sort(unique(gsize)), "Mb")),
-           nreads = factor(nreads, levels = sort(unique(nreads)),
-                           labels = c("100k", "1M", "10M")),
            prog = factor(prog, levels = c("jackalope 4", "jackalope 1",
                                           "ngsphy 4", "ngsphy 1")))
+
+
+
+
+# # This shows that only jackalope causes CPU time to exceed elapsed time:
+# 
+# pip_runs_cpu <- expand.grid(gsize_ = c(2, 20), 
+#                         mdepth_ = c(0.001, 0.01, 0.1), 
+#                         nreads_ = c(0.1, 1, 10)) %>%
+#     as.list() %>% 
+#     {pmap_dfr(., one_run, .get_cpu = TRUE)} %>% 
+#     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
+#                           labels = paste(sort(unique(gsize)), "Mb")),
+#            prog = factor(prog, levels = c("jackalope 4", "jackalope 1",
+#                                           "ngsphy 4", "ngsphy 1")))
+# # Only "jackalope 4" shows up here:
+# pip_runs_cpu %>% 
+#     filter(cpu_sec > sec) %>% 
+#     .[["prog"]] %>% 
+#     unique()
+
+
 
 # # To look at the exact numbers:
 # pip_runs %>%
 #     group_by(gsize, mdepth, nreads, prog) %>%
-#     summarize(sec = mean(sec), Mb = mean(Mb))
+#     summarize(sec = mean(sec), MB = mean(MB))
 
 
 
+# These numbers are used below:
+
+# Proportional difference in MB:
+pip_prop_mb <- pip_runs %>%
+    mutate(prog = gsub(" 1| 4", "", paste(prog))) %>%
+    group_by(prog, gsize, mdepth) %>%
+    summarize(MB = mean(MB)) %>%
+    group_by(gsize, mdepth) %>%
+    summarize(diff = (MB[prog == "ngsphy"] - MB[prog == "jackalope"]) /
+                  MB[prog == "jackalope"]) %>% 
+    ungroup()
 
 
-# # These numbers are used below:
-# 
-# low_mut_mb <- var_runs %>%
-#     filter(gsize == "2 Mb", mdepth == 0.001) %>%
-#     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
-#     group_by(prog) %>% 
-#     summarize(Mb = mean(Mb)) %>% 
-#     spread("prog", "Mb") %>% 
-#     as.list()
-# 
-# high_mut_mb <- var_runs %>%
-#     filter(gsize == "20 Mb", mdepth == 0.1) %>%
-#     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
-#     group_by(prog) %>% 
-#     summarize(Mb = mean(Mb)) %>% 
-#     spread("prog", "Mb") %>% 
-#     as.list()
-# 
-# # Average difference between jackalope with 1 vs 4 threads:
-# avg_diff_threads <- var_runs %>%
-#     group_by(gsize, mdepth, prog) %>%
-#     summarize(Mb = mean(Mb)) %>% 
-#     group_by(gsize, mdepth) %>%
-#     summarize(diff = Mb[prog == "jackalope 4"] - Mb[prog == "jackalope 1"]) %>% 
-#     .[["diff"]] %>% mean()
+# Proportional difference between NGSphy with 1 and 4 threads
+ngsphy_threads <- pip_runs %>% 
+    filter(grepl("ngsphy", prog)) %>% 
+    group_by(gsize, mdepth, nreads) %>% 
+    summarize(sec = (mean(sec[prog == "ngsphy 4"]) - mean(sec[prog == "ngsphy 1"])) /
+                  mean(sec[prog == "ngsphy 1"]),
+              MB = (mean(MB[prog == "ngsphy 4"]) - mean(MB[prog == "ngsphy 1"])) /
+                  mean(MB[prog == "ngsphy 1"])) %>% 
+    ungroup() %>% 
+    summarize_at(vars(sec, MB), mean) %>% 
+    as.list()
+# Proportional extra memory for 10M reads vs 100k
+pip_reads_mb <- pip_runs %>%
+    mutate(prog = gsub(" 1| 4", "", paste(prog))) %>%
+    filter(nreads %in% c(0.1, 10)) %>% 
+    group_by(prog, gsize, mdepth) %>%
+    summarize(diff = (mean(MB[nreads == 10]) - mean(MB[nreads == 0.1])) / 
+                  mean(MB[nreads == 0.1])) %>% 
+    group_by(prog) %>% 
+    summarize(diff = mean(diff)) %>% 
+    ungroup() %>% 
+    spread("prog", "diff") %>%
+    as.list()
+
+# For plotting
+
+pip_runs_p <- pip_runs %>%
+    # 4 threads in ngsphy had no effect, so I'm combining 1- and 4-thread call results:
+    mutate(prog = paste(prog),
+           prog = ifelse(grepl("ngsphy", prog), "ngsphy", prog))
 
 ```
 
@@ -994,27 +1036,55 @@ pip_runs <- expand.grid(gsize_ = c(2, 20),
 
 
 
-<!---
-
-PUT DESCRIPTION OF COMPARISON HERE.
 
 
-ALSO, ALL CODE BELOW THIS IS NOT VETTED AT ALL!
+`jackalope` was faster than `NGSphy` for all the performance tests
+(Figure \@ref(fig:pipeline-perf-test-plot)A).
+The speed advantage of `jackalope` was greatest
+at low mutation densities and when the number of reads generated was higher.
+The effect of multithreading in `jackalope` increased with increasing read numbers, 
+genome sizes, or maximum tree depth.
+These results were both consistent with those from the separate performance tests with
+`INDELible` and `ART`, the programs that make up the `NGSphy` pipeline.
+Attempts at multithreading in `NGSphy` had no effect on its performance:
+Calling for 4 threads resulted in `r sprintf("%.1g %%", ngsphy_threads$sec * 100)` more
+elapsed time and never caused total CPU time to exceed elapsed time.
+Thus multithreading in `NGSphy` seems to take place in another portion of the pipeline
+that is not apparent from its documentation.
+For this reason, I have grouped results from both the 1- and 4-thread calls to `NGSphy`
+together in Figure \@ref(fig:pipeline-perf-test-plot) and in the text below.
 
--->
+
+Throughout the tests, `NGSphy` used significantly more memory than `jackalope`
+(Figure \@ref(fig:pipeline-perf-test-plot)B).
+This was particularly true for the 20 Mb genome at maximum tree depths of 0.001 and 0.01,
+where `NGSphy` consumed 
+`r sprintf("%.0f %%", 100*filter(pip_prop_mb, mdepth == 0.001, gsize == "20 Mb")$diff)`
+and
+`r sprintf("%.0f %%", 100*filter(pip_prop_mb, mdepth == 0.01, gsize == "20 Mb")$diff)`
+more memory, respectively.
+The number of reads had little effect on memory usage: When generating 10M versus
+100k reads, `jackalope` consumed `r sprintf("%.1g %%", abs(pip_reads_mb$jackalope) * 100)`
+less memory, and `NGSphy` used `r sprintf("%.1g %%", abs(pip_reads_mb$ngsphy) * 100)` 
+less.
+
+
 
 
 
 ```{r pipeline-perf-test-plot-caption, echo = FALSE, eval = TRUE}
-var_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
-                      "\\texttt{NGSphy} in generating variants from a",
-                      "reference genome, then producing Illumina reads from variants.",
-                      "Sub-panel columns indicate the size of the genome from which",
-                      "variants were generated.",
-                      "Sub-panel rows indicate the maximum tree depth of the phylogeny",
-                      "used for the simulations.",
-                      "Superscripts in the y-axis labels indicate",
-                      "the number of threads used.")
+pip_plot_cap <- paste("(A) Speed and (B) memory usage comparison between",
+                      "\\texttt{jackalope} and \\texttt{NGSphy} in generating variants",
+                      "from a reference genome, then producing Illumina reads from",
+                      "those variants.",
+                      "In (A), sub-panel columns indicate the maximum tree depth of the",
+                      "phylogeny used for the simulations and",
+                      "In both plots, rows indicate the size of the genome from which",
+                      "variants were generated, and color indicates the program used;",
+                      "superscripts in the color labels indicate the number of threads",
+                      "used.",
+                      "The ${}^{\\*}$ highlights where results were combined for calls",
+                      "to \\texttt{NGSphy} with 1 and 4 threads; see text for details.")
 ```
 
 ```{r pipeline-perf-test-plot-make, echo = FALSE, eval = TRUE}
@@ -1023,64 +1093,80 @@ var_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 # one column, two-thirds page width, or two columns (80 mm, 112 mm, or 169 mm, respectively)
 
 
-# For jittering:
-set.seed(1102183332)
+set.seed(71234908)
 
-# pip_time <- 
-pip_runs %>%
-    filter(prog != "ngsphy 4",  # this had no effect, so I'm not plotting it
-           !is.na(sec)) %>%
-    ggplot(aes(nreads, sec)) +
+pip_time <- pip_runs_p %>%
+    group_by(prog, gsize, mdepth, nreads) %>%
+    summarize(sec_se = sd(sec) / sqrt(n()),
+              sec = mean(sec)) %>%
+    ungroup() %>%
+    mutate(log_reads = log10(nreads * 1e6)) %>% 
+    ggplot(aes(log_reads, sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-    geom_jitter(aes(fill = prog), height = 0, width = 0.25, 
-                shape = 21, color = "gray40") +
-    # scale_y_continuous("Elapsed time (sec)", limits = c(0, NA)) +
-    # scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
-    #                             expression("INDELible"^1))) +
-    facet_grid(gsize + mdepth ~ ., scales = "free_y") +
+    geom_line(aes(color = prog), size = 0.75) +
+    geom_jitter(data = pip_runs_p %>% mutate(log_reads = log10(nreads * 1e6)),
+                aes(color = prog), size = 2, width = 0.125, shape = 1) +
+    geom_text(data = tibble(mdepth = 0.001,
+                            gsize = "20 Mb",
+                            prog = c("jackalope 4", "jackalope 1", "ngsphy"),
+                            label = c("bold(jackalope^4)", "bold(jackalope^1)",
+                                      "bold(NGSphy^{1 * '*'})"),
+                            log_reads = c(7.3, 7.3, 6.6),
+                            sec = c(-5, 190, 500)),
+              aes(label = label, color = prog),
+              hjust = 1, vjust = 1, size = 10 / 2.835, parse = TRUE) +
+    scale_y_continuous("Elapsed time (sec)", limits = c(-5, NA), 
+                       expand = expand_scale(0.125)) +
+    scale_x_continuous("Millions of reads",
+                       breaks = log10(c(0.1e6, 1e6, 10e6)), labels = c(0.1, 1, 10)) +
+    facet_grid(gsize ~ mdepth, scales = "free_y") +
     theme(axis.title = element_text(size = 11),
           axis.text = element_text(size = 8),
-          axis.title.y = element_blank(),
-          plot.margin = margin(0, 0, 0, b = 6),
-          axis.text.y = element_text(color = "black", size = 11),
-          legend.position = "none",
+          plot.margin = margin(0, 0, r = 6, b = 6),
           strip.text = element_text(size = 10),
           strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette) +
-    guides(fill = guide_legend(override.aes = list(size = 3))) +
-    # coord_flip() +
+    scale_fill_manual(NULL, values = perf_palette, guide = FALSE) +
+    scale_color_manual(NULL, values = perf_palette, guide = FALSE) +
     NULL
 
 
 
+pip_mem <- pip_runs_p %>%
+    group_by(prog, gsize, mdepth) %>% 
+    summarize(MB = mean(MB)) %>% 
+    ungroup() %>% 
+    ggplot(aes(log10(mdepth), MB / 1e3)) +
+    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
+    geom_jitter(data = pip_runs_p %>%  mutate(nreads = factor(nreads)),
+                aes(color = prog), shape = 1, size = 2, width = 0.25) +
+    geom_line(aes(color = prog), size = 0.75) +
+    geom_text(data = tibble(gsize = "2 Mb",
+                            prog = c("jackalope 4", "jackalope 1", "ngsphy"),
+                            label = c("bold(jackalope^4)", "bold(jackalope^1)",
+                                      "bold(NGSphy^{1 * '*'})"),
+                            mdepth = 10^(c(-1, -0.7, -1.7)),
+                            MB = c(225, 50, 550)),
+              aes(label = label, color = prog),
+              hjust = 1, vjust = 0.5, size = 10 / 2.835, parse = TRUE) +
+    scale_y_continuous("Memory used (GB)", limits = c(0, NA)) +
+    scale_x_continuous("Maximum tree depth",
+                       breaks = -3:-1, labels = c(0.001, 0.01, 0.1)) +
+    facet_grid(gsize ~ ., scales = "free_y") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          plot.margin = margin(0, 0, l = 6, b = 6),
+          strip.text = element_text(size = 10),
+          strip.background = element_blank()) +
+    scale_color_manual(NULL, guide = FALSE, values = perf_palette) +
+    scale_shape_manual(NULL, guide = FALSE, values = c(1, 2, 5)) +
+    NULL
 
-# set.seed(703652715)
-# pip_mem <- pip_runs %>%
-#     ggplot(aes(prog, Mb)) +
-#     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-#     geom_jitter(aes(fill = prog), height = 0, width = 0.25,
-#                 shape = 21, color = "gray40") +
-#     scale_y_continuous("Max memory used (MB)", limits = c(0, NA)) +
-#     scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1),
-#                                     expression("INDELible"^1))) +
-#     facet_grid(mdepth ~ gsize, scales = "free_x") +
-#     theme(axis.title = element_text(size = 11),
-#           axis.text = element_text(size = 8),
-#           axis.title.y = element_blank(),
-#           plot.margin = margin(0, 0, 0, t = 6),
-#           axis.text.y = element_text(color = "black", size = 11),
-#           legend.position = "none",
-#           strip.text = element_text(size = 10),
-#           strip.background = element_blank()) +
-#     scale_fill_manual(NULL, values = perf_palette) +
-#     guides(fill = guide_legend(override.aes = list(size = 3))) +
-#     coord_flip() +
-#     NULL
 
 
-# pip_plot <- plot_grid(pip_time, pip_mem, ncol = 1)
+pip_plot <- plot_grid(pip_time, pip_mem, ncol = 2, rel_widths = c(0.6, 0.4),
+                      labels = LETTERS[1:2], label_fontface = "plain")
 
-ggsave("Fig_4.pdf", pip_time, width = 88, height = 88, units = "mm")
+ggsave("Fig_4.pdf", pip_plot, width = 169, height = 112, units = "mm")
 ```
 
 
@@ -1360,11 +1446,16 @@ knitr::include_graphics("Fig_1.pdf", dpi = NA)
 ```
 
 
-```{r variants-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=112/25.4, fig.cap=var_plot_cap}
+```{r variants-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=88/25.4, fig.height=88/25.4, fig.cap=var_plot_cap}
 var_plot
 ```
 
 
 ```{r sequencing-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=112/25.4, fig.cap=seq_plot_cap}
+seq_plot
+```
+
+
+```{r pipeline-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=169/25.4, fig.height=112/25.4, fig.cap=pip_plot_cap}
 seq_plot
 ```
