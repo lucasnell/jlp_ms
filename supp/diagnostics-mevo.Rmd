@@ -330,11 +330,11 @@ value of `r pars$shape` and split the distribution into 5 categories.
 
 I used the diagnostic console output for this section.
 Each time a substition was generated, the console output the position,
-Gamma-distribution category (1 to 5 in this case), the original nucleotide, 
+Gamma-distribution category (0 to 4 in this case), the original nucleotide, 
 and the new nucleotide.
 It also output when switching chromosomes, so I could match substitutions with
 chromosomes.
-I counted the number of mutations per chromosome, rate category, type of substitution.
+I counted the number of mutations per chromosome, rate category, and type of substitution.
 I compared these to predicted counts, which were the product of the
 chromosome size, number of variants, and the transition-probability matrix for the
 branch length of the phylogeny.
@@ -342,9 +342,11 @@ branch length of the phylogeny.
 
 
 ```{r mevo-site-var-cap}
-sv_cap <- paste("Observed versus predicted number of mutations that occurred in",
-                "each region, based on each region's gamma distance.",
+sv_cap <- paste("Observed versus predicted number of mutations, based on each",
+                "position's mutation rate modifier from a discrete Gamma distribution.",
                 "The dashed line is the 1-to-1 line.")
+gr_cap <- paste("Observed number of sites in each rate category.",
+                "The red line is the predicted value for all categories.")
 # Used to generate discrete Gamma values:
 Rcpp::sourceCpp("supp/diagnostics-mevo.cpp")
 ```
@@ -362,6 +364,7 @@ gammas <- discrete_gamma(5, pars$shape)
 # svar_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree), sub = sub))
 # saveRDS(svar_output, "svar_output.rds")
 svar_output <- readRDS("svar_output.rds")
+
 
 sub_info <- svar_output[grepl("^__", svar_output)]
 sub_info <- map(strsplit(sub_info, " "), ~ .x[-1])
@@ -422,6 +425,35 @@ var_df %>%
 
 
 
+I also checked that the number of sites were approximately equal for each category.
+This should be true because each rate category represents an equal area under
+the probability density curve for the Gamma distribution.
+The diagnostic output included when rates were created so that I could directly estimate
+how many sites belonged in each rate category.
+
+
+
+```{r mevo-site-var-rates, fig.cap = gr_cap}
+rate_info <- svar_output[grepl("^~~", svar_output)]
+rate_info <- sapply(strsplit(rate_info, " = "), function(x) trimws(x[2]))
+rate_info <- lapply(strsplit(rate_info, " "), factor, levels = paste(0:4))
+rate_mat <- do.call(rbind, lapply(rate_info, function(x) as.numeric(table(x))))
+
+# This is the same for all:
+gr_pred <- rowSums(rate_mat)[1] / ncol(rate_mat)
+
+rate_df <- tibble(cat = rep(1:ncol(rate_mat), each = nrow(rate_mat)),
+                  obs = as.numeric(rate_mat))
+
+rate_df %>%
+    ggplot(aes(obs)) +
+    geom_histogram(bins = 20, fill = "dodgerblue", 
+                   color = "gray70", size = 0.1) +
+    geom_vline(xintercept = gr_pred, linetype = 2, color = "firebrick2") +
+    xlab("Number in category") +
+    ylab("Count")
+```
+
 
 
 ## Phylogeny
@@ -450,27 +482,13 @@ plot(tree)
 I used only substitutions in the simulations, to make matching mutations between
 variants more straightforward.
 
-I calculated the number of unshared mutations between variants $i$ and $j$ as
-the total number of mutations in variant $i$ minus the number of mutations shared
-between them.
-I did not also include the calculation using the total mutations for variant $j$
-since that was redundant (and does not change my conclusions).
-I then calculated the phylogenetic distances between them using the function
-`ape::cophenetic.phylo` and dividing the output by 2 to get the time since
-the most recent common ancestor.
-Next, I multipled these distances by the mean mutation rate (based on the
-substitution rate matrix) and the mean number of basepairs in each reference genome
-chromosome.
-This gave me the predicted number of unshared mutations.
-
-
 I used the diagnostic console output for this section.
 Each time a substition was generated, the console output the position,
 Gamma-distribution category (always 1 in this case), the original nucleotide, 
 and the new nucleotide.
 It also output when switching to a new edge on the phylogeny, so I could
 match substitutions with branch lengths.
-I counted the number of mutations tree edge and 
+I counted the number of mutations per tree edge and 
 compared these to predicted counts, which were the product of the chromosome size
 and the transition-probability matrix for the branch length.
 

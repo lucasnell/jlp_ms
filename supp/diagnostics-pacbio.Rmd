@@ -88,14 +88,14 @@ tibble(obs = nchar(fq[seq(2, length(fq), 4)])) %>%
     ggplot(aes(obs)) +
     # geom_freqpoly(bins = 50, size = 1, color = "dodgerblue") +
     geom_histogram(bins = 50, fill = "dodgerblue", color = "gray70", size = 0.1) +
-    stat_function(fun = test_lens, args = list(mult = 6.7e6), color = "black",
+    stat_function(fun = test_lens, args = list(mult = 5.9e6), color = "black",
                   linetype = 2, size = 1) +
     theme(legend.position = c(0.75, 0.75),
           legend.text = element_text(size = 11)) +
     scale_color_brewer(NULL, palette = "Dark2") +
     # ggtitle("Read length distributions") +
     scale_y_continuous("Count",
-                       sec.axis = sec_axis(~./6.7e6, name = "Density")) +
+                       sec.axis = sec_axis(~./5.9e6, name = "Density")) +
     scale_x_continuous("Read length (kb)",
                        breaks = seq(0, 30e3, 10e3), labels = seq(0, 30, 10))
 ```

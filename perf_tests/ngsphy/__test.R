@@ -105,9 +105,6 @@ ngp <- function(nt) {
 }
 
 
-nt <- 4
-
-
 
 #'
 #' Do 5 reps of each:
