@@ -1223,19 +1223,23 @@ del <- indels(rate = 1e-5, max_length = 40)
 
 ### Assembling a genome
 
-The example here produces FASTQ files from the known reference assembly that could
-test strategies for how to assemble a similar genome using HTS data.
+The example here produces FASTQ files from the known *D. melanogaster* reference
+assembly that could test strategies for how to assemble a similar genome using HTS data.
+The strategies the example code below could test would be
+(1\) a PacBio-only assembly,
+(2\) a PacBio-only assembly followed by polishing using Illumina reads, and
+(3\) an explicit hybrid assembly.
 
-The first strategy is to use only PacBio sequencing.
-The PacBio Sequel system produces up to 500,000 reads per
-Single Molecule, Real-Time (SMRT) cell, so I
-run the following for two cells (with the file `pacbio_R1.fq` as output):
+
+To generate data to test the first, PacBio-only strategy, I ran
+the following for two Single Molecule, Real-Time (SMRT) cells from the PacBio Sequel
+system (with the file `pacbio_R1.fq` as output):
 
 ```{r examples-reads-for-assembly-pacbio}
 pacbio(ref, out_prefix = "pacbio", n_reads = 2 * 500e3)
 ```
 
-An alternative, hybrid strategy uses
+For either of the last two strategies, I used
 1 SMRT cell of PacBio sequencing and
 1 lane ($\sim 500$ million reads) of $2 \times 100$bp Illumina
 sequencing on the HiSeq 2500 system (the default Illumina system in `jackalope`):
@@ -1247,6 +1251,11 @@ illumina(ref, out_prefix = "illumina", n_reads = 500e6, paired = TRUE,
 ```
 
 
+These data could then be used to compare genome assembly performance between
+the strategies above, or between programs within a given strategy.
+Extensions of these tests include adjusting sequencing depth, sequencing platform,
+and error rates.
+
 
 
 ### Estimating divergence between populations
@@ -1256,18 +1265,19 @@ ssites <- scrm(paste("40", ref$n_chroms(), "-t 10 -I 2 20 20 100"))
 ```
 
 
-Here, I will demonstrate how to generate population-genomic data of a type that might
-be used to estimate the divergence between two populations.
-I first used the `scrm` package [@Paul_R._Staab_2015]
+Here, I will demonstrate how to generate pooled population-genomic data (Pool-seq)
+that could be used to estimate the divergence between two populations.
+Before starting `jackalope`, I used the `scrm` package [@Paul_R._Staab_2015]
 to conduct coalescent simulations that will generate segregating sites for 40
 haploid variants from the reference genome (object `ssites`).
 Twenty of the variants are from one population, twenty from another.
 The symmetrical migration rate is 100 individuals per generation,
 and the population-scaled mutation rate ($\theta = 4 N_0 \mu$) is 10.
 The `scrm` command for this is `40 5 -t 10 -I 2 20 20 100`.
+
 Using the previously created objects for mutation-type information and the
 `vars_ssites` function that checks and organizes the coalescent output object,
-I create variants from the reference genome:
+I created variants from the reference genome:
 
 
 ```{r examples-divergence-create, eval = TRUE, echo = TRUE}
@@ -1275,15 +1285,24 @@ vars <- create_variants(ref, vars_ssites(ssites), sub, ins, del)
 ```
 
 
-Lastly, I simulate 1 lane of $2 \times 100$bp Illumina HiSeq 2500 sequencing.
-In this case, each individual variant's reads are output to separate FASTQ files.
-I also write the true variant information to a VCF file.
+Lastly, I simulated 1 lane of $2 \times 100$bp Illumina HiSeq 2500 sequencing.
+In this case, each individual variant's reads were output to separate FASTQ files.
+I also wrote the true variant information to a VCF file.
 
 ```{r examples-divergence-illumina-individual}
 illumina(vars, out_prefix = "vars_illumina", n_reads = 500e6, paired = TRUE,
          read_length = 100, sep_files = TRUE)
 write_vcf(vars, "variants")
 ```
+
+
+The $F_{ST}$ calculated from the resulting VCF file could then be compared to output
+from various programs to inform which works best in a particular case.
+For uncertain population parameters (e.g., migration rates), output from
+multiple calls to `scrm` varying the parameter of interst could be input to
+the `jackalope` pipeline above to identify the conditions under which one program
+might have an advantage over another.
+
 
 
 
@@ -1300,7 +1319,7 @@ simulate sequencing data from those variants to test phylogeny reconstruction me
 First, I simulated a coalescent phylogeny of 10 species (object `tree`) using
 `ape::rcoal(10)` [@Paradis_2018].
 Function `vars_phylo` organizes and checks the `tree` object, and
-including it with the mutation-type information allows me to create variants based
+including it with the mutation-type information allowed me to create variants based
 on this phylogeny:
 
 ```{r examples-phylogeny-tree-create-for-show}
@@ -1309,18 +1328,36 @@ vars <- create_variants(ref, vars_phylo(tree), sub, ins, del)
 ```{r examples-phylogeny-tree-create-for-eval, eval = TRUE, echo = FALSE}
 vars <- create_variants(ref, vars_phylo(tree), sub, ins, del,
                         n_threads = 4)
+variant_barcodes <- c("CTAGCTTG",
+                      "TCGATCCA",
+                      "ATACCAAG",
+                      "GCGTTGGA",
+                      "CTTCACGG",
+                      "TCCTGTAA",
+                      "CCTCGGTA",
+                      "TTCTAACG",
+                      "CGCTCGTG",
+                      "TATCTACA")
 ```
 
 
-Now I can generate data for 1 flow cell of $2 \times 250$bp sequencing
-on an Illumina MiSeq v3.
-I also write the true phylogenetic tree to a NEWICK file.
+I then generated data for 1 flow cell of $2 \times 250$bp sequencing
+on an Illumina MiSeq v3, where `variant_barcodes` is a character string that specifies
+the barcodes for each variant.
+I also wrote the true phylogenetic tree to a NEWICK file.
 
 ```{r examples-phylogeny-tree-illumina}
 illumina(vars, out_prefix = "phylo_tree", seq_sys = "MSv3",
-         read_length = 250, n_reads = 50e6)
+         paired = FALSE, read_length = 250, n_reads = 50e6,
+         barcodes = variant_barcodes)
 ape::write.tree(tree, "true.tree")
 ```
+
+
+
+The true phylogenetic tree would then be compared to the final tree output from
+the program(s) the user chooses to test.
+
 
 
 
@@ -1370,22 +1407,32 @@ information from the `gtrees` object.
 vars <- create_variants(ref, vars_gtrees(gtrees),
                         sub, ins, del,
                         n_threads = 4)
+# 2 of each barcode bc it's diploid
+variant_barcodes <- rep(c("TCGCCTTA", "CTAGTACG", "TTCTGCCT", "GCTCAGGA", "AGGAGTCC", 
+                          "CATGCCTA", "GTAGAGAG", "CCTCTCTG", "AGCGTAGC", "CAGCCTCG", 
+                          "TGCCTCTT", "TCCTCTAC"), 2)
 ```
 ```{r examples-phylogeny-gtrees-create-variants-for-show}
 vars <- create_variants(ref, vars_gtrees(gtrees), sub, ins, del)
 ```
 
 
-Now I can generate data for 1 flow cell of $2 \times 250$bp sequencing
-on an Illumina MiSeq v3.
-I also write the true gene trees to a `ms`-style file.
+Next I generated data for 1 flow cell of $2 \times 250$bp sequencing
+on an Illumina MiSeq v3, with barcodes in the object `variant_barcodes`.
+I also wrote the true gene trees to a `ms`-style file.
 
 ```{r examples-phylogeny-gtrees-illumina}
 illumina(vars, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
-         read_length = 250, n_reads = 50e6)
-write_gtrees(gtrees, "gtrees")
+         read_length = 250, n_reads = 50e6, paired = TRUE, 
+         barcodes = variant_barcodes)
+write_gtrees(vars_gtrees(gtrees), "gtrees")
 ```
 
+
+Topologies of the gene trees would then be compared to final phylogenies output
+from software the user is interested in testing.
+Varying recombination rates or adding gene flow after separation of species would
+be natural extensions of these simulations.
 
 
 
@@ -1395,10 +1442,8 @@ write_gtrees(gtrees, "gtrees")
 
 `jackalope` outperforms popular stand-alone programs for phylogenomic and HTS
 simulation and combines their functionalities into one cohesive package.
-Although it does not provide the in-built power of full pipelines like `NGSphy`,
-simulations using `jackalope` are much simpler to implement.
-Moreover, the flexibility of `jackalope` allows power users to manually
-provide inputs in many instances where the in-built functionality may not suffice.
+Although it does not provide the in-built power of a full pipeline like `NGSphy`,
+simulations using `jackalope` are simpler to implement and more efficient computationally.
 This package should inform research design for projects employing HTS,
 particularly those focusing on population genomics or phylogenomics.
 Output from `jackalope` will help develop more specific sequencing goals 
