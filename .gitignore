@@ -15,3 +15,7 @@ _supp_cache*
 _manuscript_cache*
 *.vcf
 *_out*
+
+*.aux
+
+*.out
