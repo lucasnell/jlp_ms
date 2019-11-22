@@ -231,7 +231,7 @@ that it works well for chromosome sizes in diploid eukaryotes [@Li_2011].
 
 There are five ways to generate haploid variants from the reference genome, and
 information on all the methods can be found in the documentation (under `vars_functions`).
-The first two methods do not require phylogenetic information.
+The first two variant methods do not require phylogenetic information.
 First, a Variant Call Format (VCF) file can directly specify mutations for each variant.
 This method works using the `htslib` C library and
 is the only method that does not require any molecular-evolution information.
@@ -248,7 +248,7 @@ The segregating-site information can take the form of
 `ms` [@Hudson_2002] or `msms` [@Ewing_2010] program.
 
 
-The remaining three methods use phylogenetic information.
+The remaining three variant methods use phylogenetic information.
 In the third method, phylogenetic tree(s) can be directly input from either
 `phylo` object(s) or NEWICK file(s).
 These can be a single species tree or one gene tree per chromosome.
