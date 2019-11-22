@@ -45,7 +45,7 @@ suppressPackageStartupMessages({
   library(ape)
   library(tidyverse)
 })
-knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = 'quartz_pdf',
+knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = "quartz_pdf",
                       fig.height = 3, fig.width = 3.25, fig.align = "center",
                       message = FALSE, warning = FALSE)
 knitr::opts_knit$set(root.dir = normalizePath(".."))

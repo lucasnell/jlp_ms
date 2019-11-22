@@ -1,0 +1,46 @@
+// Strings to pass to this file:
+//
+// OUT_PATH - where the files will go. This will be output from `tempdir()` in R
+// READS_PER_FILE - average # reads per output file, where there are separate files by
+//     individual and which of read pair
+// LOCUS_SHAPE - shape parameter for Gamma distr that generates locus coverages
+// INDIV_SHAPE - shape parameter for Gamma distr that generates individual coverages
+// THREADS - number of threads to use
+//
+[general]
+path=%OUT_PATH%
+output_folder_name=NGSphy_output
+ploidy=1
+
+[data]
+inputmode=1
+gene_tree_file=tree.tree
+indelible_control_file=indelible_config.txt
+
+[coverage]
+experiment=F:%READS_PER_FILE%
+individual=F:%INDIV_SHAPE%
+
+
+[ngs-reads-art]
+rcount=true
+len=150
+mflen=400
+sdev=100
+ss=HS25
+paired=true
+quiet=true
+noALN=true
+
+
+[execution]
+environment=bash
+runART=true
+running_times=false
+threads=%THREADS%
+
+
+
+
+
+
