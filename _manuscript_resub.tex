@@ -1,0 +1,1059 @@
+\PassOptionsToPackage{unicode=true}{hyperref} % options for packages loaded elsewhere
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames*,x11names*}{xcolor}
+%
+\documentclass[12pt,]{article}
+\usepackage{lmodern}
+\usepackage{setspace}
+\setstretch{2}
+\usepackage{bbm}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{unicode-math}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage[]{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{
+            pdftitle={jackalope: a swift, versatile phylogenomic and high-throughput sequencing simulator},
+            colorlinks=true,
+            linkcolor=Blue,
+            citecolor=Blue,
+            urlcolor=Blue,
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage[left=2.5cm,right=2.5cm,top=3cm,bottom=3cm]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\AttributeTok}[1]{#1}
+\newcommand{\BaseNTok}[1]{#1}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.00,0.50,0.50}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\ConstantTok}[1]{#1}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.00,1.00}{#1}}
+\newcommand{\DataTypeTok}[1]{#1}
+\newcommand{\DecValTok}[1]{#1}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{#1}
+\newcommand{\FunctionTok}[1]{#1}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.00,1.00}{#1}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{#1}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{1.00,0.25,0.00}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{1.00,0.25,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.50,0.50}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.00,0.50,0.50}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.00,0.50,0.50}{#1}}
+\newcommand{\VariableTok}[1]{#1}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.00,0.50,0.50}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{\textbf{#1}}}
+\usepackage[labelfont=bf]{caption}
+    \usepackage{longtable,booktabs}
+            % Fix footnotes in tables (requires footnote package)
+        \IfFileExists{footnote.sty}{\usepackage{footnote}\makesavenoteenv{longtable}}{}
+    \usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+% set default figure and tabke placement
+\usepackage{float}
+\makeatletter
+\def\fps@figure{H}
+\def\fps@table{H}
+\makeatother
+
+% Add S to the beginning of figure and table labels if it's supplemental section
+
+
+\usepackage{authblk,etoolbox}
+\renewcommand\Affilfont{\small}
+\makeatletter
+% % patch \maketitle so that it doesn't center
+% \patchcmd{\@maketitle}{center}{flushleft}{}{}
+% \patchcmd{\@maketitle}{center}{flushleft}{}{}
+
+% patch the patch by authblk so that the author block is flush left
+\def\maketitle{{%
+  \renewenvironment{tabular}[2][]
+    {\begin{flushleft}}
+    {\end{flushleft}}
+  \AB@maketitle}}
+\makeatother
+
+
+\providecommand{\subtitle}[1]{\Huge{#1}}
+
+\title{
+    jackalope: a swift, versatile phylogenomic and high-throughput sequencing simulator
+            }
+            \author[1]{Lucas A. Nell}
+                \affil[1]{Department of Integrative Biology, University of Wisconsin--Madison}
+    % % \author{true}
+% % \date{}
+\date{}
+
+\newcommand{\mean}[1]{\text{mean}\left( #1 \right)}
+\newcommand{\var}[1]{\text{var}\left( #1 \right)}
+
+% Removing extra space around \left( and \right)
+\let\originalleft\left
+\let\originalright\right
+\renewcommand{\left}{\mathopen{}\mathclose\bgroup\originalleft}
+\renewcommand{\right}{\aftergroup\egroup\originalright}
+
+
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{makecell}
+\usepackage{rotating} % To display tables in landscape
+\usepackage{siunitx} % Required for alignment
+
+
+\usepackage{lineno}
+\linenumbers
+
+
+\begin{document}
+
+            \maketitle
+        
+
+
+
+\raggedright
+
+\hypertarget{abstract}{%
+\subsection{Abstract}\label{abstract}}
+
+High-throughput sequencing (HTS) is central to the study of population genomics
+and has an increasingly important role in constructing phylogenies.
+Choices in research design for sequencing projects can include
+a wide range of factors, such as sequencing platform, depth of coverage, and
+bioinformatic tools.
+Simulating HTS data better informs these decisions.
+However, current standalone HTS simulators cannot generate genomic variants under
+even somewhat complex evolutionary scenarios, which greatly reduces their usefulness
+for fields such as population genomics and phylogenomics.
+Here I present the R package \texttt{jackalope} that simply and efficiently simulates
+(i) variants from reference genomes and
+(ii) reads from both Illumina and Pacific Biosciences (PacBio) platforms.
+Genomic variants can be simulated using phylogenies, gene trees,
+coalescent-simulation output, population-genomic summary statistics,
+and Variant Call Format (VCF) files.
+\texttt{jackalope} can simulate single, paired-end, or mate-pair Illumina reads,
+as well as reads from Pacific Biosciences.
+These simulations include sequencing errors, mapping qualities, multiplexing,
+and optical/PCR duplicates.
+It can read reference genomes from FASTA files and can simulate new ones,
+and all outputs can be written to standard file formats.
+\texttt{jackalope} is available for Mac, Windows, and Linux systems.
+
+\textbf{Keywords:} sequencing simulator, population genomics, phylogenomics,
+Illumina, Pacific Biosciences, Pool-seq
+
+\hypertarget{introduction}{%
+\subsection{Introduction}\label{introduction}}
+
+High-throughput sequencing (HTS) is a cost-effective approach to generate vast amounts
+of genomic data and has revolutionized the study of genomes
+(Metzker, 2009).
+The combination of massive datasets, sequencing errors, and potentially complex
+evolutionary histories make bioinformatic pipelines an important aspect of
+research using HTS.
+Many bioinformatic tools exist, and new programs that are more accurate and
+computationally efficient are constantly being developed.
+Simulation of HTS data is needed to test these tools.
+Although there are many sequence simulators currently available
+(reviewed in Escalona, Rocha, \& Posada, 2016),
+most have only rudimentary ways to generate variants from a reference genome.
+For example, both \texttt{Mason} (Holtgrewe, 2010) and \texttt{GemSIM} (McElroy, Luciani, \& Thomas, 2012) place mutations
+randomly throughout genome sequences, the former based on per-site mutation rates
+and the latter on a set number of mutations per variant haplotype.
+In either case, simulations alone are not useful for researchers interested
+in simulating HTS data to test more complex evolutionary questions, such as
+(a) how demographic changes and selection interact to affect genome-wide diversity or
+(b) how incongruence between gene trees might affect reconstructed phylogenies.
+
+Recently, pipelines have been developed that use multiple programs
+to simulate complex evolutionary histories and HTS on the resulting populations
+or species.
+\texttt{TreeToReads} (McTavish et al., 2017) simulates sequences along a single
+phylogenetic tree using \texttt{Seq-Gen} (Rambaut \& Grassly, 1997)
+and generates Illumina reads using \texttt{ART} (Huang, Li, Myers, \& Marth, 2011).
+The newer pipeline \texttt{NGSphy} (Escalona, Rocha, \& Posada, 2018) uses \texttt{INDELible} (Fletcher \& Yang, 2009)
+for more mutation options than \texttt{Seq-Gen} and
+can simulate along multiple gene trees via \texttt{SimPhy} (Mallo, Oliveira Martins, \& Posada, 2015).
+These pipelines are quite powerful.
+However, they both require the installation of multiple programs to use them,
+and the vast array of features creates a steep learning curve when getting started.
+Additionally, the lack of integration between inner programs means that the
+entire process is not as computationally efficient as a single standalone program.
+
+In the present paper I introduce \texttt{jackalope}, an R (R Core Team, 2019) package
+that combines the functionality of an HTS simulator with that of a
+phylogenomics simulator.
+Although \texttt{jackalope} can process output from coalescent simulators,
+it does not do coalescent simulations itself and assumes input files to be true.
+I chose the R platform because of its simple integration with C++ code via
+the \texttt{Rcpp} package (Eddelbuettel \& François, 2011).
+The interface with R allows the user greater flexibility, while the underlying
+C++ code improves memory use and speed.
+\texttt{jackalope} can read genomes from FASTA files or simulate them \emph{in silico}.
+It can also create variants from the reference genome based on basic
+population-genomic summary statistics, phylogenies, gene trees,
+Variant Call Format (VCF) files, or matrices of segregating sites.
+These variants can be simulated based on any of several popular
+molecular-evolution models.
+\texttt{jackalope} simulates single, paired-ended, or mate-pair reads on the Illumina platform,
+as well as Pacific Biosciences (PacBio) reads.
+All information generated by \texttt{jackalope} can be output to standard file formats.
+
+After outlining the methods, I compare the performance of \texttt{jackalope} to that of
+other popular programs.
+Lastly, I demonstrate the usefulness of \texttt{jackalope} through four usage examples.
+
+\hypertarget{features-and-methods}{%
+\subsection{Features and methods}\label{features-and-methods}}
+
+Most code is written in C++ and interfaces with R using the \texttt{Rcpp} package
+(Eddelbuettel \& François, 2011).
+I used OpenMP to allow for parallel processing and
+the \texttt{PCG} family of thread-safe, pseudo-random number generators
+(O'Neill, 2014).
+I use alias sampling (Kronmal \& Peterson, 1979; Walker, 1974) for all weighted sampling.
+Package \texttt{RcppProgress} provides the thread-safe progress bar
+(Forner, 2018).
+All input and output files can have \texttt{gzip} or \texttt{bgzip} compression, using the
+\texttt{zlib} and \texttt{htslib} (Li et al., 2009) libraries.
+Access to these libraries uses the R packages
+\texttt{zlibbioc} (Morgan, 2019) and \texttt{Rhtslib} (Hayden \& Morgan, 2019) to improve portability.
+
+There are two classes in \texttt{jackalope}, one that stores information on reference genomes
+(\texttt{ref\_genome}), the other that stores information on sets of variants (\texttt{variants}).
+Both classes are \texttt{R6} (Chang, 2019) classes that wrap pointers to underlying C++ objects.
+Those C++ objects store all the information.
+Reference genomes are simply vectors of chromosome names and sequence strings.
+Variants are stored as nested vectors of mutation information.
+This can greatly reduce memory usage (unless the mutation density is high), and
+it provides the ability to output VCF files based on variants.
+I chose \texttt{R6} classes because they allowed me to make the pointers to the C++ objects
+private, thereby preventing users from accidentally manipulating them.
+Methods in \texttt{jackalope}'s classes allow the user to view and manipulate aspects of the
+C++ objects.
+Structuring the classes this way provides a high degree of flexibility and
+minimizes the chances of copying large objects in memory.
+An overview of how these classes are created and used to produce output files is shown
+in Figure \ref{fig:jackalope-overview-figure}.
+
+\hypertarget{reference-genomes}{%
+\subsubsection{Reference genomes}\label{reference-genomes}}
+
+Haploid reference genomes can be generated from FASTA files, optionally with index
+files---created using \texttt{samtools\ faidx}---that speed up processing.
+If a reference genome is not available, one can be
+simulated based on given equilibrium nucleotide distributions.
+Chromosome lengths are drawn from a Gamma distribution
+with a mean and standard deviation provided by the user.
+The Gamma distribution was chosen because of its flexibility and due to evidence
+that it works well for chromosome sizes in diploid eukaryotes (Li et al., 2011).
+
+\hypertarget{creating-variants}{%
+\subsubsection{Creating variants}\label{creating-variants}}
+
+\hypertarget{methods}{%
+\paragraph{Methods}\label{methods}}
+
+There are five ways to generate haploid variants from the reference genome, and
+information on all the methods can be found in the documentation (under \texttt{vars\_functions}).
+The first two variant methods do not require phylogenetic information.
+First, a Variant Call Format (VCF) file can directly specify mutations for each variant.
+This method works using the \texttt{htslib} C library and
+is the only method that does not require any molecular-evolution information.
+Second, segregating sites from coalescent output can inform the locations of mutations
+and which variants have them.
+The user provides molecular evolution information, which is then used to sample
+for mutation types at each segregating site.
+Sampling is weighted based on each mutation type's rate.
+The segregating-site information can take the form of
+(1) a coalescent-simulator object from the \texttt{scrm}
+(Staab, Zhu, Metzler, \& Lunter, 2015) or
+\texttt{coala} (Staab \& Metzler, 2016) package, or
+(2) a file containing output from a coalescent simulator in the format of the
+\texttt{ms} (Hudson, 2002) or \texttt{msms} (Ewing \& Hermisson, 2010) program.
+
+The remaining three variant methods use phylogenetic information.
+In the third method, phylogenetic tree(s) can be directly input from either
+\texttt{phylo} object(s) or NEWICK file(s).
+These can be a single species tree or one gene tree per chromosome.
+Fourth, users can pass an estimate for \(\theta\), the population-scaled mutation rate.
+A random coalescent tree is first generated using the \texttt{rcoal} function
+in the \texttt{ape} package (Paradis \& Schliep, 2018).
+Then, its total tree length is scaled to be
+\(\theta / \mu \sum_{i=1}^{n-1}{1 / i}\) for \(n\) variants and an equilibrium
+mutation rate of \(\mu\).
+The last method allows for recombination by simulating along
+gene trees that can differ both within and among reference chromosomes.
+Similarly to simulations using coalescent segregating sites, gene trees can be
+from \texttt{scrm} or \texttt{coala} objects, or from \texttt{ms}-style output files.
+
+In these last three ``phylogenomic'' methods, chromosomal sequences are evolved along
+phylogenetic trees (either species or gene trees).
+All chromosomes evolve independently.
+If recombination is included, multiple gene trees are used
+per chromosome, and chromosomal regions referred to by different gene trees
+evolve independently.
+Evolving independent chromosomal regions along phylogenetic trees starts by
+using the reference genome sequences as those for the root of the tree.
+Then, for each region and branch, the number of newly generated mutations is
+proportional to the branch length (see below for more details).
+These new mutations are then assigned to the daughter node on the tree.
+This process is repeated down the tree, from root to tips.
+In \texttt{jackalope}, mutation information is passed through the tree in such a
+way that no intermediate objects are created.
+
+\hypertarget{molecular-evolution}{%
+\paragraph{Molecular evolution}\label{molecular-evolution}}
+
+Both substitutions and indels can be simulated by \texttt{jackalope}.
+It is assumed that the substitution- and indel-producing processes are independent,
+so they are simulated separately to improve computational efficiency (Fletcher \& Yang, 2009).
+
+\hypertarget{substitutions}{%
+\subparagraph{Substitutions}\label{substitutions}}
+
+For substitutions, the following models can be employed:
+TN93 (Tamura \& Nei, 1993),
+JC69 (Jukes \& Cantor, 1969),
+K80 (Kimura, 1980),
+F81 (Felsenstein, 1981),
+HKY85 (Hasegawa, Kishino, \& Yano, 1985; Hasegawa, Yano, \& Kishino, 1984),
+F84 (Thorne, Kishino, \& Felsenstein, 1992),
+GTR (Tavar\a'e, 1986),
+and UNREST (Yang, 1994).
+If using the UNREST model, equilibrium nucleotide frequencies (\(\mathbf{\pi}\)) are
+calculated by solving for \(\mathbf{\pi} \mathbf{Q} = 0\), where \(\mathbf{Q}\) is the
+substitution rate matrix.
+This is done by finding the left eigenvector of \(\mathbf{Q}\) that
+corresponds to the eigenvalue closest to zero.
+Each substitution model uses its own function, and the provided documentation
+(under \texttt{sub\_models}) includes information to help users choose among them.
+
+Substitution rates can also vary among sites.
+A random-sites, discrete-Gamma model is used, where sites' rates are assumed to
+be independent of one another and are derived from a Gamma distribution split into
+\(K\) rate categories of equal probability (Yang, 2006).
+The Gamma distribution is constrained to have a mean of 1.
+A site's overall rate is its nucleotide's mutation rate multiplied by the
+``Gamma distance'' associated with its rate category.
+The user can also specify a proportion of invariant sites.
+
+For the phylogenetic methods, substitutions are simulated for each branch by first
+calculating the transition-probability matrix (\(P(t)\)) for each Gamma category based on
+the branch length.
+Substitutions are then sampled for each site using the \(P(t)\) matrix that coincides with
+the Gamma category at that site.
+This procedure has been used in multiple programs to capture the substitution process,
+including \texttt{Seq-Gen} (Rambaut \& Grassly, 1997) and \texttt{INDELible} (Fletcher \& Yang, 2009).
+
+\hypertarget{indels}{%
+\subparagraph{Indels}\label{indels}}
+
+Information for insertions and deletions is provided separately, but
+the same information is needed for both.
+The first requirement is an overall rate parameter, which is for the sum among all
+nucleotides; indel rates do not differ among nucleotides.
+The relative rates of indels of different sizes can be provided in 3 different ways:
+First, rates can be proportional to \(\exp(-u)\) for indel length \(u\) from
+1 to the maximum possible length, \(L\) (Albers et al., 2010).
+Second, rates can be generated from a Lavalette distribution,
+where the rate for length \(u\) is proportional to
+\(\left[{u L / (L - u + 1)}\right]^{-a}\) (Fletcher \& Yang, 2009).
+Third, relative rates can be specified directly by providing a length-\(L\)
+numeric vector of positive values.
+Indels up to 1 Mb are allowed.
+
+Indels are generated along phylogenetic-tree branches using
+the \(\tau\)-leaping approximation (Cao, Gillespie, \& Petzold, 2006; Wieder, Fink, \& Wegner, 2011) to the
+Doob--Gillespie algorithm (Doob, 1942; Gillespie, 1976).
+I chose the Doob--Gillespie algorithm because it only requires instantaneous rates
+rather than the calculation of a transition-probability matrix, making it easily used
+for indels (Yang, 2006).
+This method has been used in \texttt{INDELible} (Fletcher \& Yang, 2009) and \texttt{Dawg} (Cartwright, 2005)
+to simulate indels.
+The Doob--Gillespie algorithm works by generating waiting times for each branch
+length that represent the time until the next mutation occurs somewhere on the sequence.
+Waiting times are generated from an exponential distribution with a rate equal to the
+sum of indel rates for all nucleotides in the sequence.
+Waiting times (and resulting mutations) are generated until the sum of all times
+is greater than the branch length.
+
+The \(\tau\)-leaping approximation improves efficiency by breaking the branch length
+into \(\tau\)-sized chunks and using a Poisson distribution to generate how many
+mutations of each type occur in each chunk.
+The maximum value of \(\tau\) is
+
+\begin{align*}
+\tau &= \min \left[ \frac { \max \left( \epsilon \, C, 1 \right) } { | \mu | }, \frac { \max \left( \epsilon \, C, 1 \right)^2 } { \sigma^2 } \right] \\
+\mu &= C \; \sum_i{ m_i v_i } \\
+\sigma^2 &= C \; \sum_i{ m_i v_i^2 } ~ \rlap{,}
+\end{align*}
+
+for an error control parameter \(\epsilon\) (where \(0 < \epsilon \ll 1\)),
+chromosome length \(C\),
+mutation rate for one indel type \(m_i\), and
+effect on chromosome length for one indel type \(v_i\) (Cao et al., 2006; Wieder et al., 2011).
+Increasing the error control parameter results in faster simulations that
+approximate the exact Doob--Gillespie algorithm less precisely.
+It can be changed by the user, but has a default value of 0.03
+as recommended by Cao et al. (2006).
+The rate parameter for the Poisson distribution that generates the number of
+mutations over the entire chromosome across \(\tau\) time units is \(\tau C m_i\)
+for indel type \(i\).
+
+\hypertarget{simulating-sequencing-data}{%
+\subsubsection{Simulating sequencing data}\label{simulating-sequencing-data}}
+
+Both reference genomes and variants can be simulated for Illumina and PacBio sequencing.
+Chromosomes from which reads are derived are sampled with weights proportional to
+their length.
+If variants are provided, individual variants are sampled with equal probabilities
+by default.
+Alternatively, the user can specify sampling weights for each variant
+to simulate the library containing differing amounts of DNA from each.
+Both methods also allow for a probability of read duplication, which might occur
+due to PCR in either method and from optical duplicates in Illumina sequencing.
+\texttt{jackalope} can create reads using multiple threads by having a read ``pool'' for
+each thread and having pools write to file only when they are full.
+This reduces conflicts that occur when multiple threads attempt to write to disk
+at the same time.
+The size of a ``full'' pool can be adjusted, and larger sizes should increase both
+speed and memory usage.
+Illumina reads can be single, paired-ended, or mate-pair, and I used
+methods based on the \texttt{ART} program (Huang et al., 2011).
+PacBio read simulation is based on \texttt{SimLoRD} (Stöcker, Köster, \& Rahmann, 2016).
+Each was re-coded in C++ to more seemlessly integrate into \texttt{jackalope}.
+Function inputs emulate the program they were based on,
+and users are encouraged in each function's documentation to also cite
+\texttt{ART} or \texttt{SimLoRD}.
+
+\hypertarget{writing-output}{%
+\subsubsection{Writing output}\label{writing-output}}
+
+Reference genomes and variants can be written to FASTA files; the latter
+has a separate file for each variant.
+Variant information can also be written to VCF files, where each variant can
+optionally be considered one of multiple haplotypes for samples with ploidy levels \textgreater{} 1.
+Simulated gene trees can be written to \texttt{ms}-style output files, and phylogenies can be
+written to NEWICK files using \texttt{ape::write.tree}.
+All sequencing reads are output to FASTQ files.
+
+\hypertarget{validation-and-performance}{%
+\subsection{Validation and performance}\label{validation-and-performance}}
+
+I validated \texttt{jackalope} by conducting a series of simulations for variant creation
+and Illumina and PacBio sequencing.
+Using known inputs, I compared predicted to observed values of outputs,
+and \texttt{jackalope} conformed closely to expectations
+(Supporting Information Figures S1--S13).
+
+I compared the performance of \texttt{jackalope} to existing programs on a MacBook
+Pro running macOS Catalina (version 10.15) with a 2.6GHz Intel Core i5 processor
+and 8 GB RAM.
+Elapsed time and maximum memory used were measured by using the GNU \texttt{time} program
+(\texttt{/usr/bin/time} from the terminal).
+For each test, 5 runs of each program were tested in random order.
+In the text below, numbers presented are means from these 5 tests unless otherwise stated.
+
+\hypertarget{creating-variants-1}{%
+\subsubsection{Creating variants}\label{creating-variants-1}}
+
+For creating variants, I compared \texttt{jackalope} to \texttt{INDELible}
+(version 1.03; Fletcher \& Yang, 2009).
+I chose \texttt{INDELible} because it is used by \texttt{NGSphy} and because it can generate
+sequences with both substitutions and indels based on phylogenetic trees.
+I tested each program by having them simulate a 2 Mb and 20 Mb genome
+split evenly among 20 chromosomes, then generate 8 variants from that genome using
+phylogenetic trees produced by the command line version of \texttt{scrm}.
+I ran separate simulations with the trees scaled to maximum tree depths of 0.1, 0.01,
+and 0.001.
+I used the HKY85 substitution model with a transition rate of 2.5 substitutions per
+site per unit of time (where one unit of time is equal to a branch length of 1),
+and a transversion rate of 1.
+Relative frequencies of nucleotides were 0.4, 0.3, 0.2, and 0.1 for T, C, A, and G,
+respectively.
+For among-site variability in substitution rates, I used
+(1) a discrete Gamma distribution with 10 categories and a shape parameter of 0.5, and
+(2) an invariant-site rate of 0.25.
+The total rate for insertions was 0.1 per site per unit time,
+with relative rates derived from a Lavalette distribution with \(L = 541\) and \(a = 1.7\).
+Deletions had the same total and relative rates.
+Output was written to FASTA files.
+\texttt{jackalope} was tested for 1 and 4 threads, but
+\texttt{INDELible} for only 1 because it cannot use multiple threads.
+
+\texttt{jackalope} consistently outperformed \texttt{INDELible} in terms of speed, although this
+difference was less drastic when there were more mutations: for the larger genome size
+and greater maximum tree depth (Figure \ref{fig:variants-perf-test-plot}).
+This is somewhat offset by the fact that using more threads has a greater effect at
+larger genome sizes.
+Memory usage was greater in \texttt{jackalope} than \texttt{INDELible}.
+With low mutation numbers, this difference was due to the overhead associated
+with loading R.
+For a 2 Mb genome and 0.001 max tree depth, \texttt{jackalope} used
+94.3 MB memory,
+while \texttt{INDELible} used 20.7 MB.
+An R script that simply printed an empty string used \(\sim 55\) MB memory,
+and another that only loaded \texttt{jackalope} used \(\sim 70\) MB.
+With greater numbers of mutations, the difference was due to \texttt{jackalope} using
+64-bit integers to store positions instead of 32-bit.
+In the most extreme example (20 Mb genome and 0.1 max tree depth), \texttt{jackalope} used
+768.3 MB memory and \texttt{INDELible} used
+429.3 MB.
+I chose to use 64-bit integers in \texttt{jackalope} to allow chromosomes to exceed
+2 Gb in length.
+Memory usage increased by only 31.7kB when
+\texttt{jackalope} used 4 threads.
+
+\hypertarget{generating-sequencing-reads}{%
+\subsubsection{Generating sequencing reads}\label{generating-sequencing-reads}}
+
+For both Illumina and PacBio read generation in \texttt{jackalope}, I compared their performance
+to the programs they were based on:
+\texttt{ART} (version 2.5.8; Huang et al., 2011) and
+\texttt{SimLoRD} (version 1.0.3; Stöcker et al., 2016), respectively.
+\texttt{ART} has the added benefit of being used for both \texttt{NSGphy} and \texttt{TreesToReads}.
+All these tests consisted of reading a 2 Mb genome from a FASTA file, simulating
+reads, and writing them to FASTQ files.
+No ALN or SAM/BAM files were written by any of the programs.
+For Illumina sequencing, I generated \(2 \times 150\) reads from the HiSeq 2500 platform,
+and tests were conducted for 100 thousand, 1 million, and 10 million total reads.
+For PacBio sequencing, I generated reads using default parameters,
+and tests were conducted for 1, 10, and 100 thousand total reads.
+\texttt{jackalope} was tested for 1 and 4 threads, but
+neither \texttt{ART} nor \texttt{SimLoRD} allowed the use of more than 1.
+
+Again, \texttt{jackalope} outperformed both \texttt{ART} and \texttt{SimLoRD} in terms of speed
+(Figure \ref{fig:sequencing-perf-test-plot}A--B).
+Multithreading was most useful when many reads were generated:
+For at least 10M Illumina reads and at least 100k PacBio reads, using 4 threads
+reduced the elapsed time for jobs by \(\sim 50 \%\).
+All three programs used very little memory:
+Average memory usage was 9.3 MB for \texttt{ART} and
+60.9 for \texttt{SimLoRD}.
+\texttt{jackalope} averaged 73.7 MB for Illumina reads and
+102.0 for PacBio reads.
+Memory usage increased only slightly with increasing read numbers in \texttt{jackalope}:
+It increased 0.6 MB across the range of Illumina reads and 3 MB across the PacBio range.
+Over the Illumina range, memory usage by \texttt{ART} slightly decreased
+(-0.05 MB).
+\texttt{SimLoRD} memory usage increased over its range
+(8 MB).
+Using 4 threads in \texttt{jackalope} had little effect on memory usage
+(3.2 MB extra for Illumina reads,
+6.3 MB extra for PacBio).
+
+\hypertarget{pipeline-from-reference-to-reads}{%
+\subsubsection{Pipeline from reference to reads}\label{pipeline-from-reference-to-reads}}
+
+I lastly compared the performance of \texttt{jackalope} to that of \texttt{NGSphy}
+(version 1.0.13; Escalona et al., 2018)
+for the following pipeline:
+generating a reference genome, simulating variants from gene trees, and
+producing Illumina reads from the variants.
+For the first two steps, I used the same parameters as I did for the comparison to
+\texttt{INDELible}.
+I also used the same parameters for the last step, except that the haploid variants
+were used for sequencing reads instead of a reference genome.
+I generated 8 variants with 20 chromosomes by creating a phylogenetic tree with
+160 tips and assigning every 20 tips to the same individual using the naming
+scheme necessary for \texttt{NGSphy}.
+I divided the larger tree by chromosome and passed these separate trees to
+\texttt{jackalope} by writing them to a \texttt{ms}-style output file.
+Output was written to both FASTA and FASTQ files.
+Both \texttt{NGSphy} and \texttt{jackalope} were tested using both 1 and 4 threads.
+
+\texttt{jackalope} was faster than \texttt{NGSphy} for all the performance tests
+(Figure \ref{fig:pipeline-perf-test-plot}A).
+The speed advantage of \texttt{jackalope} was greatest
+at low mutation densities and when the number of reads generated was higher.
+The effect of multithreading in \texttt{jackalope} increased with increasing read numbers,
+genome sizes, or maximum tree depth.
+These results were both consistent with those from the separate performance tests with
+\texttt{INDELible} and \texttt{ART}, the programs that make up the \texttt{NGSphy} pipeline.
+Attempts at multithreading in \texttt{NGSphy} had no effect on its performance:
+Calling for 4 threads resulted in 0.7 \% more
+elapsed time and never caused total CPU time to exceed elapsed time.
+Thus multithreading in \texttt{NGSphy} seems to take place in another portion of the pipeline
+that is not apparent from its documentation.
+For this reason, I have grouped results from both the 1- and 4-thread calls to \texttt{NGSphy}
+together in Figure \ref{fig:pipeline-perf-test-plot} and in the text below.
+
+Throughout the tests, \texttt{NGSphy} used significantly more memory than \texttt{jackalope}
+(Figure \ref{fig:pipeline-perf-test-plot}B).
+This was particularly true for the 20 Mb genome at maximum tree depths of 0.001 and 0.01,
+where \texttt{NGSphy} consumed
+892 \%
+and
+947 \%
+more memory, respectively.
+The number of reads had little effect on memory usage: When generating 10M versus
+100k reads, \texttt{jackalope} consumed 0.02 \%
+less memory, and \texttt{NGSphy} used 0.6 \%
+less.
+
+\hypertarget{example-usage}{%
+\subsection{Example usage}\label{example-usage}}
+
+This section provides brief examples of how \texttt{jackalope} can be used
+to generate sequencing data that can inform some common sampling decisions for HTS
+studies.
+These examples only show how to produce the output from \texttt{jackalope}, as
+a review of different bioinformatic programs that would process these data
+is beyond the scope of the present manuscript.
+
+For an example reference assembly, I used the \emph{Drosophila melanogaster} assembly
+(version 6.27) downloaded from \texttt{flybase.org} (Thurmond et al., 2018).
+After downloading, I read the compressed FASTA file, filtered out
+scaffolds by using a size threshold, and manually removed the sex chromosomes
+using the following code:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{ref <-}\StringTok{ }\KeywordTok{read_fasta}\NormalTok{(}\StringTok{"dmel-6.27.fasta.gz"}\NormalTok{, }\DataTypeTok{cut_names =} \OtherTok{TRUE}\NormalTok{)}
+\NormalTok{ref}\OperatorTok{$}\KeywordTok{filter_chroms}\NormalTok{(}\FloatTok{1e6}\NormalTok{, }\DataTypeTok{method =} \StringTok{"size"}\NormalTok{)}
+\NormalTok{ref}\OperatorTok{$}\KeywordTok{rm_chroms}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\StringTok{"X"}\NormalTok{, }\StringTok{"Y"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+For mutation-type information, I used the JC69 substitution model,
+an insertion rate of \texttt{2e-5} for lengths from 1 to 10,
+and
+a deletion rate of \texttt{1e-5} for lengths from 1 to 40.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sub <-}\StringTok{ }\KeywordTok{sub_JC69}\NormalTok{(}\DataTypeTok{lambda =} \FloatTok{1e-4}\NormalTok{)}
+\NormalTok{ins <-}\StringTok{ }\KeywordTok{indels}\NormalTok{(}\DataTypeTok{rate =} \FloatTok{2e-5}\NormalTok{, }\DataTypeTok{max_length =} \DecValTok{10}\NormalTok{)}
+\NormalTok{del <-}\StringTok{ }\KeywordTok{indels}\NormalTok{(}\DataTypeTok{rate =} \FloatTok{1e-5}\NormalTok{, }\DataTypeTok{max_length =} \DecValTok{40}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{assembling-a-genome}{%
+\subsubsection{Assembling a genome}\label{assembling-a-genome}}
+
+The example here produces FASTQ files from the known \emph{D. melanogaster} reference
+assembly that could test strategies for how to assemble a similar genome using HTS data.
+The strategies the example code below could test would be
+(1) a PacBio-only assembly,
+(2) a PacBio-only assembly followed by polishing using Illumina reads, and
+(3) an explicit hybrid assembly.
+
+To generate data to test the first, PacBio-only strategy, I ran
+the following for two Single Molecule, Real-Time (SMRT) cells from the PacBio Sequel
+system (with the file \texttt{pacbio\_R1.fq} as output):
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{pacbio}\NormalTok{(ref, }\DataTypeTok{out_prefix =} \StringTok{"pacbio"}\NormalTok{, }\DataTypeTok{n_reads =} \DecValTok{2} \OperatorTok{*}\StringTok{ }\FloatTok{500e3}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+For either of the last two strategies, I used
+1 SMRT cell of PacBio sequencing and
+1 lane (\(\sim 500\) million reads) of \(2 \times 100\)bp Illumina
+sequencing on the HiSeq 2500 system (the default Illumina system in \texttt{jackalope}):
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{pacbio}\NormalTok{(ref, }\DataTypeTok{out_prefix =} \StringTok{"pacbio"}\NormalTok{, }\DataTypeTok{n_reads =} \FloatTok{500e3}\NormalTok{)}
+\KeywordTok{illumina}\NormalTok{(ref, }\DataTypeTok{out_prefix =} \StringTok{"illumina"}\NormalTok{, }\DataTypeTok{n_reads =} \FloatTok{500e6}\NormalTok{, }\DataTypeTok{paired =} \OtherTok{TRUE}\NormalTok{,}
+         \DataTypeTok{read_length =} \DecValTok{100}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+These data could then be used to compare genome assembly performance between
+the strategies above, or between programs within a given strategy.
+Extensions of these tests include adjusting sequencing depth, sequencing platform,
+and error rates.
+
+\hypertarget{estimating-divergence-between-populations}{%
+\subsubsection{Estimating divergence between populations}\label{estimating-divergence-between-populations}}
+
+Here, I will demonstrate how to generate pooled population-genomic data (Pool-seq)
+that could be used to estimate the divergence between two populations.
+Before starting \texttt{jackalope}, I used the \texttt{scrm} package (Staab et al., 2015)
+to conduct coalescent simulations that will generate segregating sites for 40
+haploid variants from the reference genome (object \texttt{ssites}).
+Twenty of the variants are from one population, twenty from another.
+The symmetrical migration rate is 100 individuals per generation,
+and the population-scaled mutation rate (\(\theta = 4 N_0 \mu\)) is 10.
+The \texttt{scrm} command for this is \texttt{40\ 5\ -t\ 10\ -I\ 2\ 20\ 20\ 100}.
+
+Using the previously created objects for mutation-type information and the
+\texttt{vars\_ssites} function that checks and organizes the coalescent output object,
+I created variants from the reference genome:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vars <-}\StringTok{ }\KeywordTok{create_variants}\NormalTok{(ref, }\KeywordTok{vars_ssites}\NormalTok{(ssites), sub, ins, del)}
+\end{Highlighting}
+\end{Shaded}
+
+Lastly, I simulated 1 lane of \(2 \times 100\)bp Illumina HiSeq 2500 sequencing.
+In this case, each individual variant's reads were output to separate FASTQ files.
+I also wrote the true variant information to a VCF file.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{illumina}\NormalTok{(vars, }\DataTypeTok{out_prefix =} \StringTok{"vars_illumina"}\NormalTok{, }\DataTypeTok{n_reads =} \FloatTok{500e6}\NormalTok{, }\DataTypeTok{paired =} \OtherTok{TRUE}\NormalTok{,}
+         \DataTypeTok{read_length =} \DecValTok{100}\NormalTok{, }\DataTypeTok{sep_files =} \OtherTok{TRUE}\NormalTok{)}
+\KeywordTok{write_vcf}\NormalTok{(vars, }\StringTok{"variants"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+The \(F_{ST}\) calculated from the resulting VCF file could then be compared to output
+from various programs to inform which works best in a particular case.
+For uncertain population parameters (e.g., migration rates), output from
+multiple calls to \texttt{scrm} varying the parameter of interest could be input to
+the \texttt{jackalope} pipeline above to identify the conditions under which one program
+might have an advantage over another.
+
+\hypertarget{constructing-a-phylogeny}{%
+\subsubsection{Constructing a phylogeny}\label{constructing-a-phylogeny}}
+
+\hypertarget{from-one-phylogenetic-tree}{%
+\paragraph{From one phylogenetic tree}\label{from-one-phylogenetic-tree}}
+
+This section shows how \texttt{jackalope} can generate variants from a phylogeny, then
+simulate sequencing data from those variants to test phylogeny reconstruction methods.
+First, I simulated a coalescent phylogeny of 10 species (object \texttt{tree}) using
+\texttt{ape::rcoal(10)} (Paradis \& Schliep, 2018).
+Function \texttt{vars\_phylo} organizes and checks the \texttt{tree} object, and
+including it with the mutation-type information allowed me to create variants based
+on this phylogeny:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vars <-}\StringTok{ }\KeywordTok{create_variants}\NormalTok{(ref, }\KeywordTok{vars_phylo}\NormalTok{(tree), sub, ins, del)}
+\end{Highlighting}
+\end{Shaded}
+
+I then generated data for 1 flow cell of \(1 \times 250\)bp sequencing
+on an Illumina MiSeq v3, where \texttt{variant\_barcodes} is a character string that specifies
+the barcodes for each variant.
+I also wrote the true phylogenetic tree to a NEWICK file.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{illumina}\NormalTok{(vars, }\DataTypeTok{out_prefix =} \StringTok{"phylo_tree"}\NormalTok{, }\DataTypeTok{seq_sys =} \StringTok{"MSv3"}\NormalTok{,}
+         \DataTypeTok{paired =} \OtherTok{FALSE}\NormalTok{, }\DataTypeTok{read_length =} \DecValTok{250}\NormalTok{, }\DataTypeTok{n_reads =} \FloatTok{50e6}\NormalTok{,}
+         \DataTypeTok{barcodes =}\NormalTok{ variant_barcodes)}
+\NormalTok{ape}\OperatorTok{::}\KeywordTok{write.tree}\NormalTok{(tree, }\StringTok{"true.tree"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+The true phylogenetic tree would then be compared to the final tree output from
+the program(s) the user chooses to test.
+
+\hypertarget{from-gene-trees}{%
+\paragraph{From gene trees}\label{from-gene-trees}}
+
+Similar to the section above, the ultimate goal here is to test phylogeny
+reconstruction methods.
+The difference in this section is that instead of using a single, straightforward
+phylogeny, I use multiple gene trees per chromosome.
+In the species used in these simulations, species 3 diverged from 1 and 2 at \(t = 1.0\),
+where \(t\) indicates time into the past and is in units of \(4 N_0\) generations.
+Species 1 and 2 diverged at \(t = 0.5\).
+I assume a recombination rate of \(1 / (4 N_0)\) recombination events per chromosome
+per generation.
+There are 4 diploid individuals sampled per species.
+I used \texttt{scrm} to simulate the gene trees (command
+\texttt{24\ 1\ -T\ -r\ 1\ 1000\ -I\ 3\ 8\ 8\ 8\ 0\ -ej\ 1.0\ 3\ 1\ -ej\ 0.5\ 2\ 1} for a chromosome size of 1000),
+producing the object \texttt{gtrees}.
+As for the other variant-creation methods, function \texttt{vars\_gtrees} checks and organizes
+information from the \texttt{gtrees} object.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vars <-}\StringTok{ }\KeywordTok{create_variants}\NormalTok{(ref, }\KeywordTok{vars_gtrees}\NormalTok{(gtrees), sub, ins, del)}
+\end{Highlighting}
+\end{Shaded}
+
+Next I generated data for 1 flow cell of \(2 \times 250\)bp sequencing
+on an Illumina MiSeq v3, with barcodes in the object \texttt{variant\_barcodes}.
+I also wrote the true gene trees to a \texttt{ms}-style file.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{illumina}\NormalTok{(vars, }\DataTypeTok{out_prefix =} \StringTok{"phylo_gtrees"}\NormalTok{, }\DataTypeTok{seq_sys =} \StringTok{"MSv3"}\NormalTok{,}
+         \DataTypeTok{read_length =} \DecValTok{250}\NormalTok{, }\DataTypeTok{n_reads =} \FloatTok{50e6}\NormalTok{, }\DataTypeTok{paired =} \OtherTok{TRUE}\NormalTok{, }
+         \DataTypeTok{barcodes =}\NormalTok{ variant_barcodes)}
+\KeywordTok{write_gtrees}\NormalTok{(}\KeywordTok{vars_gtrees}\NormalTok{(gtrees), }\StringTok{"gtrees"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Topologies of the gene trees would then be compared to final phylogenies output
+from software the user is interested in testing.
+Varying recombination rates or adding gene flow after separation of species would
+be natural extensions of these simulations.
+
+\hypertarget{conclusion}{%
+\subsection{Conclusion}\label{conclusion}}
+
+\texttt{jackalope} outperforms popular stand-alone programs for phylogenomic and HTS
+simulation and combines their functionalities into one cohesive package.
+Although it does not provide the in-built power of a full pipeline like \texttt{NGSphy},
+simulations using \texttt{jackalope} are simpler to implement and more efficient computationally.
+As part of a larger pipeline that includes coalescent simulations or other methods
+that guide patterns of mutations, \texttt{jackalope} should inform research design for
+projects employing HTS,
+particularly those focusing on population genomics or phylogenomics.
+Output from \texttt{jackalope} will help develop more specific sequencing goals
+in funding applications and estimate the power of a given sequencing design.
+Furthermore, \texttt{jackalope} can be used to test bioinformatic pipelines under
+assumptions of much more complex evolutionary histories than most current HTS
+simulation platforms allow.
+
+\hypertarget{references}{%
+\section{References}\label{references}}
+
+\setstretch{1}
+
+\hypertarget{refs}{}
+\leavevmode\hypertarget{ref-Albers_2010}{}%
+Albers, C. A., Lunter, G., MacArthur, D. G., McVean, G., Ouwehand, W. H., \& Durbin, R. (2010). Dindel: Accurate indel calls from short-read data. \emph{Genome Research}, \emph{21}(6), 961--973. doi: \href{https://doi.org/10.1101/gr.112326.110}{10.1101/gr.112326.110}
+
+\leavevmode\hypertarget{ref-Cao_2006}{}%
+Cao, Y., Gillespie, D., \& Petzold, L. (2006). Efficient step size selection for the tau-leaping simulation method. \emph{The Journal of Chemical Physics}, \emph{124}(4), 044109.
+
+\leavevmode\hypertarget{ref-Cartwright_2005}{}%
+Cartwright, R. A. (2005). DNA assembly with gaps (Dawg): Simulating sequence evolution. \emph{Bioinformatics}, \emph{21}, iii31--iii38.
+
+\leavevmode\hypertarget{ref-Chang_2019}{}%
+Chang, W. (2019). \emph{R6: Encapsulated classes with reference semantics}. Retrieved from \url{https://CRAN.R-project.org/package=R6}
+
+\leavevmode\hypertarget{ref-Doob_1942}{}%
+Doob, J. L. (1942). Topics in the theory of markoff chains. \emph{Transactions of the American Mathematical Society}, \emph{52}(1), 37--64.
+
+\leavevmode\hypertarget{ref-Eddelbuettel_2011}{}%
+Eddelbuettel, D., \& François, R. (2011). Rcpp: Seamless R and C++ integration. \emph{Journal of Statistical Software}, \emph{40}(8), 1--18. doi: \href{https://doi.org/10.18637/jss.v040.i08}{10.18637/jss.v040.i08}
+
+\leavevmode\hypertarget{ref-Escalona_2016}{}%
+Escalona, M., Rocha, S., \& Posada, D. (2016). A comparison of tools for the simulation of genomic next-generation sequencing data. \emph{Nature Reviews Genetics}, \emph{17}(8), 459--469. doi: \href{https://doi.org/10.1038/nrg.2016.57}{10.1038/nrg.2016.57}
+
+\leavevmode\hypertarget{ref-Escalona_2018}{}%
+Escalona, M., Rocha, S., \& Posada, D. (2018). NGSphy: Phylogenomic simulation of next-generation sequencing data. \emph{Bioinformatics}, \emph{34}(14), 2506--2507. doi: \href{https://doi.org/10.1093/bioinformatics/bty146}{10.1093/bioinformatics/bty146}
+
+\leavevmode\hypertarget{ref-Ewing_2010}{}%
+Ewing, G., \& Hermisson, J. (2010). MSMS: A coalescent simulation program including recombination, demographic structure and selection at a single locus. \emph{Bioinformatics}, \emph{26}(16), 2064--2065. doi: \href{https://doi.org/10.1093/bioinformatics/btq322}{10.1093/bioinformatics/btq322}
+
+\leavevmode\hypertarget{ref-Felsenstein_1981}{}%
+Felsenstein, J. (1981). Evolutionary trees from DNA sequences: A maximum likelihood approach. \emph{Journal of Molecular Evolution}, \emph{17}(6), 368--376. doi: \href{https://doi.org/10.1007/bf01734359}{10.1007/bf01734359}
+
+\leavevmode\hypertarget{ref-Fletcher_2009}{}%
+Fletcher, W., \& Yang, Z. (2009). INDELible: A flexible simulator of biological sequence evolution. \emph{Molecular Biology and Evolution}, \emph{26}(8), 1879--1888. doi: \href{https://doi.org/10.1093/molbev/msp098}{10.1093/molbev/msp098}
+
+\leavevmode\hypertarget{ref-Forner_2018}{}%
+Forner, K. (2018). \emph{RcppProgress: An interruptible progress bar with openmp support for c++ in r packages}. Retrieved from \url{https://CRAN.R-project.org/package=RcppProgress}
+
+\leavevmode\hypertarget{ref-Gillespie_1976}{}%
+Gillespie, D. T. (1976). A general method for numerically simulating the stochastic time evolution of coupled chemical reactions. \emph{Journal of Computational Physics}, \emph{22}(4), 403--434.
+
+\leavevmode\hypertarget{ref-Hasegawa_1985}{}%
+Hasegawa, M., Kishino, H., \& Yano, T.-a. (1985). Dating of the human-ape splitting by a molecular clock of mitochondrial DNA. \emph{Journal of Molecular Evolution}, \emph{22}(2), 160--174. doi: \href{https://doi.org/10.1007/bf02101694}{10.1007/bf02101694}
+
+\leavevmode\hypertarget{ref-Hasegawa_1984}{}%
+Hasegawa, M., Yano, T.-a., \& Kishino, H. (1984). A new molecular clock of mitochondrial DNA and the evolution of hominoids. \emph{Proceedings of the Japan Academy, Series B}, \emph{60}(4), 95--98. doi: \href{https://doi.org/10.2183/pjab.60.95}{10.2183/pjab.60.95}
+
+\leavevmode\hypertarget{ref-Hayden_2019}{}%
+Hayden, N., \& Morgan, M. (2019). \emph{Rhtslib: HTSlib high-throughput sequencing library as an R package}.
+
+\leavevmode\hypertarget{ref-Holtgrewe_2010}{}%
+Holtgrewe, M. (2010). Masona read simulator for second generation sequencing data. \emph{Technical Report Freie Universität Berlin}.
+
+\leavevmode\hypertarget{ref-Huang_2011}{}%
+Huang, W., Li, L., Myers, J. R., \& Marth, G. T. (2011). ART: A next-generation sequencing read simulator. \emph{Bioinformatics}, \emph{28}(4), 593--594. doi: \href{https://doi.org/10.1093/bioinformatics/btr708}{10.1093/bioinformatics/btr708}
+
+\leavevmode\hypertarget{ref-Hudson_2002}{}%
+Hudson, R. R. (2002). Generating samples under a wright-fisher neutral model of genetic variation. \emph{Bioinformatics}, \emph{18}(2), 337--338. doi: \href{https://doi.org/10.1093/bioinformatics/18.2.337}{10.1093/bioinformatics/18.2.337}
+
+\leavevmode\hypertarget{ref-JC69}{}%
+Jukes, T. H., \& Cantor, C. R. (1969). Evolution of protein molecules. In H. N. Munro (Ed.), \emph{Mammalian protein metabolism} (Vol. 3, pp. 21--131). New York: Academic Press.
+
+\leavevmode\hypertarget{ref-Kimura_1980}{}%
+Kimura, M. (1980). A simple method for estimating evolutionary rates of base substitutions through comparative studies of nucleotide sequences. \emph{Journal of Molecular Evolution}, \emph{16}(2), 111--120. doi: \href{https://doi.org/10.1007/bf01731581}{10.1007/bf01731581}
+
+\leavevmode\hypertarget{ref-Kronmal_1979}{}%
+Kronmal, R. A., \& Peterson, A. V. (1979). On the alias method for generating random variables from a discrete distribution. \emph{The American Statistician}, \emph{33}(4), 214--218. doi: \href{https://doi.org/10.1080/00031305.1979.10482697}{10.1080/00031305.1979.10482697}
+
+\leavevmode\hypertarget{ref-Li_2009}{}%
+Li, H., Handsaker, B., Wysoker, A., Fennell, T., Ruan, J., Homer, N., \ldots{} and, R. D. (2009). The sequence alignment/map format and SAMtools. \emph{Bioinformatics}, \emph{25}(16), 2078--2079. doi: \href{https://doi.org/10.1093/bioinformatics/btp352}{10.1093/bioinformatics/btp352}
+
+\leavevmode\hypertarget{ref-Li_2011}{}%
+Li, X., Zhu, C., Lin, Z., Wu, Y., Zhang, D., Bai, G., \ldots{} Yu, J. (2011). Chromosome size in diploid eukaryotic species centers on the average length with a conserved boundary. \emph{Molecular Biology and Evolution}, \emph{28}(6), 1901--1911. doi: \href{https://doi.org/10.1093/molbev/msr011}{10.1093/molbev/msr011}
+
+\leavevmode\hypertarget{ref-Mallo_2015}{}%
+Mallo, D., Oliveira Martins, L. de, \& Posada, D. (2015). SimPhy: Phylogenomic simulation of gene, locus, and species trees. \emph{Systematic Biology}, \emph{65}(2), 334--344.
+
+\leavevmode\hypertarget{ref-McElroy_2012}{}%
+McElroy, K. E., Luciani, F., \& Thomas, T. (2012). GemSIM: General, error-model based simulator of next-generation sequencing data. \emph{BMC Genomics}, \emph{13}(1), 74.
+
+\leavevmode\hypertarget{ref-McTavish_2017}{}%
+McTavish, E. J., Pettengill, J., Davis, S., Rand, H., Strain, E., Allard, M., \& Timme, R. E. (2017). TreeToReads - a pipeline for simulating raw reads from phylogenies. \emph{BMC Bioinformatics}, \emph{18}(1). doi: \href{https://doi.org/10.1186/s12859-017-1592-1}{10.1186/s12859-017-1592-1}
+
+\leavevmode\hypertarget{ref-Metzker_2009}{}%
+Metzker, M. L. (2009). Sequencing technologies the next generation. \emph{Nature Reviews Genetics}, \emph{11}(1), 31--46. doi: \href{https://doi.org/10.1038/nrg2626}{10.1038/nrg2626}
+
+\leavevmode\hypertarget{ref-Morgan_2019}{}%
+Morgan, M. (2019). \emph{Zlibbioc: An r packaged zlib-1.2.5}. Retrieved from \url{http://bioconductor.org/packages/release/bioc/html/Zlibbioc.html}
+
+\leavevmode\hypertarget{ref-Oneill_2014pcg}{}%
+O'Neill, M. E. (2014). \emph{PCG: a family of simple fast space-efficient statistically good algorithms for random number generation}. Claremont, CA: Harvey Mudd College.
+
+\leavevmode\hypertarget{ref-Paradis_2018}{}%
+Paradis, E., \& Schliep, K. (2018). Ape 5.0: An environment for modern phylogenetics and evolutionary analyses in R. \emph{Bioinformatics}, \emph{35}, 526--528.
+
+\leavevmode\hypertarget{ref-Rambaut_1997}{}%
+Rambaut, A., \& Grassly, N. C. (1997). Seq-gen: An application for the monte carlo simulation of DNA sequence evolution along phylogenetic trees. \emph{Computer Applications in the Biosciences}, \emph{13}(3), 235--238. doi: \href{https://doi.org/10.1093/bioinformatics/13.3.235}{10.1093/bioinformatics/13.3.235}
+
+\leavevmode\hypertarget{ref-R_Core_Team_2019}{}%
+R Core Team. (2019). \emph{R: a language and environment for statistical computing}. Retrieved from \url{https://www.R-project.org/}
+
+\leavevmode\hypertarget{ref-Paul_R._Staab_2016}{}%
+Staab, P. R., \& Metzler, D. (2016). Coala: An R framework for coalescent simulation. \emph{Bioinformatics}. doi: \href{https://doi.org/10.1093/bioinformatics/btw098}{10.1093/bioinformatics/btw098}
+
+\leavevmode\hypertarget{ref-Paul_R._Staab_2015}{}%
+Staab, P. R., Zhu, S., Metzler, D., \& Lunter, G. (2015). scrm: Efficiently simulating long sequences using the approximated coalescent with recombination. \emph{Bioinformatics}, \emph{31}(10), 1680--1682.
+
+\leavevmode\hypertarget{ref-St_cker_2016}{}%
+Stöcker, B. K., Köster, J., \& Rahmann, S. (2016). SimLoRD: Simulation of long read data. \emph{Bioinformatics}, \emph{32}(17), 2704--2706. doi: \href{https://doi.org/10.1093/bioinformatics/btw286}{10.1093/bioinformatics/btw286}
+
+\leavevmode\hypertarget{ref-TN93}{}%
+Tamura, K., \& Nei, M. (1993). Estimation of the number of nucleotide substitutions in the control region of mitochondrial dna in humans and chimpanzees. \emph{Molecular Biology and Evolution}, \emph{10}(3), 512--526.
+
+\leavevmode\hypertarget{ref-Tavare_1986gtr}{}%
+Tavar\a'e, S. (1986). Some probabilistic and statistical problems in the analysis of DNA sequences. \emph{Lectures on Mathematics in the Life Sciences}, \emph{17}(2), 57--86.
+
+\leavevmode\hypertarget{ref-Thorne_1992}{}%
+Thorne, J. L., Kishino, H., \& Felsenstein, J. (1992). Inching toward reality: an improved likelihood model of sequence evolution. \emph{Journal of Molecular Evolution}, \emph{34}(1), 3--16.
+
+\leavevmode\hypertarget{ref-Thurmond_2018}{}%
+Thurmond, J., Goodman, J. L., Strelets, V. B., Attrill, H., Gramates, L. S., Marygold, S. J., \ldots{} Baker, P. (2018). FlyBase 2.0: The next generation. \emph{Nucleic Acids Research}, \emph{47}(D1), D759--D765. doi: \href{https://doi.org/10.1093/nar/gky1003}{10.1093/nar/gky1003}
+
+\leavevmode\hypertarget{ref-Walker_1974}{}%
+Walker, A. (1974). New fast method for generating discrete random numbers with arbitrary frequency distributions. \emph{Electronics Letters}, \emph{10}(8), 127. doi: \href{https://doi.org/10.1049/el:19740097}{10.1049/el:19740097}
+
+\leavevmode\hypertarget{ref-Wieder_2011}{}%
+Wieder, N., Fink, R., \& Wegner, F. von. (2011). Exact and approximate stochastic simulation of intracellular calcium dynamics. \emph{Journal of Biomedicine and Biotechnology}, \emph{2011}, 572492.
+
+\leavevmode\hypertarget{ref-Yang_2006}{}%
+Yang, Z. (2006). \emph{Computational molecular evolution}. doi: \href{https://doi.org/10.1093/acprof:oso/9780198567028.001.0001}{10.1093/acprof:oso/9780198567028.001.0001}
+
+\leavevmode\hypertarget{ref-Yang_1994}{}%
+Yang, Z. B. (1994). Estimating the pattern of nucleotide substitution. \emph{Journal of Molecular Evolution}, \emph{39}(1), 105--111.
+
+\setstretch{2}
+
+\hypertarget{data-accessibility}{%
+\section{Data Accessibility}\label{data-accessibility}}
+
+\texttt{jackalope} is open source, under the MIT license.
+The stable version of \texttt{jackalope} is available on CRAN
+(\url{https://CRAN.R-project.org/package=jackalope}),
+and the development version is on GitHub
+(\url{https://github.com/lucasnell/jackalope}).
+The documentation can be found at \url{https://jackalope.lucasnell.com}.
+The version used in this manuscript was 1.0.0.
+Code for the example usage, validation, and performance is available on GitHub at
+\url{https://github.com/lucasnell/jlp_ms}.
+
+\hypertarget{author-contributions}{%
+\section{Author Contributions}\label{author-contributions}}
+
+L.A.N. conceived and designed the project, wrote the code, and wrote the manuscript.
+
+\begin{figure}
+\centering
+\includegraphics{Fig_1.pdf}
+\caption{\label{fig:jackalope-overview-figure}Overview of primary \texttt{jackalope} functions, classes, inputs, and outputs. Circles \texttt{sub\_models} and \texttt{vars\_functions} refer to multiple functions; see text for details. \(\theta\) indicates the population-scaled mutation rate.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{_manuscript_files/figure-latex/variants-perf-test-plot-1.pdf}
+\caption{\label{fig:variants-perf-test-plot}Performance comparison between \texttt{jackalope} and \texttt{INDELible} in generating variants from a reference genome. Sub-panel columns indicate the size of the genome from which variants were generated. Sub-panel rows indicate the maximum tree depth of the phylogeny used for the simulations. Superscripts in the y-axis labels indicate the number of threads used.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{_manuscript_files/figure-latex/sequencing-perf-test-plot-1.pdf}
+\caption{\label{fig:sequencing-perf-test-plot}Performance comparison between \texttt{jackalope} and (A) \texttt{ART} in generating Illumina reads and (B) \texttt{SimLoRD} in generating PacBio reads. Sub-panel columns indicate the number of reads generated. Superscripts in the y-axis labels indicate the number of threads used.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{_manuscript_files/figure-latex/pipeline-perf-test-plot-1.pdf}
+\caption{\label{fig:pipeline-perf-test-plot}(A) Speed and (B) memory usage comparison between \texttt{jackalope} and \texttt{NGSphy} in generating variants from a reference genome, then producing Illumina reads from those variants. In (A), sub-panel columns indicate the maximum tree depth of the phylogeny used for the simulations. In both plots, sub-panel rows indicate the size of the genome from which variants were generated, and color indicates the program used; superscripts in the color labels indicate the number of threads used. The \({}^{*}\) highlights where results were combined for calls to \texttt{NGSphy} with 1 and 4 threads; see text for details.}
+\end{figure}
+
+
+
+
+\end{document}
