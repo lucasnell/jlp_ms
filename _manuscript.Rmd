@@ -210,7 +210,7 @@ go_cap <- paste("Overview of primary \\texttt{jackalope} functions, classes,",
 
 
 
-### Reference genomes
+### Generating reference genomes
 
 Haploid reference genomes can be generated from FASTA files, optionally with index
 files---created using `samtools faidx`---that speed up processing.
@@ -226,8 +226,6 @@ that it works well for chromosome sizes in diploid eukaryotes [@Li_2011].
 
 
 ### Creating variants
-
-#### Methods
 
 There are five ways to generate haploid variants from the reference genome, and
 information on all the methods can be found in the documentation (under `vars_functions`).
@@ -413,9 +411,9 @@ This reduces conflicts that occur when multiple threads attempt to write to disk
 at the same time.
 The size of a "full" pool can be adjusted, and larger sizes should increase both
 speed and memory usage.
-Illumina reads can be single, paired-ended, or mate-pair, and I used
-methods based on the `ART` program [@Huang_2011].
-PacBio read simulation is based on `SimLoRD` [@St_cker_2016].
+Illumina reads can be single, paired-ended, or mate-pair, and I re-implemented the
+overall read-generation procedure from the `ART` program [@Huang_2011].
+PacBio read simulation is similarly based on `SimLoRD` [@St_cker_2016].
 Each was re-coded in C++ to more seemlessly integrate into `jackalope`.
 Function inputs emulate the program they were based on,
 and users are encouraged in each function's documentation to also cite
@@ -666,7 +664,7 @@ For both Illumina and PacBio read generation in `jackalope`, I compared their pe
 to the programs they were based on: 
 `ART` [version 2.5.8; @Huang_2011] and
 `SimLoRD` [version 1.0.3; @St_cker_2016], respectively.
-`ART` has the added benefit of being used for both `NSGphy` and `TreesToReads`.
+`ART` has the added benefit of being used for both `NGSphy` and `TreeToReads`.
 All these tests consisted of reading a 2 Mb genome from a FASTA file, simulating
 reads, and writing them to FASTQ files.
 No ALN or SAM/BAM files were written by any of the programs.
@@ -916,7 +914,7 @@ I generated 8 variants with 20 chromosomes by creating a phylogenetic tree with
 160 tips and assigning every 20 tips to the same individual using the naming
 scheme necessary for `NGSphy`.
 I divided the larger tree by chromosome and passed these separate trees to 
-`jackalope` by writing them to a `ms`-style output file.
+`jackalope` by writing them to an `ms`-style output file.
 Output was written to both FASTA and FASTQ files.
 Both `NGSphy` and `jackalope` were tested using both 1 and 4 threads.
 
@@ -1432,7 +1430,7 @@ vars <- create_variants(ref, vars_gtrees(gtrees), sub, ins, del)
 
 Next I generated data for 1 flow cell of $2 \times 250$bp sequencing
 on an Illumina MiSeq v3, with barcodes in the object `variant_barcodes`.
-I also wrote the true gene trees to a `ms`-style file.
+I also wrote the true gene trees to an `ms`-style file.
 
 ```{r examples-phylogeny-gtrees-illumina}
 illumina(vars, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
