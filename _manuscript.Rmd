@@ -65,14 +65,14 @@ a wide range of factors, such as sequencing platform, depth of coverage, and
 bioinformatic tools.
 Simulating HTS data better informs these decisions, as you can validate software by 
 comparing output to the known simulation parameters.
-However, current standalone HTS simulators cannot generate genomic variants under
+However, current standalone HTS simulators cannot generate variant haplotypes under
 even somewhat complex evolutionary scenarios, such as recombination or demographic change.
 This greatly reduces their usefulness
 for fields such as population genomics and phylogenomics.
 Here I present the R package `jackalope` that simply and efficiently simulates
-(i\) sets of variants from a reference genome and
+(i\) sets of variant haplotypes from a reference genome and
 (ii\) reads from both Illumina and Pacific Biosciences (PacBio) platforms.
-Genomic variants can be simulated using phylogenies, gene trees,
+Haplotypes can be simulated using phylogenies, gene trees,
 coalescent-simulation output, population-genomic summary statistics,
 and Variant Call Format (VCF) files.
 `jackalope` can simulate single, paired-end, or mate-pair Illumina reads,
@@ -109,7 +109,7 @@ that are more accurate and computationally efficient are constantly being develo
 Simulation of HTS data is needed to test these tools.
 Although there are many sequence simulators currently available
 [reviewed in @Escalona_2016],
-most have only rudimentary ways to generate variants from a reference genome.
+most have only rudimentary ways to generate variant haplotypes from a reference genome.
 For example, both `Mason` [@Holtgrewe_2010] and `GemSIM` [@McElroy_2012] place mutations
 randomly throughout genome sequences, the former based on a single per-site mutation rate
 and the latter on a set number of mutations per variant haplotype.
@@ -145,10 +145,10 @@ the `Rcpp` package [@Eddelbuettel_2011].
 The interface with R allows the user greater flexibility, while the underlying
 C++ code improves memory use and speed.
 `jackalope` can read genomes from FASTA files or simulate them *in silico*.
-It can also create variants from the reference genome based on basic
+It can also create variant haplotypes from the reference genome based on basic
 population-genomic summary statistics, phylogenies, gene trees,
 Variant Call Format (VCF) files, or matrices of segregating sites.
-These variants can be simulated based on any of several popular
+These haplotypes can be simulated based on any of several popular
 molecular-evolution models.
 `jackalope` simulates single, paired-ended, or mate-pair reads on the Illumina platform,
 as well as Pacific Biosciences (PacBio) reads.
@@ -182,14 +182,14 @@ Access to these libraries uses the R packages
 
 
 There are two classes in `jackalope`, one that stores information on reference genomes
-(`ref_genome`), the other that stores information on sets of variants (`variants`), 
-each set based on one reference.
+(`ref_genome`), the other that stores information on sets of variant 
+haplotypes (`haplotypes`), each set based on one reference.
 Both classes are `R6` [@Chang_2019] classes that wrap pointers to underlying C++ objects.
 Those C++ objects store all the information.
 Reference genomes are simply vectors of chromosome names and sequence strings.
-Variants are stored as nested vectors of mutation information.
+Haplotypes are stored as nested vectors of mutation information.
 This can greatly reduce memory usage (unless the mutation density is high), and
-it provides the ability to output VCF files based on variants.
+it provides the ability to output VCF files based on haplotypes.
 I chose `R6` classes because they allowed me to make the pointers to the C++ objects
 private, thereby preventing users from accidentally manipulating them.
 Methods in `jackalope`'s classes allow the user to view and manipulate aspects of the
@@ -203,7 +203,7 @@ in Figure \@ref(fig:jackalope-overview-figure).
 ```{r jackalope-overview-cap, echo=FALSE, eval = TRUE}
 go_cap <- paste("Overview of primary \\texttt{jackalope} functions, classes,",
                 "inputs, and outputs.",
-                "Circles \\texttt{sub\\_models} and \\texttt{vars\\_functions}",
+                "Circles \\texttt{sub\\_models} and \\texttt{haps\\_functions}",
                 "refer to multiple functions; see text for details.",
                 "$\\theta$ indicates the population-scaled mutation rate.")
 ```
@@ -227,18 +227,18 @@ that it works well for chromosome sizes in diploid eukaryotes [@Li_2011].
 
 
 
-## Creating variants
+## Creating variant haplotypes
 
-There are five ways to generate haploid variants from the reference genome,
-phylogeny-free (PF) and phylogeny-guided (PG).
-Information on all the methods can be found in the documentation (under `vars_functions`).
+There are five ways to generate variant haplotypes from the reference genome.
+Two are phylogeny-free (PF), and three are phylogeny-guided (PG).
+Information on all the methods can be found in the documentation (under `haps_functions`).
 
 The two PF methods do not require phylogenetic information.
-(a\) A VCF file can directly specify mutations for each variant.
+(a\) A VCF file can directly specify mutations for each haplotype.
 This method works using the `htslib` C library and
 is the only method that does not require any molecular-evolution information.
 (b\) Segregating sites from coalescent output can inform the locations of mutations
-and which variants have them.
+and which haplotypes have them.
 The user provides molecular evolution information (see "Molecular evolution" below), 
 which is then used to sample for mutation types at each segregating site.
 Sampling is weighted based on each mutation type's rate.
@@ -257,7 +257,7 @@ a `phylo` object or a NEWICK file.
 A random coalescent tree is first generated using the `rcoal` function
 in the `ape` package [@Paradis_2018].
 Then, its total tree length is scaled to be
-$\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ variants and an equilibrium
+$\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ haplotypes and an equilibrium
 mutation rate of $\mu$.
 (e\) The last method allows for recombination by simulating along
 gene trees that can differ both within and among reference chromosomes.
@@ -405,12 +405,12 @@ for indel type $i$.
 
 
 Illumina and PacBio sequencing can be based on either a reference genome or a
-set of variants.
+set of haplotypes.
 Chromosomes from which reads are derived are sampled with weights proportional to
 their length.
-If variants are provided, individual variants are sampled with equal probabilities 
+If haplotypes are provided, individual haplotypes are sampled with equal probabilities 
 by default.
-Alternatively, the user can specify sampling weights for each variant
+Alternatively, the user can specify sampling weights for each haplotype
 to simulate the library containing differing amounts of DNA from each.
 Both methods also allow for a probability of read duplication, which might occur
 due to PCR in either method (e.g., during DNA amplification) and 
@@ -433,9 +433,9 @@ and users are encouraged in each function's documentation to also cite
 
 ## Writing output
 
-Reference genomes and variants can be written to FASTA files; the latter
-has a separate file for each variant.
-Variant information can also be written to VCF files, where each variant can
+Reference genomes and haplotypes can be written to FASTA files; the latter
+has a separate file for each haplotype.
+Haplotype information can also be written to VCF files, where each can
 optionally be considered one of multiple haplotypes for samples with ploidy levels > 1.
 Simulated gene trees can be written to `ms`-style output files, and phylogenies can be
 written to NEWICK files using `ape::write.tree`.
@@ -446,8 +446,8 @@ All sequencing reads are output to FASTQ files.
 
 # Validation and performance
 
-I validated `jackalope` by conducting a series of simulations for variant creation
-and Illumina and PacBio sequencing.
+I validated `jackalope` by conducting a series of simulations for variant haplotype
+creation and Illumina and PacBio sequencing.
 Using known inputs, I compared predicted to observed values of outputs,
 and `jackalope` conformed closely to expectations 
 (Supporting Information Figures S1--S13).
@@ -462,14 +462,14 @@ For each test, 5 runs of each program were tested in random order.
 In the text below, numbers presented are means from these 5 tests unless otherwise stated.
 
 
-## Creating variants
+## Creating variant haplotypes
 
-For creating variants, I compared `jackalope` to `INDELible`
+For creating variant haplotypes, I compared `jackalope` to `INDELible`
 [version 1.03; @Fletcher_2009].
 I chose `INDELible` because it is used by `NGSphy` and because it can generate
 sequences with both substitutions and indels based on phylogenetic trees.
 I tested each program by having them simulate a 2 Mb and 20 Mb genome
-split evenly among 20 chromosomes, then generate 8 variants from that genome using
+split evenly among 20 chromosomes, then generate 8 haplotypes from that genome using
 phylogenetic trees produced by the command line version of `scrm`.
 I ran separate simulations with the trees scaled to maximum tree depths of 0.1, 0.01,
 and 0.001.
@@ -494,7 +494,7 @@ Output was written to FASTA files.
 scrm 8 20 -T -seed 1829812441 253160851 137767610 > scrm.tree
 ```
 
-```{r variants-perf-test-data, echo = FALSE, eval = TRUE}
+```{r haplotypes-perf-test-data, echo = FALSE, eval = TRUE}
 
 one_run <- function(gsize_, mdepth_) {
     # gsize_ = 20; mdepth_ = 0.1; ## rm(gsize_, mdepth_)
@@ -520,7 +520,7 @@ one_run <- function(gsize_, mdepth_) {
     return(.df)
 }
 
-var_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1)) %>% 
+hap_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1)) %>% 
     as.list() %>% 
     {pmap_dfr(., one_run)} %>% 
     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
@@ -528,14 +528,14 @@ var_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1)) %>%
            prog = factor(prog, levels = c("jackalope 4", "jackalope 1", "indelible")))
 
 # # To look at the exact numbers:
-# var_runs %>%
+# hap_runs %>%
 #     group_by(gsize, mdepth, prog) %>%
 #     summarize(sec = mean(sec), MB = mean(MB))
 
 
 # These numbers are used below:
 
-low_mut_mb <- var_runs %>%
+low_mut_mb <- hap_runs %>%
     filter(gsize == "2 Mb", mdepth == 0.001) %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
@@ -543,7 +543,7 @@ low_mut_mb <- var_runs %>%
     spread("prog", "MB") %>% 
     as.list()
 
-high_mut_mb <- var_runs %>%
+high_mut_mb <- hap_runs %>%
     filter(gsize == "20 Mb", mdepth == 0.1) %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
@@ -552,7 +552,7 @@ high_mut_mb <- var_runs %>%
     as.list()
 
 # Average difference between jackalope with 1 vs 4 threads:
-avg_diff_threads <- var_runs %>%
+avg_diff_threads <- hap_runs %>%
     group_by(gsize, mdepth, prog) %>%
     summarize(MB = mean(MB)) %>% 
     group_by(gsize, mdepth) %>%
@@ -566,7 +566,7 @@ avg_diff_threads <- var_runs %>%
 
 `jackalope` consistently outperformed `INDELible` in terms of speed, although this
 difference was less drastic when there were more mutations: for the larger genome size
-and greater maximum tree depth (Figure \@ref(fig:variants-perf-test-plot)).
+and greater maximum tree depth (Figure \@ref(fig:haplotypes-perf-test-plot)).
 This is somewhat offset by the fact that using more threads has a greater effect at
 larger genome sizes.
 Memory usage was greater in `jackalope` than `INDELible`.
@@ -590,19 +590,19 @@ Memory usage increased by only `r sprintf("%.1f", avg_diff_threads * 1e3)`kB whe
 
 
 
-```{r variants-perf-test-plot-caption, echo = FALSE, eval = TRUE}
-var_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
-                      "\\texttt{INDELible} in generating variants from a",
+```{r haplotypes-perf-test-plot-caption, echo = FALSE, eval = TRUE}
+hap_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
+                      "\\texttt{INDELible} in generating variant haplotypes from a",
                       "reference genome.",
                       "Sub-panel columns indicate the size of the genome from which",
-                      "variants were generated.",
+                      "haplotypes were generated.",
                       "Sub-panel rows indicate the maximum tree depth of the phylogeny",
                       "used for the simulations.",
                       "Superscripts in the y-axis labels indicate",
                       "the number of threads used.")
 ```
 
-```{r variants-perf-test-plot-make, echo = FALSE, eval = TRUE}
+```{r haplotypes-perf-test-plot-make, echo = FALSE, eval = TRUE}
 
 
 # one column, two-thirds page width, or two columns (80 mm, 112 mm, or 169 mm, respectively)
@@ -611,7 +611,7 @@ var_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 # For jittering:
 set.seed(1283422021)
 
-var_time <- var_runs %>%
+hap_time <- hap_runs %>%
     ggplot(aes(prog, sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
     geom_jitter(aes(fill = prog), height = 0, width = 0.25, 
@@ -637,7 +637,7 @@ var_time <- var_runs %>%
 
 
 
-# var_mem <- var_runs %>%
+# hap_mem <- hap_runs %>%
 #     ggplot(aes(prog, MB)) +
 #     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
 #     geom_jitter(aes(fill = prog), height = 0, width = 0.25,
@@ -660,9 +660,9 @@ var_time <- var_runs %>%
 #     NULL
 
 
-# var_plot <- plot_grid(var_time, var_mem, ncol = 1)
+# hap_plot <- plot_grid(hap_time, hap_mem, ncol = 1)
 
-ggsave("Fig_2.pdf", var_time, width = 88, height = 88, units = "mm")
+ggsave("Fig_2.pdf", hap_time, width = 88, height = 88, units = "mm")
 ```
 
 
@@ -915,13 +915,13 @@ seq_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 I lastly compared the performance of `jackalope` to that of `NGSphy` 
 [version 1.0.13; @Escalona_2018]
 for the following pipeline: 
-generating a reference genome, simulating variants from gene trees, and
-producing Illumina reads from the variants.
+generating a reference genome, simulating haplotypes from gene trees, and
+producing Illumina reads from the haplotypes.
 For the first two steps, I used the same parameters as I did for the comparison to
 `INDELible`.
-I also used the same parameters for the last step, except that the haploid variants
+I also used the same parameters for the last step, except that the variant haplotypes
 were used for sequencing reads instead of a reference genome.
-I generated 8 variants with 20 chromosomes by creating a phylogenetic tree with
+I generated 8 haplotypes with 20 chromosomes by creating a phylogenetic tree with
 160 tips and assigning every 20 tips to the same individual using the naming
 scheme necessary for `NGSphy`.
 I divided the larger tree by chromosome and passed these separate trees to 
@@ -1092,13 +1092,13 @@ as much.
 
 ```{r pipeline-perf-test-plot-caption, echo = FALSE, eval = TRUE}
 pip_plot_cap <- paste("(A) Speed and (B) memory usage comparison between",
-                      "\\texttt{jackalope} and \\texttt{NGSphy} in generating variants",
+                      "\\texttt{jackalope} and \\texttt{NGSphy} in generating haplotypes",
                       "from a reference genome, then producing Illumina reads from",
-                      "those variants.",
+                      "those haplotypes.",
                       "In (A), sub-panel columns indicate the maximum tree depth of the",
                       "phylogeny used for the simulations.",
                       "In both plots, sub-panel rows indicate the size of the genome",
-                      "from which variants were generated, and color indicates",
+                      "from which haplotypes were generated, and color indicates",
                       "the program used;",
                       "superscripts in the color labels indicate the number of threads",
                       "used.",
@@ -1286,30 +1286,30 @@ Here, I will demonstrate how to generate pooled population-genomic data (Pool-se
 that could be used to estimate the divergence between two populations.
 Before starting `jackalope`, I used the `scrm` package [@Paul_R._Staab_2015]
 to conduct coalescent simulations that will generate segregating sites for 40
-haploid variants from the reference genome (object `ssites`).
-Twenty of the variants are from one population, twenty from another.
+variant haplotypes from the reference genome (object `ssites`).
+Twenty of the haplotypes are from one population, twenty from another.
 The symmetrical migration rate is 100 individuals per generation,
 and the population-scaled mutation rate ($\theta = 4 N_0 \mu$) is 10.
 The `scrm` command for this is `40 5 -t 10 -I 2 20 20 100`.
 
 Using the previously created objects for mutation-type information and the
-`vars_ssites` function that checks and organizes the coalescent output object,
-I created variants from the reference genome:
+`haps_ssites` function that checks and organizes the coalescent output object,
+I created haplotypes from the reference genome:
 
 
 ```{r examples-divergence-create, eval = TRUE, echo = TRUE}
-vars <- create_variants(ref, vars_ssites(ssites), sub, ins, del)
+haps <- create_haplotypes(ref, haps_ssites(ssites), sub, ins, del)
 ```
 
 
 Lastly, I simulated 1 lane of $2 \times 100$bp Illumina HiSeq 2500 sequencing.
-In this case, each individual variant's reads were output to separate FASTQ files.
-I also wrote the true variant information to a VCF file.
+In this case, each individual haplotype's reads were output to separate FASTQ files.
+I also wrote the true mutation information to a VCF file.
 
 ```{r examples-divergence-illumina-individual}
-illumina(vars, out_prefix = "vars_illumina", n_reads = 500e6, paired = TRUE,
+illumina(haps, out_prefix = "haps_illumina", n_reads = 500e6, paired = TRUE,
          read_length = 100, sep_files = TRUE)
-write_vcf(vars, "variants")
+write_vcf(haps, "haplotypes")
 ```
 
 
@@ -1331,21 +1331,21 @@ might have an advantage over another.
 tree <- ape::rcoal(10)
 ```
 
-This section shows how `jackalope` can generate variants from a phylogeny, then
-simulate sequencing data from those variants to test phylogeny reconstruction methods.
+This section shows how `jackalope` can generate haplotypes from a phylogeny, then
+simulate sequencing data from those haplotypes to test phylogeny reconstruction methods.
 First, I simulated a random species tree of 10 species (object `tree`) using
 `ape::rcoal(10)` [@Paradis_2018].
-Function `vars_phylo` organizes and checks the `tree` object, and
-including it with the mutation-type information allowed me to create variants based
+Function `haps_phylo` organizes and checks the `tree` object, and
+including it with the mutation-type information allowed me to create haplotypes based
 on this phylogeny:
 
 ```{r examples-phylogeny-tree-create-for-show}
-vars <- create_variants(ref, vars_phylo(tree), sub, ins, del)
+haps <- create_haplotypes(ref, haps_phylo(tree), sub, ins, del)
 ```
 ```{r examples-phylogeny-tree-create-for-eval, eval = TRUE, echo = FALSE}
-vars <- create_variants(ref, vars_phylo(tree), sub, ins, del,
+haps <- create_haplotypes(ref, haps_phylo(tree), sub, ins, del,
                         n_threads = 4)
-variant_barcodes <- c("CTAGCTTG",
+haplotype_barcodes <- c("CTAGCTTG",
                       "TCGATCCA",
                       "ATACCAAG",
                       "GCGTTGGA",
@@ -1359,14 +1359,14 @@ variant_barcodes <- c("CTAGCTTG",
 
 
 I then generated data for 1 flow cell of $1 \times 250$bp sequencing
-on an Illumina MiSeq v3, where `variant_barcodes` is a character string that specifies
-the barcodes for each variant.
+on an Illumina MiSeq v3, where `haplotype_barcodes` is a character string that specifies
+the barcodes for each haplotype.
 I also wrote the true phylogenetic tree to a NEWICK file.
 
 ```{r examples-phylogeny-tree-illumina}
-illumina(vars, out_prefix = "phylo_tree", seq_sys = "MSv3",
+illumina(haps, out_prefix = "phylo_tree", seq_sys = "MSv3",
          paired = FALSE, read_length = 250, n_reads = 50e6,
-         barcodes = variant_barcodes)
+         barcodes = haplotype_barcodes)
 ape::write.tree(tree, "true.tree")
 ```
 
@@ -1415,34 +1415,34 @@ There are 4 diploid individuals sampled per species.
 I used `scrm` to simulate the gene trees (command
 `24 1 -T -r 1 C -I 3 8 8 8 0 -ej 1.0 3 1 -ej 0.5 2 1` for a chromosome size of `C`), 
 producing the object `gtrees`.
-As for the other variant-creation methods, function `vars_gtrees` checks and organizes
+As for the other haplotype-creation methods, function `haps_gtrees` checks and organizes
 information from the `gtrees` object.
 
 
-```{r examples-phylogeny-gtrees-create-variants, echo = FALSE, eval = TRUE}
+```{r examples-phylogeny-gtrees-create-haplotypes, echo = FALSE, eval = TRUE}
 # Takes ~1.5 min
-vars <- create_variants(ref, vars_gtrees(gtrees),
+haps <- create_haplotypes(ref, haps_gtrees(gtrees),
                         sub, ins, del,
                         n_threads = 4)
 # 2 of each barcode bc it's diploid
-variant_barcodes <- rep(c("TCGCCTTA", "CTAGTACG", "TTCTGCCT", "GCTCAGGA", "AGGAGTCC", 
+haplotype_barcodes <- rep(c("TCGCCTTA", "CTAGTACG", "TTCTGCCT", "GCTCAGGA", "AGGAGTCC", 
                           "CATGCCTA", "GTAGAGAG", "CCTCTCTG", "AGCGTAGC", "CAGCCTCG", 
                           "TGCCTCTT", "TCCTCTAC"), 2)
 ```
-```{r examples-phylogeny-gtrees-create-variants-for-show}
-vars <- create_variants(ref, vars_gtrees(gtrees), sub, ins, del)
+```{r examples-phylogeny-gtrees-create-haplotypes-for-show}
+haps <- create_haplotypes(ref, haps_gtrees(gtrees), sub, ins, del)
 ```
 
 
 Next I generated data for 1 flow cell of $2 \times 250$bp sequencing
-on an Illumina MiSeq v3, with barcodes in the object `variant_barcodes`.
+on an Illumina MiSeq v3, with barcodes in the object `haplotype_barcodes`.
 I also wrote the true gene trees to an `ms`-style file.
 
 ```{r examples-phylogeny-gtrees-illumina}
-illumina(vars, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
+illumina(haps, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
          read_length = 250, n_reads = 50e6, paired = TRUE, 
-         barcodes = variant_barcodes)
-write_gtrees(vars_gtrees(gtrees), "gtrees")
+         barcodes = haplotype_barcodes)
+write_gtrees(haps_gtrees(gtrees), "gtrees")
 ```
 
 
@@ -1491,7 +1491,7 @@ The stable version of `jackalope` is available on CRAN
 and the development version is on GitHub
 (https://github.com/lucasnell/jackalope).
 The documentation can be found at https://jackalope.lucasnell.com.
-The version used in this manuscript was 1.0.0.
+The version used in this manuscript was 1.0.1.
 Code for the example usage, validation, and performance is available on GitHub at
 https://github.com/lucasnell/jlp_ms.
 
@@ -1510,8 +1510,8 @@ knitr::include_graphics("Fig_1.pdf", dpi = NA)
 ```
 
 
-```{r variants-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=88/25.4, fig.height=88/25.4, fig.cap=var_plot_cap}
-var_time
+```{r haplotypes-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=88/25.4, fig.height=88/25.4, fig.cap=hap_plot_cap}
+hap_time
 ```
 
 
