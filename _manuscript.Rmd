@@ -53,6 +53,13 @@ if (!isTRUE(getOption('knitr.in.progress'))) {
     options("device" = "quartz")
     grDevices::graphics.off()
 }
+# height and width should be in mm
+save_fig <- function(filename, p, width, height) {
+    cairo_pdf(filename, width = width / 25.4, height = height / 25.4)
+    print(p)
+    dev.off()
+    invisible(NULL)
+}
 ```
 
 
@@ -464,18 +471,22 @@ In the text below, numbers presented are means from these 5 tests unless otherwi
 
 ## Creating variant haplotypes
 
-For creating variant haplotypes, I compared `jackalope` to `INDELible`
-[version 1.03; @Fletcher_2009].
+For creating variant haplotypes, I compared `jackalope` to 
+`Seq-Gen` [version 1.3.4; @Rambaut_1997] and
+`INDELible` [version 1.03; @Fletcher_2009].
+I chose `Seq-Gen` because it is widely used and can generate sequences based on
+gene trees. 
+It is relatively simple and written in C, so it should provide a conservative
+estimate of how well `jackalope` performs against similar programs.
 I chose `INDELible` because it is used by `NGSphy` and because it can generate
 sequences with both substitutions and indels based on phylogenetic trees.
 I tested each program by having them simulate a 2 Mb and 20 Mb genome
 split evenly among 20 chromosomes, then generate 8 haplotypes from that genome using
-phylogenetic trees produced by the command line version of `scrm`.
+gene trees produced by the command line version of `scrm`.
 I ran separate simulations with the trees scaled to maximum tree depths of 0.1, 0.01,
 and 0.001.
-I used the HKY85 substitution model with a transition rate of 2.5 substitutions per
-site per unit of time (where one unit of time is equal to a branch length of 1),
-and a transversion rate of 1.
+I used the HKY85 substitution model with a transition--transversion ratio of 1.
+All rate matrices were scaled such that branch lengths were in units of substitutions per site.
 Relative frequencies of nucleotides were 0.4, 0.3, 0.2, and 0.1 for T, C, A, and G,
 respectively.
 For among-site variability in substitution rates, I used
@@ -496,10 +507,10 @@ scrm 8 20 -T -seed 1829812441 253160851 137767610 > scrm.tree
 
 ```{r haplotypes-perf-test-data, echo = FALSE, eval = TRUE}
 
-one_run <- function(gsize_, mdepth_) {
-    # gsize_ = 20; mdepth_ = 0.1; ## rm(gsize_, mdepth_)
-    fn <- sprintf("perf_tests/indelible/results/%iMb__%.4f__times.txt",
-                  gsize_, mdepth_)
+one_run <- function(gsize_, mdepth_, prog_) {
+    # gsize_ = 20; mdepth_ = 0.1; prog_ = "indelible"; ## rm(gsize_, mdepth_)
+    fn <- sprintf("perf_tests/%s/results/%iMb__%.4f__times.txt",
+                  prog_, gsize_, mdepth_)
     lines <- readLines(fn)
     
     .prog <- lines[grepl("^>>>", lines)] %>%
@@ -516,48 +527,63 @@ one_run <- function(gsize_, mdepth_) {
         map_dbl(~ as.numeric(.x[1]) / 1e6)
     
     .df <- tibble(prog = .prog, gsize = gsize_, mdepth = mdepth_, 
-                  sec = .time, MB = .mem)
+                  sec = .time, MB = .mem,
+                  comp = prog_)
     return(.df)
 }
 
-hap_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1)) %>% 
+hap_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1),
+                        prog_ = c("indelible", "seq-gen")) %>% 
     as.list() %>% 
     {pmap_dfr(., one_run)} %>% 
     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
                           labels = paste(sort(unique(gsize)), "Mb")),
-           prog = factor(prog, levels = c("jackalope 4", "jackalope 1", "indelible")))
+           prog = factor(prog, levels = c("jackalope 4", "jackalope 1",
+                                          "indelible", "seq-gen")),
+           comp = factor(comp, levels = c("indelible", "seq-gen")))
 
 # # To look at the exact numbers:
 # hap_runs %>%
-#     group_by(gsize, mdepth, prog) %>%
-#     summarize(sec = mean(sec), MB = mean(MB))
+#     group_by(comp, gsize, mdepth, prog) %>%
+#     summarize(sec = mean(sec), MB = mean(MB)) %>% 
+#     as.data.frame()
 
 
 # These numbers are used below:
 
-low_mut_mb <- hap_runs %>%
-    filter(gsize == "2 Mb", mdepth == 0.001) %>%
+low_mut_mb <- map(c("indelible", "seq-gen"), function(.c) {
+  hap_runs %>%
+    filter(comp == .c, gsize == "2 Mb", mdepth == 0.001) %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
     summarize(MB = mean(MB)) %>% 
     spread("prog", "MB") %>% 
     as.list()
+})
 
-high_mut_mb <- hap_runs %>%
-    filter(gsize == "20 Mb", mdepth == 0.1) %>%
+high_mut_mb <- map(c("indelible", "seq-gen"), function(.c) {
+    hap_runs %>%
+    filter(comp == .c, gsize == "20 Mb", mdepth == 0.1) %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
     summarize(MB = mean(MB)) %>% 
     spread("prog", "MB") %>% 
     as.list()
+})
+
+names(low_mut_mb) <- names(high_mut_mb) <- c("indelible", "seq-gen")
+
 
 # Average difference between jackalope with 1 vs 4 threads:
 avg_diff_threads <- hap_runs %>%
-    group_by(gsize, mdepth, prog) %>%
+    group_by(comp, gsize, mdepth, prog) %>%
     summarize(MB = mean(MB)) %>% 
-    group_by(gsize, mdepth) %>%
+    group_by(comp, gsize, mdepth) %>%
     summarize(diff = MB[prog == "jackalope 4"] - MB[prog == "jackalope 1"]) %>% 
-    .[["diff"]] %>% mean()
+    group_by(comp) %>%
+    summarize(diff = mean(diff)) %>% 
+    spread(comp, diff) %>% 
+    as.list()
 
 ```
 
@@ -573,18 +599,18 @@ Memory usage was greater in `jackalope` than `INDELible`.
 With low mutation numbers, this difference was due to the overhead associated
 with loading R.
 For a 2 Mb genome and 0.001 max tree depth, `jackalope` used 
-`r sprintf("%.1f", low_mut_mb$jackalope)` MB memory, 
-while `INDELible` used `r sprintf("%.1f", low_mut_mb$indelible)` MB.
+`r sprintf("%.1f", low_mut_mb$indelible$jackalope)` MB memory, 
+while `INDELible` used `r sprintf("%.1f", low_mut_mb$indelible$indelible)` MB.
 An R script that simply printed an empty string used $\sim 55$ MB memory, 
 and another that only loaded `jackalope` used $\sim 70$ MB.
 With greater numbers of mutations, the difference was due to `jackalope` using
 64-bit integers to store positions instead of 32-bit.
 In the most extreme example (20 Mb genome and 0.1 max tree depth), `jackalope` used
-`r sprintf("%.1f", high_mut_mb$jackalope)` MB memory and `INDELible` used
-`r sprintf("%.1f", high_mut_mb$indelible)` MB.
+`r sprintf("%.1f", high_mut_mb$indelible$jackalope)` MB memory and `INDELible` used
+`r sprintf("%.1f", high_mut_mb$indelible$indelible)` MB.
 I chose to use 64-bit integers in `jackalope` to allow chromosomes to exceed
 2 Gb in length.
-Memory usage increased by only `r sprintf("%.1f", avg_diff_threads * 1e3)`kB when
+Memory usage increased by only `r sprintf("%.1f", avg_diff_threads$indelible * 1e3)`kB when
 `jackalope` used 4 threads.
 
 
@@ -611,14 +637,16 @@ hap_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 # For jittering:
 set.seed(1283422021)
 
-hap_time <- hap_runs %>%
+
+hap_time_seqgen <- hap_runs %>%
+    filter(comp == "seq-gen") %>% 
     ggplot(aes(prog, sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
     geom_jitter(aes(fill = prog), height = 0, width = 0.25, 
                 shape = 21, color = "gray40") +
     scale_y_continuous("Elapsed time (sec)", limits = c(0, NA)) +
     scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
-                                expression("INDELible"^1))) +
+                                expression("Seq-Gen"^1))) +
     facet_grid(mdepth ~ gsize, scales = "free_x") +
     theme(axis.title = element_text(size = 11),
           axis.text = element_text(size = 8),
@@ -633,7 +661,28 @@ hap_time <- hap_runs %>%
     coord_flip() +
     NULL
 
-
+hap_time_indelible <- hap_runs %>%
+    filter(comp == "indelible") %>% 
+    ggplot(aes(prog, sec)) +
+    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
+    geom_jitter(aes(fill = prog), height = 0, width = 0.25, 
+                shape = 21, color = "gray40") +
+    scale_y_continuous("Elapsed time (sec)", limits = c(0, NA)) +
+    scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
+                                expression("INDELible"^1))) +
+    facet_grid(mdepth ~ gsize, scales = "free_x") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          axis.title.y = element_blank(),
+          plot.margin = margin(0, 0, 0, t = 6),
+          axis.text.y = element_text(color = "black", size = 11),
+          legend.position = "none",
+          strip.text = element_text(size = 10),
+          strip.background = element_blank()) +
+    scale_fill_manual(NULL, values = perf_palette) +
+    guides(fill = guide_legend(override.aes = list(size = 3))) +
+    coord_flip() +
+    NULL
 
 
 
@@ -662,7 +711,13 @@ hap_time <- hap_runs %>%
 
 # hap_plot <- plot_grid(hap_time, hap_mem, ncol = 1)
 
-ggsave("Fig_2.pdf", hap_time, width = 88, height = 88, units = "mm")
+
+hap_time <- plot_grid(hap_time_seqgen, hap_time_indelible, ncol = 1, 
+                      labels = LETTERS[1:2], label_fontface = "plain")
+
+
+save_fig("Fig_2.pdf", hap_time, width = 112, height = 169)
+
 ```
 
 
@@ -890,7 +945,7 @@ seq_plot <- plot_grid(ill_time, pb_time, ncol = 1, labels = LETTERS[1:2],
                       label_fontface = "plain")
 
 
-ggsave("Fig_3.pdf", seq_plot, width = 112, height = 112, units = "mm")
+save_fig("Fig_3.pdf", seq_plot, width = 112, height = 112)
 
 ```
 
@@ -1185,7 +1240,7 @@ pip_mem <- pip_runs_p %>%
 pip_plot <- plot_grid(pip_time, pip_mem, ncol = 2, rel_widths = c(0.6, 0.4),
                       labels = LETTERS[1:2], label_fontface = "plain")
 
-ggsave("Fig_4.pdf", pip_plot, width = 169, height = 112, units = "mm")
+save_fig("Fig_4.pdf", pip_plot, width = 169, height = 112)
 ```
 
 
