@@ -178,8 +178,8 @@ ill_plot2_cap <- paste("Observed versus predicted quality scores for each nucleo
 #                 mutate(nucleo = bases[nt])
 #         }) %>%
 #     mutate(nucleo = factor(nucleo, levels = bases))
-# saveRDS(qbp_df, "qbp_df.rds")
-qbp_df <- readRDS("qbp_df.rds")
+# saveRDS(qbp_df, "supp/rds_files/qbp_df.rds")
+qbp_df <- readRDS("supp/rds_files/qbp_df.rds")
 
 
 
@@ -335,8 +335,8 @@ indel_rates_plot_cap <- paste("Observed versus predicted number of reads with in
 #                      del_prob = c(0, 10^(seq(-1,-4,length.out = 11)))) %>%
 #     filter((ins_prob == 0 | del_prob == 0) & (ins_prob > 0 | del_prob > 0)) %>%
 #     pmap_dfr(~ indel_test(..1, ..2))
-# saveRDS(indel_df, "indel_df.rds")
-indel_df <- readRDS("indel_df.rds")
+# saveRDS(indel_df, "supp/rds_files/indel_df.rds")
+indel_df <- readRDS("supp/rds_files/indel_df.rds")
 
 
 lims <- log(range(c(indel_df$n, indel_df$n_pred)))

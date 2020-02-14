@@ -362,8 +362,8 @@ gammas <- discrete_gamma(5, pars$shape)
 
 # # Takes ~7 min
 # svar_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree), sub = sub))
-# saveRDS(svar_output, "svar_output.rds")
-svar_output <- readRDS("svar_output.rds")
+# saveRDS(svar_output, "supp/rds_files/svar_output.rds")
+svar_output <- readRDS("supp/rds_files/svar_output.rds")
 
 
 sub_info <- svar_output[grepl("^__", svar_output)]
@@ -502,8 +502,8 @@ sub <- sub_TN93(alpha_1 = pars$alpha_1,
 
 # # Takes ~6.5 min
 # phy_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree), sub = sub))
-# saveRDS(phy_output, "phy_output.rds")
-phy_output <- readRDS("phy_output.rds")
+# saveRDS(phy_output, "supp/rds_files/phy_output.rds")
+phy_output <- readRDS("supp/rds_files/phy_output.rds")
 
 sub_info <- phy_output[grepl("^__", phy_output)]
 sub_info <- map(strsplit(sub_info, " "), ~ .x[-1])
