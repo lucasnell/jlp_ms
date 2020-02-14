@@ -15,6 +15,15 @@ do
     Rscript ~/GitHub/Wisconsin/jlp_ms/perf_tests/illumina/__test.R $i
     echo $i
 done && \
+echo -e "\n---------\nseq-gen\n---------\n" && \
+for s in 2 20
+do
+    for m in 0.001 0.01 0.1
+    do
+        Rscript ~/GitHub/Wisconsin/jlp_ms/perf_tests/seq-gen/__test.R $s $m
+        echo $s $m
+    done
+done && \
 echo -e "\n---------\nindelible\n---------\n" && \
 for s in 2 20
 do

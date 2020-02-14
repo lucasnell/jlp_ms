@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+#
+# This script is used inside `__test.R` to run the `seq-gen` version of variant
+# haplotype creation.
+# It's not meant to be run directly.
+#
+# Inputs are (1) temporary directory containing output files and tree files,
+# (2) genome size (in Mb), and
+# (3) output file for results from /usr/bin/time
+#
+
+
 # to run, time, get max memory for 20 Mb genome:
 # /usr/bin/time -l ~/GitHub/Wisconsin/jlp_ms/perf_tests/seq-gen.sh 20
 
@@ -16,19 +27,48 @@
 # -a 1 # shape of Gamma for site variability
 # -g 5 # number of categories for Gamma distribution
 # -f0.2,0.3,0.1,0.4  #  frequencies for A C G T
-
-cd ~/GitHub/Wisconsin/jlp_ms/perf_tests
-
-len=$(($1 * 1000000))
-len=$(($len / 20))
+# -i 0.25 # proportion of invariable sites
+# -t 2.5 # transition transversion ratio
 
 
-# genome size `len`:
-# seq-gen -m HKY -l $len -q -f0.2,0.3,0.1,0.4 -a 1 -s 0.001 < in_files/seq-gen.tree > seq-gen_out/seqfile
-seq-gen -m HKY -l $len -q -f0.2,0.3,0.1,0.4 -a 1 -g 5 -s 0.1 < in_files/seq-gen.tree > seq-gen_out/seqfile
+# How I calculated the max # partitions
+#``` r
+# z <- matrix(0, 20, 3)
+# for (k in 1:3) {
+#     s = c(2, 20, 200)[k]
+#     x <- readLines(sprintf("perf_tests/in_files/scrm_%i.tree", s))
+#     x <- x[x != ""]
+#     j = 0
+#     for (i in 2:length(x)) {
+#         if (x[i] == "//") {
+#             j = j + 1
+#             next
+#         }
+#         if (grepl("^\\[", x[i])) z[j,k] <- z[j,k] + 1
+#     }
+# }
+# z
+# max(z)
+# # [1] 10
+#```
 
 
 
-# genome size 200e6 (`-l 10000000`): 3m42.280s
-# genome size 20e6 (`-l 1000000`): 0m21.221s
-# genome size 2e6 (`-l 100000`): 0m2.171s
+cd $1
+
+# Genome length in Mb
+export len=$2
+# Chromosome length (in bp), since it's assumed to have 20 chromosomes
+export clen=$(($len * 1000000 / 20))
+
+export out_fn=$3
+
+echo -e "\n---------------\n>>> SEQ-GEN\n---------------\n" >> $out_fn
+
+# Run seq-gen, suppressing its output, and writing output from /usr/bin/time to $out_fn:
+/usr/bin/time -l seq-gen -m HKY -l $clen -p 10 -q -f0.2,0.3,0.1,0.4 -t 1 -i 0.25 \
+    -a 0.5 -g 10 < seq-gen.tree 1> seq-gen.out 2>> $out_fn
+
+
+echo -e "\n\n" >> $out_fn
+
