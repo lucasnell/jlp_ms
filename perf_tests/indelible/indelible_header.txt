@@ -2,7 +2,7 @@
 [TYPE] NUCLEOTIDE 1
 
 [MODEL] hky_model
-  [submodel]      HKY 2.5             //  HKY with kappa of 2.5
+  [submodel]      HKY 2               //  HKY with kappa of 2
   [indelmodel]    LAV 1.7  541        //  Lavalette Distribution a = 1.7, M = 541
   [indelrate]     0.1                 //  rates of insertion and deletion are both 0.1
   [rates]         0.25 0.50 10        //  proportion invariant, gamma shape, gamma categories

@@ -21,14 +21,19 @@ nt <- as.integer(args[5])
 library(jackalope)
 
 .pi_tcag <- 0.1 * 4:1
-.kappa <- 2.5
+.tstv_ratio <- 1 # transition transversion ratio (alpha / (2 * beta))
+
+# Just setting this to 1 bc the rate matrix gets scaled anyway:
+.alpha <- 1
+.beta <- .alpha / (2 * .tstv_ratio)
 
 
 ref <- create_genome(20, gsize / 20, pi_tcag = .pi_tcag)
 
 
-sub <- sub_HKY85(.pi_tcag, alpha = .kappa, beta = 1,
+sub <- sub_HKY85(.pi_tcag, alpha = .alpha, beta = .beta,
                  invariant = 0.25, gamma_shape = 0.5, gamma_k = 10)
+
 
 # same for both insertions and deletions
 indel <- indels(rate = 0.1, max_length = 541, a = 1.7)
