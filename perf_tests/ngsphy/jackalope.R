@@ -34,20 +34,20 @@ sub <- sub_HKY85(.pi_tcag, alpha = .kappa, beta = 1,
 indel <- indels(rate = 0.1, max_length = 541, a = 1.7)
 
 
-vars <- create_variants(ref,
-                        vars_gtrees(fn = paste0(dir, "jlp_trees.tree")),
+haps <- create_haplotypes(ref,
+                        haps_gtrees(fn = paste0(dir, "jlp_trees.tree")),
                         sub = sub,
                         ins = indel,
                         del = indel,
                         n_threads = nt)
 
-write_fasta(vars, paste0(dir, "vars"),
+write_fasta(haps, paste0(dir, "haps"),
             overwrite = TRUE, n_threads = nt)
 
 
 fq_file <- paste0(dir, "jlp")
 
-illumina(vars, fq_file, n_reads = n_rds, read_length = 150,
+illumina(haps, fq_file, n_reads = n_rds, read_length = 150,
          paired = TRUE, seq_sys = "HS25",
          n_threads = nt, overwrite = TRUE)
 

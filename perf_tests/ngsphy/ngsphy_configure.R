@@ -49,7 +49,7 @@ env$dir <- dir
 with(env, {
 
 
-    n_vars <- 8
+    n_haps <- 8
     n_chroms <- 20
     chrom_size <- as.integer(gsize / n_chroms)
 
@@ -61,13 +61,13 @@ with(env, {
     library(ape)
     source("../indelible/write_tree.R")
 
-    tree <- rcoal(n_vars * n_chroms)
+    tree <- rcoal(n_haps * n_chroms)
 
     # Scale to have max depth of mdepth
     tree$edge.length <- mdepth * tree$edge.length / max(node.depth.edgelength(tree))
 
     # Editing tip labels
-    tree$tip.label <- paste(1, rep(1:n_chroms-1, n_vars), rep(1:n_vars-1, each = n_chroms),
+    tree$tip.label <- paste(1, rep(1:n_chroms-1, n_haps), rep(1:n_haps-1, each = n_chroms),
                             sep = "_")
 
     # Write tree file for ngsphy:
@@ -111,9 +111,9 @@ with(env, {
     #' ```{r}
     #' find_shape <- function(.n_reads, .interval = c(1, 1000)) {
     #'     n <- (.n_reads / 2)
-    #'     p <- 1 / (n_chroms * n_vars)
+    #'     p <- 1 / (n_chroms * n_haps)
     #'     .binom_var <- n * p * (1 - p) # variance for binomial process
-    #'     .rpf <- n_reads / (n_chroms * n_vars * 2) # reads per file
+    #'     .rpf <- n_reads / (n_chroms * n_haps * 2) # reads per file
     #'
     #'     cat(sprintf("----------\nDesired variance = %.2f\n----------\n\n", .binom_var))
     #'
@@ -139,7 +139,7 @@ with(env, {
     ngsphy_config <- ngsphy_config[!grepl("^//", ngsphy_config)] # remove comments
     ngsphy_config <- ngsphy_config[ngsphy_config != ""] # remove empty lines
     repl_strs <- list(OUT_PATH = dir,
-                      READS_PER_FILE = sprintf("%.1f", n_reads / (n_chroms * n_vars * 2)),
+                      READS_PER_FILE = sprintf("%.1f", n_reads / (n_chroms * n_haps * 2)),
                       INDIV_SHAPE = sprintf("%.3f", shapes[shapes[,1] == n_reads, 2]))
 
     for (n in names(repl_strs)) {
