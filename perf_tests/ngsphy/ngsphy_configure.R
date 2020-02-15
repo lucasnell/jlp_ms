@@ -48,112 +48,129 @@ env$dir <- dir
 # Do the configuring:
 with(env, {
 
-
-    n_haps <- 8
-    n_chroms <- 20
-    chrom_size <- as.integer(gsize / n_chroms)
-
-
-    # ------------*
-    # Make tree files
-    # ------------*
-
     library(ape)
     source("../indelible/write_tree.R")
 
-    tree <- rcoal(n_haps * n_chroms)
+    fn <- sprintf("../in_files/scrm_%i.tree", gsize %/% 1e6L)
+
+    full_file <- readLines(fn)
+
+    # numbers of bp per tree
+    nbp <- full_file[grepl("^\\[", full_file)]
+    nbp <- sapply(strsplit(nbp, "\\("), `[`, i = 1)
+
+    # Create vector to group gene trees into chromosomes
+    chroms <- numeric(sum(full_file == "//"))
+    j = 0
+    for (i in 1:length(full_file)) {
+        if (full_file[i] == "//") {
+            j = j + 1
+            next
+        }
+        if (grepl("^\\[", full_file[i])) chroms[j] <- chroms[j] + 1
+    }
+    # Starting and ending points for groups:
+    chroms <- cbind(c(1, 1 + head(cumsum(chroms), -1)), cumsum(chroms))
+
+    # Trees themselves:
+    trees <- read.tree(fn)
 
     # Scale to have max depth of mdepth
-    tree$edge.length <- mdepth * tree$edge.length / max(node.depth.edgelength(tree))
-
-    # Editing tip labels
-    tree$tip.label <- paste(1, rep(1:n_chroms-1, n_haps), rep(1:n_haps-1, each = n_chroms),
-                            sep = "_")
-
-    # Write tree file for ngsphy:
-    write_tree(tree, paste0(dir, "tree.tree"))
-
-    # Write ms-style tree file for jackalope, with one tree per chromosome:
-    chrom_trees <- lapply(1:n_chroms-1, function(i) {
-        tr <- drop.tip(tree, tree$tip.label[!grepl(paste0("_", i, "_"), tree$tip.label)])
-        tr$tip.label <- paste0("t", sapply(strsplit(tr$tip.label, "_"), function(x) x[3]))
-        return(tr)
+    trees <- lapply(trees, function(x) {
+        x$edge.length <- mdepth * x$edge.length / max(node.depth.edgelength(x))
+        return(x)
     })
-    writeLines(paste0("//\n", sapply(chrom_trees, write_tree), collapse = "\n\n"),
-               paste0(dir, "jlp_trees.tree"))
+    names(trees) <- NULL
+
+
+    # For jackalope version:
+    tree_strings <- apply(chroms, 1,
+                          function(.xy) {
+                              inds <- (.xy[1]):(.xy[2])
+                              string <- paste0(nbp[inds], sapply(trees[inds], write_tree),
+                                               collapse = "\n")
+                              paste0("//\n", string, "\n\n")
+                          })
+    writeLines(paste0(tree_strings, collapse = "\n\n"),
+               paste0(dir, "tree.tree"))
+
 
 
     # ------------*
-    # Make INDELible config file
+    # Functions to write NGSphy info
     # ------------*
+    # Make INDELible config files
+    write_indelible_config <- function(indelible_config, i) {
+        folder <- sprintf("%sngsphy_%i/", dir, i)
+        indelible_config[grepl("%LENGTH%", indelible_config)] <-
+            gsub("%LENGTH%", gsub("\\[|\\]", "", nbp[i]),
+                 indelible_config[grepl("%LENGTH%", indelible_config)])
+        indelible_config[grepl("%SEED%", indelible_config)] <-
+            gsub("%SEED%", sample.int(2^31-1, 1),
+                 indelible_config[grepl("%SEED%", indelible_config)])
+        writeLines(indelible_config, paste0(folder, "indelible_config.txt"))
+        invisible(NULL)
+    }
+    # Make tree file
+    write_tree_file <- function(i) {
+        folder <- sprintf("%sngsphy_%i/", dir, i)
+        tree <- trees[[i]]
+        # NGSphy requires specific naming apparently
+        tree$tip.label <- sprintf("1_1_%s", tree$tip.label)
+        write_tree(tree, file = paste0(folder, "tree.tree"))
+        invisible(NULL)
+    }
+
+    # Make ngsphy config files
+    write_ngsphy_config <- function(ngsphy_config, i) {
+        n_haps <- length(trees[[i]]$tip.label)
+        # See "COMPUTING SHAPES" below for more on these
+        shapes = rbind(c(100e3, 314.8933),
+                        c(1e6, 31.34824),
+                        c(10e6, 3.109776))
+        len <- as.integer(gsub("\\[|\\]", "", nbp[i]))
+        folder <- sprintf("%sngsphy_%i/", dir, i)
+        # average # reads per output file, where there are separate files by
+        # gene tree, individual, and which of read pair
+        n_reads_i <- n_reads / (n_haps * 2) * (len / gsize)
+        repl_strs <- list(OUT_PATH = dir,
+                          READS_PER_FILE = sprintf("%.1f", n_reads_i),
+                          INDIV_SHAPE = sprintf("%.3f", shapes[shapes[,1] == n_reads, 2]))
+        for (n in names(repl_strs)) {
+            str <- paste0("%", n, "%")
+            ngsphy_config[grepl(str, ngsphy_config)] <-
+                gsub(str, repl_strs[[n]], ngsphy_config[grepl(str, ngsphy_config)])
+        }
+        # Now add one settings file for 1 thread, another for 4 threads
+        for (nt in c(1, 4)) {
+            tmp <- ngsphy_config
+            tmp[grepl("%THREADS%", ngsphy_config)] <-
+                gsub("%THREADS%", (nt), ngsphy_config[grepl("%THREADS%", ngsphy_config)])
+            writeLines(tmp, paste0(folder, "settings_", nt, ".txt"))
+        }
+        invisible(NULL)
+    }
+
+
+    # ------------*
+    # Write files for each gene tree's simulation,
+    # each set of files in a separate folder
+    # ------------*
+    n_trees <- length(trees)
 
     indelible_config <- readLines("indelible_header.txt")
     indelible_config <- indelible_config[!grepl("^//", indelible_config)] # remove comments
-    indelible_config[grepl("%LENGTH%", indelible_config)] <-
-        gsub("%LENGTH%", chrom_size, indelible_config[grepl("%LENGTH%", indelible_config)])
-    indelible_config[grepl("%SEED%", indelible_config)] <-
-        gsub("%SEED%", sample.int(2^31-1, 1),
-             indelible_config[grepl("%SEED%", indelible_config)])
-    writeLines(indelible_config, paste0(dir, "indelible_config.txt"))
-
-
-
-    # ------------*
-    # Make ngsphy config file
-    # ------------*
-
-
-
-    #' The shapes below are used to use ngsphy's method of generating variance among
-    #' individuals to generate the same variance as a binomial distribution.
-    #' The code chunk below was used to generate these shapes.
-    #'
-    #' ```{r}
-    #' find_shape <- function(.n_reads, .interval = c(1, 1000)) {
-    #'     n <- (.n_reads / 2)
-    #'     p <- 1 / (n_chroms * n_haps)
-    #'     .binom_var <- n * p * (1 - p) # variance for binomial process
-    #'     .rpf <- n_reads / (n_chroms * n_haps * 2) # reads per file
-    #'
-    #'     cat(sprintf("----------\nDesired variance = %.2f\n----------\n\n", .binom_var))
-    #'
-    #'     foo <- function(x, binom_var, rpf) {
-    #'         vv <- var(rpf * rgamma(1e5, shape = x, scale = 1 / x))
-    #'         return(abs(vv - binom_var))
-    #'     }
-    #'     return(optimize(foo, .interval, binom_var = .binom_var, rpf = .rpf))
-    #' }
-    #'
-    #' find_shape(100e3)
-    #' find_shape(1e6)
-    #' find_shape(10e6)
-    #' ```
-    #'
-
-    shapes <- rbind(c(100e3, 314.8933),
-                    c(1e6, 31.34824),
-                    c(10e6, 3.109776))
-
 
     ngsphy_config <- readLines("ngsphy_header.txt")
     ngsphy_config <- ngsphy_config[!grepl("^//", ngsphy_config)] # remove comments
     ngsphy_config <- ngsphy_config[ngsphy_config != ""] # remove empty lines
-    repl_strs <- list(OUT_PATH = dir,
-                      READS_PER_FILE = sprintf("%.1f", n_reads / (n_chroms * n_haps * 2)),
-                      INDIV_SHAPE = sprintf("%.3f", shapes[shapes[,1] == n_reads, 2]))
 
-    for (n in names(repl_strs)) {
-        str <- paste0("%", n, "%")
-        ngsphy_config[grepl(str, ngsphy_config)] <-
-            gsub(str, repl_strs[[n]], ngsphy_config[grepl(str, ngsphy_config)])
-    }
-
-    # Now add one settings file for 1 thread, another for 4 threads
-    for (nt in c(1, 4)) {
-        tmp <- ngsphy_config
-        tmp[grepl("%THREADS%", ngsphy_config)] <-
-            gsub("%THREADS%", (nt), ngsphy_config[grepl("%THREADS%", ngsphy_config)])
-        writeLines(tmp, paste0(dir, "settings_", nt, ".txt"))
+    for (i in 1:n_trees) {
+        folder <- sprintf("%sngsphy_%i/", dir, i)
+        dir.create(folder, recursive = TRUE, showWarnings = FALSE)
+        write_indelible_config(indelible_config, i)
+        write_tree_file(i)
+        write_ngsphy_config(ngsphy_config, i)
     }
 
 
@@ -185,3 +202,37 @@ rm(env)
 # mean(read_mat[,1])
 
 
+
+
+#' ====================================================================================
+#'
+#' COMPUTING SHAPES
+#'
+#' ====================================================================================
+#'
+#'
+#' The shapes below are used to use ngsphy's method of generating variance among
+#' individuals to generate the same variance as a binomial distribution.
+#' The code chunk below was used to generate these shapes.
+#'
+#' ```{r}
+#' find_shape <- function(.n_reads, .interval = c(1, 1000)) {
+#'     n <- (.n_reads / 2)
+#'     p <- 1 / (n_chroms * n_haps)
+#'     .binom_var <- n * p * (1 - p) # variance for binomial process
+#'     .rpf <- n_reads / (n_chroms * n_haps * 2) # reads per file
+#'
+#'     cat(sprintf("----------\nDesired variance = %.2f\n----------\n\n", .binom_var))
+#'
+#'     foo <- function(x, binom_var, rpf) {
+#'         vv <- var(rpf * rgamma(1e5, shape = x, scale = 1 / x))
+#'         return(abs(vv - binom_var))
+#'     }
+#'     return(optimize(foo, .interval, binom_var = .binom_var, rpf = .rpf))
+#' }
+#'
+#' find_shape(100e3)
+#' find_shape(1e6)
+#' find_shape(10e6)
+#' ```
+#'

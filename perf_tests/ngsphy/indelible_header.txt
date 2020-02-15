@@ -1,4 +1,6 @@
-// String to pass to this file:
+// NGSphy version of INDELible header
+//
+// Strings to pass to this file:
 //
 // LENGTH - length of the sequence
 // SEED - random seed

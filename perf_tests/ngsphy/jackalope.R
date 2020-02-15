@@ -1,7 +1,7 @@
 
 #'
 #' This script is used inside `__test.R` to run the `jackalope` version of simulation
-#' along phylogenies and Illumina read simulation.
+#' along phylogenies and Illumina read simulation, compared to `NGSphy`.
 #' It's not meant to be run directly.
 #'
 #' It takes as inputs  the genome size, max tree depth, number of reads,
@@ -40,14 +40,16 @@ indel <- indels(rate = 0.1, max_length = 541, a = 1.7)
 
 
 haps <- create_haplotypes(ref,
-                        haps_gtrees(fn = paste0(dir, "jlp_trees.tree")),
-                        sub = sub,
-                        ins = indel,
-                        del = indel,
-                        n_threads = nt)
+                          haps_gtrees(fn = paste0(dir, "tree.tree")),
+                          sub = sub,
+                          ins = indel,
+                          del = indel,
+                          epsilon = 0,
+                          n_threads = nt)
 
 write_fasta(haps, paste0(dir, "haps"),
             overwrite = TRUE, n_threads = nt)
+
 
 
 fq_file <- paste0(dir, "jlp")
