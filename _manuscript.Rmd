@@ -479,25 +479,28 @@ gene trees.
 It is relatively simple and written in C, so it should provide a conservative
 estimate of how well `jackalope` performs against similar programs.
 I chose `INDELible` because it is used by `NGSphy` and because it can generate
-sequences with both substitutions and indels based on phylogenetic trees.
+sequences with both substitutions and indels based on gene trees.
 I tested each program by having them simulate a 2 Mb and 20 Mb genome
 split evenly among 20 chromosomes, then generate 8 haplotypes from that genome using
 gene trees produced by the command line version of `scrm`.
 I ran separate simulations with the trees scaled to maximum tree depths of 0.1, 0.01,
 and 0.001.
-I used the HKY85 substitution model with a transition--transversion ratio of 1.
-All rate matrices were scaled such that branch lengths were in units of substitutions per site.
+I used the HKY85 substitution model with a transition--transversion ratio of 1,
+where a ratio of 0.5 gives equal instantaneous rates of transitions and transversions.
+All rate matrices were scaled such that branch lengths were in units of 
+substitutions per site.
 Relative frequencies of nucleotides were 0.4, 0.3, 0.2, and 0.1 for T, C, A, and G,
 respectively.
 For among-site variability in substitution rates, I used
 (1\) a discrete Gamma distribution with 10 categories and a shape parameter of 0.5, and
 (2\) an invariant-site rate of 0.25.
-The total rate for insertions was 0.1 per site per unit time,
-with relative rates derived from a Lavalette distribution with $L = 541$ and $a = 1.7$.
-Deletions had the same total and relative rates.
-Output was written to FASTA files.
+No indels were included when comparing to `Seq-Gen`.
+For the comparison to `INDELible`, the total rate for insertions was 0.1 per site 
+per unit time, with relative rates derived from a Lavalette distribution with
+$L = 541$ and $a = 1.7$; deletions had the same total and relative rates.
+Output was written to FASTA files for all tests.
 `jackalope` was tested for 1 and 4 threads, but
-`INDELible` for only 1 because it cannot use multiple threads.
+`Seq-Gen` and `INDELible` for only 1 because they cannot use multiple threads.
 
 
 ```{bash scrm-test, echo = FALSE, eval = FALSE}
@@ -610,8 +613,8 @@ In the most extreme example (20 Mb genome and 0.1 max tree depth), `jackalope` u
 `r sprintf("%.1f", high_mut_mb$indelible$indelible)` MB.
 I chose to use 64-bit integers in `jackalope` to allow chromosomes to exceed
 2 Gb in length.
-Memory usage increased by only `r sprintf("%.1f", avg_diff_threads$indelible * 1e3)`kB when
-`jackalope` used 4 threads.
+Memory usage increased by only `r sprintf("%.1f", avg_diff_threads$indelible * 1e3)`kB 
+when `jackalope` used 4 threads.
 
 
 
