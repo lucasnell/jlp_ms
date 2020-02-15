@@ -86,11 +86,12 @@ ind <- function() {
 #' Turning arguments into seeds for RNG. It should only affect `rep_order` below,
 #' so it's not a big deal that it's not extremely random.
 #'
-#' Note: I plan to simulate a 200 Mb genome at max and 0.001 max branch length
+#' Note: I plan to simulate a 20 Mb genome at max and 0.001 max branch length
 #' as minimum, which is why these values were chosen.
 #' `2^31 - 1` is the max integer value in R.
 #'
-set.seed((gsize / mdepth) / (200e6 / 0.001) * (2^31 - 1))
+set.seed((gsize / mdepth) / (20e6 / 0.001) * 2^30 + 1)
+
 
 # Do 5 reps of each, 0 = seq-gen, 1 = jackalope 1 thread, 2 = jackalope 4 threads
 rep_order <- sample(rep(0:2, 5))

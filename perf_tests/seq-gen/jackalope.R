@@ -37,11 +37,11 @@ sub <- sub_HKY85(.pi_tcag, alpha = .alpha, beta = .beta,
                  invariant = 0.25, gamma_shape = 0.5, gamma_k = 10)
 
 
-vars <- create_haplotypes(ref,
+haps <- create_haplotypes(ref,
                           haps_gtrees(fn = paste0(dir, "tree.tree")),
                           sub = sub,
                           n_threads = nt)
 
-write_fasta(vars, paste0(dir, "haps"),
+write_fasta(haps, paste0(dir, "haps"),
             overwrite = TRUE, n_threads = nt)
 

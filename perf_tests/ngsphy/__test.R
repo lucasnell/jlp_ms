@@ -59,7 +59,7 @@ if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
 #' as minimum, which is why these values were chosen.
 #' `2^31 - 1` is the max integer value in R.
 #'
-set.seed((gsize / mdepth) / (20e6 / 0.001) * (2^31 - 1))
+set.seed((gsize / mdepth) / (20e6 / 0.001) * 2^30 + 3)
 
 
 cat(sprintf("output file directory: %s\n", dir))
