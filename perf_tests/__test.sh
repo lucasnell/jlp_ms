@@ -16,27 +16,27 @@ do
     echo $i
 done && \
 echo -e "\n---------\nseq-gen\n---------\n" && \
-for s in 2 20
+for s in 20 2
 do
-    for m in 0.001 0.01 0.1
+    for m in 0.1 0.01 0.001
     do
         Rscript ~/GitHub/Wisconsin/jlp_ms/perf_tests/seq-gen/__test.R $s $m
         echo $s $m
     done
 done && \
 echo -e "\n---------\nindelible\n---------\n" && \
-for s in 2 20
+for s in 20 2
 do
-    for m in 0.001 0.01 0.1
+    for m in 0.1 0.01 0.001
     do
         Rscript ~/GitHub/Wisconsin/jlp_ms/perf_tests/indelible/__test.R $s $m
         echo $s $m
     done
 done && \
 echo -e "\n---------\nngsphy\n---------\n" && \
-for s in 2 20
+for s in 20 2
 do
-    for m in 0.001 0.01 0.1
+    for m in 0.1 0.01 0.001
     do
         for r in 0.1 1 10
         do
