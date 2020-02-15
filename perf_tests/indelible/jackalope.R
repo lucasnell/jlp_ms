@@ -41,12 +41,12 @@ indel <- indels(rate = 0.1, max_length = 541, a = 1.7)
 
 
 haps <- create_haplotypes(ref,
-                        haps_gtrees(fn = paste0(dir, "tree.tree")),
-                        sub = sub,
-                        ins = indel,
-                        del = indel,
-                        epsilon = 0,
-                        n_threads = nt)
+                          haps_gtrees(fn = paste0(dir, "tree.tree")),
+                          sub = sub,
+                          ins = indel,
+                          del = indel,
+                          epsilon = 0,
+                          n_threads = nt)
 
 write_fasta(haps, paste0(dir, "haps"),
             overwrite = TRUE, n_threads = nt)
