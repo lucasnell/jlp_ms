@@ -1040,14 +1040,17 @@ seq_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 I lastly compared the performance of `jackalope` to that of `NGSphy` 
 [version 1.0.13; @Escalona_2018]
 for the following pipeline: 
-generating a reference genome, simulating haplotypes from a species tree, and
+generating a reference genome, simulating haplotypes from gene trees, and
 producing Illumina reads from the haplotypes.
 For the first two steps, I used the same parameters as I did for the comparison to
-`INDELible`, but I used a species tree instead of gene trees.
-I used a species tree here because `NGSphy` requires a specialized database structure
-for inputting gene trees that `jackalope` cannot read.
+`INDELible`.
 I also used the same parameters for the last step, except that the variant haplotypes
 were used for sequencing reads instead of a reference genome.
+I generated 8 haplotypes with 20 chromosomes by creating a phylogenetic tree with
+160 tips and assigning every 20 tips to the same individual using the naming
+scheme necessary for `NGSphy`.
+I divided the larger tree by chromosome and passed these separate trees to 
+`jackalope` by writing them to an `ms`-style output file.
 Output was written to both FASTA and FASTQ files.
 Both `NGSphy` and `jackalope` were tested using both 1 and 4 threads.
 
@@ -1105,19 +1108,20 @@ pip_runs <- expand.grid(gsize_ = c(2, 20),
 
 # # This shows that only jackalope causes CPU time to exceed elapsed time:
 # 
-# pip_runs_cpu <- expand.grid(gsize_ = c(2, 20),
-#                         mdepth_ = c(0.001, 0.01, 0.1),
+# pip_runs_cpu <- expand.grid(gsize_ = c(2, 20), 
+#                         mdepth_ = c(0.001, 0.01, 0.1), 
 #                         nreads_ = c(0.1, 1, 10)) %>%
-#     as.list() %>%
-#     {pmap_dfr(., one_run, .get_cpu = TRUE)} %>%
+#     as.list() %>% 
+#     {pmap_dfr(., one_run, .get_cpu = TRUE)} %>% 
 #     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
 #                           labels = paste(sort(unique(gsize)), "Mb")),
 #            prog = factor(prog, levels = c("jackalope 4", "jackalope 1",
 #                                           "ngsphy 4", "ngsphy 1")))
-# 
-# pip_runs_cpu %>%
-#     filter(cpu_sec > sec) %>%
-#     select(prog, gsize, mdepth, nreads, sec, cpu_sec)
+# # Only "jackalope 4" shows up here:
+# pip_runs_cpu %>% 
+#     filter(cpu_sec > sec) %>% 
+#     .[["prog"]] %>% 
+#     unique()
 
 
 
@@ -1306,7 +1310,7 @@ pip_mem <- pip_runs_p %>%
 pip_plot <- plot_grid(pip_time, pip_mem, ncol = 2, rel_widths = c(0.6, 0.4),
                       labels = LETTERS[1:2], label_fontface = "plain")
 
-# save_fig("Fig_4.pdf", pip_plot, width = 169, height = 112)
+save_fig("Fig_4.pdf", pip_plot, width = 169, height = 112)
 ```
 
 
