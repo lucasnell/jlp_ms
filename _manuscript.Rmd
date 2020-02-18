@@ -599,28 +599,35 @@ avg_diff_threads <- hap_runs %>%
 
 
 
+
+
+`jackalope` using 4 threads was faster than `Seq-Gen` but
+slightly slower when using only 1 thread;
+`jackalope` performed best at low maximum tree depths in the 20 Mb genome
+(Figure \@ref(fig:haplotypes-perf-test-plot)A).
 `jackalope` consistently outperformed `INDELible` in terms of speed, although this
-difference was less drastic when there were more mutations: for the larger genome size
-and greater maximum tree depth (Figure \@ref(fig:haplotypes-perf-test-plot)).
-This is somewhat offset by the fact that using more threads has a greater effect at
-larger genome sizes.
-Memory usage was greater in `jackalope` than `INDELible`.
-With low mutation numbers, this difference was due to the overhead associated
-with loading R.
-For a 2 Mb genome and 0.001 max tree depth, `jackalope` used 
-`r sprintf("%.1f", low_mut_mb$indelible$jackalope)` MB memory, 
-while `INDELible` used `r sprintf("%.1f", low_mut_mb$indelible$indelible)` MB.
+difference was slightly less drastic when there were more mutations: 
+for the larger genome size and greater maximum tree depth (Figure
+\@ref(fig:haplotypes-perf-test-plot)B).
+
+
+For the smaller 2 Mb genome, memory usage was greater in `jackalope` than both
+`Seq-Gen` and `INDELible` (Figure \@ref(fig:haplotypes-perf-test-plot)C--D).
+This difference was due to the overhead associated with loading R.
 An R script that simply printed an empty string used $\sim 55$ MB memory, 
 and another that only loaded `jackalope` used $\sim 70$ MB.
-With greater numbers of mutations, the difference was due to `jackalope` using
-64-bit integers to store positions instead of 32-bit.
-In the most extreme example (20 Mb genome and 0.1 max tree depth), `jackalope` used
-`r sprintf("%.1f", high_mut_mb$indelible$jackalope)` MB memory and `INDELible` used
-`r sprintf("%.1f", high_mut_mb$indelible$indelible)` MB.
+For the larger 20 Mb genome, whether `jackalope` used more memory than `Seq-Gen`
+depended on the maximum tree depth  (Figure \@ref(fig:haplotypes-perf-test-plot)C).
+This is because `jackalope` stores one copy of reference sequences plus information
+for each mutation, whereas `Seq-Gen` stores a copy of each haplotype's sequences.
+At very high mutation densities, storing all the separate sequences is more efficient.
+Memory usage was largely the same between `jackalope` and `INDELible` for the 20 Mb
+genome.
+The slightly higher high relative usage of `jackalope` at the maximum tree depth of
+0.1 was likely due to `jackalope` using 64-bit integers to store positions 
+instead of 32-bit.
 I chose to use 64-bit integers in `jackalope` to allow chromosomes to exceed
 2 Gb in length.
-Memory usage increased by only `r sprintf("%.1f", avg_diff_threads$indelible * 1e3)`kB 
-when `jackalope` used 4 threads.
 
 
 
@@ -927,7 +934,7 @@ pb_thread_mb <- pb_runs %>%
 
 
 
-Again, `jackalope` outperformed both `ART` and `SimLoRD` in terms of speed
+`jackalope` outperformed both `ART` and `SimLoRD` in terms of speed
 (Figure \@ref(fig:sequencing-perf-test-plot)A--B).
 Multithreading was most useful when many reads were generated:
 For at least 10M Illumina reads and at least 100k PacBio reads, using 4 threads
