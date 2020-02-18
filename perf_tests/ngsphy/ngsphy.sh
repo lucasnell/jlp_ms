@@ -49,6 +49,7 @@ function loop {
         # Run NGSphy for this one folder:
         $NGSPHY --log ERROR -s settings_${nt}.txt
         cd ..
+        rm -r NGSphy_output
     done
 }
 
