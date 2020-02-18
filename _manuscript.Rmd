@@ -1171,7 +1171,9 @@ pip_reads_mb <- pip_runs %>%
 pip_runs_p <- pip_runs %>%
     # 4 threads in ngsphy had no effect, so I'm combining 1- and 4-thread call results:
     mutate(prog = paste(prog),
-           prog = ifelse(grepl("ngsphy", prog), "ngsphy", prog))
+           prog = ifelse(grepl("ngsphy", prog), "ngsphy", prog),
+           prog = factor(prog, levels = c("jackalope 4", "jackalope 1", "ngsphy"))) %>%
+    identity()
 
 ```
 
@@ -1269,7 +1271,6 @@ pip_time <- pip_runs_p %>%
           plot.margin = margin(0, 0, r = 6, b = 6),
           strip.text = element_text(size = 10),
           strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette, guide = FALSE) +
     scale_color_manual(NULL, values = perf_palette, guide = FALSE) +
     NULL
 
@@ -1302,7 +1303,6 @@ pip_mem <- pip_runs_p %>%
           strip.text = element_text(size = 10),
           strip.background = element_blank()) +
     scale_color_manual(NULL, guide = FALSE, values = perf_palette) +
-    scale_shape_manual(NULL, guide = FALSE, values = c(1, 2, 5)) +
     NULL
 
 
