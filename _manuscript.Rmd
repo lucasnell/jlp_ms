@@ -771,12 +771,15 @@ y_mb <- scale_y_continuous("Memory used (MB)", breaks = y_break_fun,
 
 hap_p <- plot_grid({hap_time_seqgen + x + y_time} %>% no_f() %>% no_x(), 
                    {hap_time_indelible + x + y_time} %>% no_y() %>% no_x(), 
+                   NULL, NULL,
                    {hap_mb_seqgen + x + y_mb} %>% no_f(),
                    {hap_mb_indelible + x + y_mb} %>% no_y(), 
                    ncol = 2, align = "v",
-                   labels = LETTERS[1:4], label_fontface = "plain")
+                   labels = c(LETTERS[1:2], "", "", LETTERS[3:4]), 
+                   label_fontface = "plain",
+                   rel_heights = c(1, 0.2, 1))
 
-save_fig("Fig_2.pdf", hap_p, width = 112, height = 112)
+save_fig("Fig_2.pdf", hap_p, width = 112, height = 140)
 
 ```
 
