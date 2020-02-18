@@ -40,10 +40,13 @@ suppressPackageStartupMessages({
     library(jackalope)
     library(scrm)
     library(ape)
+    library(viridisLite)
 })
 knitr::opts_chunk$set(echo = TRUE, cache = FALSE, eval = FALSE, dev = "quartz_pdf")
-# Color palette for performance testing:
-perf_palette <- viridisLite::magma(5, begin = 0, end = 0.85)[c(1, 4, 5)]
+# Color palette for most performance testing plots:
+perf_palette <- magma(5, begin = 0, end = 0.85)[c(1, 4, 5)]
+# For Figure 2 bc it needs 4 colors:
+perf_palette4 <- magma(7, begin = 0, end = 0.85)[c(1, 4, 6, 7)]
 
 theme_set(theme_classic() + 
               theme(legend.background = element_blank(),
@@ -545,8 +548,8 @@ hap_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1),
     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
                           labels = paste(sort(unique(gsize)), "Mb")),
            prog = factor(prog, levels = c("jackalope 4", "jackalope 1",
-                                          "indelible", "seq-gen")),
-           comp = factor(comp, levels = c("indelible", "seq-gen")))
+                                          "seq-gen", "indelible")),
+           comp = factor(comp, levels = c("seq-gen", "indelible")))
 
 # # To look at the exact numbers:
 # hap_runs %>%
@@ -645,84 +648,135 @@ set.seed(1283422021)
 
 
 hap_time_seqgen <- hap_runs %>%
-    filter(comp == "seq-gen") %>% 
-    ggplot(aes(prog, sec)) +
+    filter(comp == "seq-gen") %>%
+    group_by(prog, gsize, mdepth) %>% 
+    summarize(sec = mean(sec)) %>% 
+    ungroup() %>% 
+    ggplot(aes(log10(mdepth), sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-    geom_jitter(aes(fill = prog), height = 0, width = 0.25, 
-                shape = 21, color = "gray40") +
-    scale_y_continuous("Elapsed time (sec)", limits = c(0, NA)) +
-    scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
-                                expression("Seq-Gen"^1))) +
-    facet_grid(mdepth ~ gsize, scales = "free_x") +
+    geom_jitter(data = hap_runs %>% filter(comp == "seq-gen"),
+                aes(color = prog), shape = 1, size = 2, width = 0.2) +
+    geom_line(aes(color = prog), size = 0.75) +
+    geom_text(data = tibble(prog = "seq-gen",
+                            label = "bold(Seq-Gen^1)",
+                            sec = 14, gsize = "20 Mb", mdepth = 0.001),
+              aes(label = label, color = prog),
+              hjust = 0, vjust = 0, size = 10 / 2.835, parse = TRUE) +
+    geom_text(data = tibble(prog = c("jackalope 4", "jackalope 1"),
+                            label = c("bold(jackalope^4)", "bold(jackalope^1)"), 
+                            sec = c(0.8, 2.25), 
+                            gsize = "2 Mb", mdepth = 0.001),
+              aes(label = label, color = prog),
+              hjust = 0, vjust = 1, size = 10 / 2.835, parse = TRUE) +
+    facet_grid(gsize ~ ., scales = "free") +
     theme(axis.title = element_text(size = 11),
           axis.text = element_text(size = 8),
-          axis.title.y = element_blank(),
-          plot.margin = margin(0, 0, 0, b = 6),
-          axis.text.y = element_text(color = "black", size = 11),
-          legend.position = "none",
+          plot.margin = margin(0,0,0,0),
           strip.text = element_text(size = 10),
           strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette) +
-    guides(fill = guide_legend(override.aes = list(size = 3))) +
-    coord_flip() +
+    scale_color_manual(NULL, guide = FALSE, 
+                       values = perf_palette4[1:3]) +
     NULL
+
+
 
 hap_time_indelible <- hap_runs %>%
-    filter(comp == "indelible") %>% 
-    ggplot(aes(prog, sec)) +
+    filter(comp == "indelible") %>%
+    group_by(prog, gsize, mdepth) %>% 
+    summarize(sec = mean(sec)) %>% 
+    ungroup() %>% 
+    ggplot(aes(log10(mdepth), sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-    geom_jitter(aes(fill = prog), height = 0, width = 0.25, 
-                shape = 21, color = "gray40") +
-    scale_y_continuous("Elapsed time (sec)", limits = c(0, NA)) +
-    scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
-                                expression("INDELible"^1))) +
-    facet_grid(mdepth ~ gsize, scales = "free_x") +
+    geom_jitter(data = hap_runs %>% filter(comp == "indelible"),
+                aes(color = prog), shape = 1, size = 2, width = 0.2) +
+    geom_line(aes(color = prog), size = 0.75) +
+    geom_text(data = tibble(gsize = "20 Mb",
+                            prog = "indelible",
+                            label = "bold(INDELible^1)",
+                            mdepth = 0.001,
+                            sec = 255),
+              aes(label = label, color = prog),
+              hjust = 0, vjust = 0, size = 10 / 2.835, parse = TRUE) +
+    facet_grid(gsize ~ ., scales = "free") +
     theme(axis.title = element_text(size = 11),
           axis.text = element_text(size = 8),
-          axis.title.y = element_blank(),
-          plot.margin = margin(0, 0, 0, t = 6),
-          axis.text.y = element_text(color = "black", size = 11),
-          legend.position = "none",
+          plot.margin = margin(0,0,0,0),
           strip.text = element_text(size = 10),
           strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette) +
-    guides(fill = guide_legend(override.aes = list(size = 3))) +
-    coord_flip() +
+    scale_color_manual(NULL, guide = FALSE, 
+                       values = perf_palette4[c(1:2,4)]) +
     NULL
 
 
-
-# hap_mem <- hap_runs %>%
-#     ggplot(aes(prog, MB)) +
-#     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-#     geom_jitter(aes(fill = prog), height = 0, width = 0.25,
-#                 shape = 21, color = "gray40") +
-#     scale_y_continuous("Max memory used (MB)", limits = c(0, NA)) +
-#     scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1),
-#                                     expression("INDELible"^1))) +
-#     facet_grid(mdepth ~ gsize, scales = "free_x") +
-#     theme(axis.title = element_text(size = 11),
-#           axis.text = element_text(size = 8),
-#           axis.title.y = element_blank(),
-#           plot.margin = margin(0, 0, 0, t = 6),
-#           axis.text.y = element_text(color = "black", size = 11),
-#           legend.position = "none",
-#           strip.text = element_text(size = 10),
-#           strip.background = element_blank()) +
-#     scale_fill_manual(NULL, values = perf_palette) +
-#     guides(fill = guide_legend(override.aes = list(size = 3))) +
-#     coord_flip() +
-#     NULL
+hap_mb_seqgen <- hap_runs %>% 
+    filter(comp == "seq-gen") %>%
+    group_by(comp, prog, gsize, mdepth) %>% 
+    summarize(MB = mean(MB)) %>% 
+    ungroup() %>% 
+    ggplot(aes(log10(mdepth), MB)) +
+    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
+    geom_jitter(data = hap_runs %>% filter(comp == "seq-gen"),
+                aes(color = prog), shape = 1, size = 2, width = 0.25) +
+    geom_line(aes(color = prog), size = 0.75) +
+    facet_grid(gsize ~ ., scales = "free") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          plot.margin = margin(0,0,0,0),
+          strip.text = element_text(size = 10),
+          strip.background = element_blank()) +
+    scale_color_manual(NULL, guide = FALSE, 
+                       values = perf_palette4[1:3]) +
+    NULL
 
 
-# hap_plot <- plot_grid(hap_time, hap_mem, ncol = 1)
+hap_mb_indelible <- hap_runs %>%
+    filter(comp == "indelible") %>%
+    group_by(comp, prog, gsize, mdepth) %>% 
+    summarize(MB = mean(MB)) %>% 
+    ungroup() %>% 
+    ggplot(aes(log10(mdepth), MB)) +
+    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
+    geom_jitter(data = hap_runs %>% filter(comp == "indelible"),
+                aes(color = prog), shape = 1, size = 2, width = 0.25) +
+    geom_line(aes(color = prog), size = 0.75) +
+    facet_grid(gsize ~ ., scales = "free") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          plot.margin = margin(0,0,0,0),
+          strip.text = element_text(size = 10),
+          strip.background = element_blank()) +
+    scale_color_manual(NULL, guide = FALSE, 
+                       values = perf_palette4[c(1:2,4)]) +
+    NULL
 
 
-hap_time <- plot_grid(hap_time_seqgen, hap_time_indelible, ncol = 1, 
-                      labels = LETTERS[1:2], label_fontface = "plain")
+no_x <- function(p) p + theme(axis.title.x = element_blank())
+no_y <- function(p) p + theme(axis.title.y = element_blank())
+no_f <- function(p) p + theme(strip.text = element_blank())
+y_break_fun <- function(x) {
+    m <- max(x)
+    if (m > 400) return(c(0, 200, 400))
+    if (m > 290) return(c(0, 150, 300))
+    if (m > 100) return(c(0, 40, 80))
+    if (m > 20) return(c(0, 12, 24))
+    if (m > 15) return(c(0, 8, 16))
+    return(c(0, 0.8, 1.6))
+}
+x <- scale_x_continuous("Maximum tree depth",
+                        breaks = -3:-1, labels = c(0.001, 0.01, 0.1))
+y_time <- scale_y_continuous("Elapsed time (sec)", breaks = y_break_fun, 
+                             limits = c(0, NA))
+y_mb <- scale_y_continuous("Memory used (MB)", breaks = y_break_fun, 
+                           limits = c(0, NA))
 
+hap_p <- plot_grid({hap_time_seqgen + x + y_time} %>% no_f() %>% no_x(), 
+                   {hap_time_indelible + x + y_time} %>% no_y() %>% no_x(), 
+                   {hap_mb_seqgen + x + y_mb} %>% no_f(),
+                   {hap_mb_indelible + x + y_mb} %>% no_y(), 
+                   ncol = 2, align = "v",
+                   labels = LETTERS[1:4], label_fontface = "plain")
 
-save_fig("Fig_2.pdf", hap_time, width = 112, height = 169)
+save_fig("Fig_2.pdf", hap_p, width = 112, height = 112)
 
 ```
 
@@ -1571,8 +1625,8 @@ knitr::include_graphics("Fig_1.pdf", dpi = NA)
 ```
 
 
-```{r haplotypes-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=88/25.4, fig.height=88/25.4, fig.cap=hap_plot_cap}
-hap_time
+```{r haplotypes-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=169/25.4, fig.cap=hap_plot_cap}
+hap_p
 ```
 
 
