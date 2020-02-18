@@ -323,6 +323,9 @@ This is done by finding the left eigenvector of $\mathbf{Q}$ that
 corresponds to the eigenvalue closest to zero.
 Each substitution model uses its own function, and the provided documentation
 (under `sub_models`) includes information to help users choose among them.
+By default, rate matrices are scaled so that branch lengths are in units
+of substitutions per site, but this scaling can be adjusted.
+
 
 
 Substitution rates can also vary among sites.
