@@ -13,8 +13,9 @@ output_folder_name=NGSphy_output
 ploidy=1
 
 [data]
-inputmode=1
-gene_tree_file=tree.tree
+inputmode=4
+simphy_folder_path=simphy_%MDEPTH%
+simphy_data_prefix=simphy_%MDEPTH%
 indelible_control_file=indelible_config.txt
 
 [coverage]
