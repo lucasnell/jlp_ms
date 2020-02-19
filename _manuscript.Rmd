@@ -42,7 +42,7 @@ suppressPackageStartupMessages({
     library(ape)
     library(viridisLite)
 })
-knitr::opts_chunk$set(echo = TRUE, cache = FALSE, eval = FALSE, dev = "quartz_pdf")
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE, eval = FALSE, dev = "cairo_pdf")
 # Color palette for most performance testing plots:
 perf_palette <- magma(5, begin = 0, end = 0.85)[c(1, 4, 5)]
 # For Figure 2 bc it needs 4 colors:
