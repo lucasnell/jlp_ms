@@ -1044,27 +1044,15 @@ generating a reference genome, simulating haplotypes from gene trees, and
 producing Illumina reads from the haplotypes.
 For the first two steps, I used the same parameters as I did for the comparison to
 `INDELible`.
-Because `NGSphy` cannot take `ms`-style gene trees, I simulated gene trees
-using `SimPhy` [version 1.0.2; @Mallo_2015].
-I first generated a random tree of 8 species with a maximum depth of 1, then 
-used that in `SimPhy` to generate 10 gene trees for each of 20 loci.
-I ran separate simulations where the average max tree depths among all gene trees 
-was 0.1, 0.01, and 0.001.
-I adjusted the tree-wide substitution rates to generate these 3 scenarios.
-I passed the outputs from `SimPhy` directly to `NGSphy`, whereas I 
-converted them to `ms`-style output files for `jackalope`.
-I used the same parameters for the Illumina sequencing step as in the previous section,
-except that the variant haplotypes were used for sequencing reads instead of
-a reference genome.
+I also used the same parameters for the last step, except that the variant haplotypes
+were used for sequencing reads instead of a reference genome.
+I generated 8 haplotypes with 20 chromosomes by creating a phylogenetic tree with
+160 tips and assigning every 20 tips to the same individual using the naming
+scheme necessary for `NGSphy`.
+I divided the larger tree by chromosome and passed these separate trees to 
+`jackalope` by writing them to an `ms`-style output file.
 Output was written to both FASTA and FASTQ files.
 Both `NGSphy` and `jackalope` were tested using both 1 and 4 threads.
-
-
-
-
-
-
-
 
 ```{r pipeline-perf-test-data, echo = FALSE, eval = TRUE}
 
