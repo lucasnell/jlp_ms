@@ -13,4 +13,4 @@
   [indelrate]     0.1                 //  rates of insertion and deletion are both 0.1
   [rates]         0.25 0.50 10        //  proportion invariant, gamma shape, gamma categories
   [statefreq]     0.4  0.3  0.2  0.1  //  frequencies for T C A G
-[NGSPHYPARTITION]  tree m1 %LENGTH%
+[NGSPHYPARTITION]  ngsphy_tree m1 %LENGTH%
