@@ -637,13 +637,14 @@ I chose to use 64-bit integers in `jackalope` to allow chromosomes to exceed
 
 ```{r haplotypes-perf-test-plot-caption, echo = FALSE, eval = TRUE}
 hap_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
-                      "\\texttt{INDELible} in generating variant haplotypes from a",
-                      "reference genome.",
-                      "Sub-panel columns indicate the size of the genome from which",
+                      "(A,C) \\texttt{Seq-Gen} and (B,D) \\texttt{INDELible}",
+                      "in generating variant haplotypes from a reference genome,",
+                      "for varying maximum gene tree depths.",
+                      "Panels A and B show elapsed time, and panels C and D show",
+                      "maximum memory used during operation.",
+                      "Sub-panel rows indicate the size of the genome from which",
                       "haplotypes were generated.",
-                      "Sub-panel rows indicate the maximum tree depth of the phylogeny",
-                      "used for the simulations.",
-                      "Superscripts in the y-axis labels indicate",
+                      "Superscripts in the labels indicate",
                       "the number of threads used.")
 ```
 
