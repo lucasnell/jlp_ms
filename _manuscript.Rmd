@@ -1044,17 +1044,18 @@ seq_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 I lastly compared the performance of `jackalope` to that of `NGSphy` 
 [version 1.0.13; @Escalona_2018]
 for the following pipeline: 
-generating a reference genome, simulating haplotypes from gene trees, and
+generating a reference genome, simulating haplotypes from a species tree, and
 producing Illumina reads from the haplotypes.
 For the first two steps, I used the same parameters as I did for the comparison to
-`INDELible`.
-I also used the same parameters for the last step, except that the variant haplotypes
+`INDELible`, except that I used a species tree instead of gene trees.
+I am using a species tree because the method of using gene trees in `NGSphy` requires
+the use of `SimPhy` [@Mallo_2015] to both conduct coalescent simulations and 
+create variant haplotypes.
+Because it includes an extra step, the performance comparison to `jackalope` would
+be unfair.
+I generated the random species tree using `ape::rcoal(10)` [@Paradis_2018].
+I used the same parameters for the Illumina step, except that the variant haplotypes
 were used for sequencing reads instead of a reference genome.
-I generated 8 haplotypes with 20 chromosomes by creating a phylogenetic tree with
-160 tips and assigning every 20 tips to the same individual using the naming
-scheme necessary for `NGSphy`.
-I divided the larger tree by chromosome and passed these separate trees to 
-`jackalope` by writing them to an `ms`-style output file.
 Output was written to both FASTA and FASTQ files.
 Both `NGSphy` and `jackalope` were tested using both 1 and 4 threads.
 
