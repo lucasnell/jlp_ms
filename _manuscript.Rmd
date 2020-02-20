@@ -371,8 +371,8 @@ Indels up to 1 Mb are allowed.
 
 
 Indels are generated along phylogenetic-tree branches using
-the $\tau$-leaping approximation [@Wieder_2011; @Cao_2006] to the
-Doob--Gillespie algorithm [@Doob_1942; @Gillespie_1976].
+the Doob--Gillespie algorithm [@Doob_1942; @Gillespie_1976], optionally 
+with the $\tau$-leaping approximation [@Wieder_2011; @Cao_2006].
 I chose the Doob--Gillespie algorithm because it only requires instantaneous rates
 rather than the calculation of a transition-probability matrix, making it easily used
 for indels [@Yang_2006].
@@ -400,13 +400,14 @@ for an error control parameter $\epsilon$ (where $0 < \epsilon \ll 1$),
 chromosome length $C$,
 mutation rate for one indel type $m_i$, and
 effect on chromosome length for one indel type $v_i$  [@Wieder_2011; @Cao_2006].
-Increasing the error control parameter results in faster simulations that 
-approximate the exact Doob--Gillespie algorithm less precisely.
-It can be changed by the user, but has a default value of 0.03 
-as recommended by @Cao_2006.
 The rate parameter for the Poisson distribution that generates the number of 
 mutations over the entire chromosome across $\tau$ time units is $\tau C m_i$
 for indel type $i$.
+Increasing $\epsilon$ results in faster simulations that 
+approximate the exact Doob--Gillespie algorithm less precisely.
+It has a default value of 0.03, as recommended by @Cao_2006, but can be changed
+by the user.
+An $\epsilon$ value of zero results in the exact algorithm being used.
 
 
 
@@ -504,6 +505,8 @@ No indels were included when comparing to `Seq-Gen`.
 For the comparison to `INDELible`, the total rate for insertions was 0.1 per site 
 per unit time, with relative rates derived from a Lavalette distribution with
 $L = 541$ and $a = 1.7$; deletions had the same total and relative rates.
+The exact Doob--Gillespie algorithm was used for indels because `INDELible` does
+not use the approximation.
 Output was written to FASTA files for all tests.
 `jackalope` was tested for 1 and 4 threads, but
 `Seq-Gen` and `INDELible` for only 1 because they cannot use multiple threads.
