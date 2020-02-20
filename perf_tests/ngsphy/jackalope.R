@@ -21,10 +21,10 @@ nt <- as.integer(args[5])
 library(jackalope)
 
 .pi_tcag <- 0.1 * 4:1
-.tstv_ratio <- 1 # transition transversion ratio (alpha / (2 * beta))
 
-# Just setting this to 1 bc the rate matrix gets scaled anyway:
-.alpha <- 1
+.alpha <- 1  # <-- just setting this to 1 bc the rate matrix gets scaled anyway
+
+.tstv_ratio <- 1 # transition transversion ratio (alpha / (2 * beta))
 .beta <- .alpha / (2 * .tstv_ratio)
 
 
@@ -40,7 +40,7 @@ indel <- indels(rate = 0.1, max_length = 541, a = 1.7)
 
 
 haps <- create_haplotypes(ref,
-                          haps_gtrees(fn = paste0(dir, "tree.tree")),
+                          haps_phylo(fn = paste0(dir, "spp_tree.tree")),
                           sub = sub,
                           ins = indel,
                           del = indel,

@@ -9,6 +9,20 @@
 #'
 
 
+
+#'
+#' How I originally made the species tree:
+#'
+#' ```r
+#' set.seed(960054393)
+#' x <- ape::rcoal(8)
+#' ape::write.tree(x, "~/GitHub/Wisconsin/jlp_ms/perf_tests/ngsphy/spp_tree.tree")
+#' ```
+#'
+
+
+
+
 stopifnot("gsize" %in% ls())
 stopifnot("mdepth" %in% ls())
 stopifnot("n_reads" %in% ls())
@@ -51,128 +65,77 @@ with(env, {
     library(ape)
     source("../indelible/write_tree.R")
 
-    fn <- sprintf("../in_files/scrm_%i.tree", gsize %/% 1e6L)
+    n_haps <- 8L
+    n_chroms <- 20L
+    chrom_size <- gsize %/% n_chroms
 
-    full_file <- readLines(fn)
-
-    # numbers of bp per tree
-    nbp <- full_file[grepl("^\\[", full_file)]
-    nbp <- sapply(strsplit(nbp, "\\("), `[`, i = 1)
-
-    # Create vector to group gene trees into chromosomes
-    chroms <- numeric(sum(full_file == "//"))
-    j = 0
-    for (i in 1:length(full_file)) {
-        if (full_file[i] == "//") {
-            j = j + 1
-            next
-        }
-        if (grepl("^\\[", full_file[i])) chroms[j] <- chroms[j] + 1
-    }
-    # Starting and ending points for groups:
-    chroms <- cbind(c(1, 1 + head(cumsum(chroms), -1)), cumsum(chroms))
-
-    # Trees themselves:
-    trees <- read.tree(fn)
+    # ----------------*
+    # Making trees
+    # ----------------*
+    tree <- read.tree("spp_tree.tree")
 
     # Scale to have max depth of mdepth
-    trees <- lapply(trees, function(x) {
-        x$edge.length <- mdepth * x$edge.length / max(node.depth.edgelength(x))
-        return(x)
-    })
-    names(trees) <- NULL
+    tree$edge.length <- mdepth * tree$edge.length / max(node.depth.edgelength(tree))
 
+    # For jackalope, simply write the scaled tree to the output directory
+    write.tree(tree, paste0(dir, "spp_tree.tree"))
 
-    # For jackalope version:
-    tree_strings <- apply(chroms, 1,
-                          function(.xy) {
-                              inds <- (.xy[1]):(.xy[2])
-                              string <- paste0(nbp[inds], sapply(trees[inds], write_tree),
-                                               collapse = "\n")
-                              paste0("//\n", string, "\n\n")
-                          })
-    writeLines(paste0(tree_strings, collapse = "\n\n"),
-               paste0(dir, "tree.tree"))
-
-
-
-    # ------------*
-    # Functions to write NGSphy info
-    # ------------*
-    # Make INDELible config files
-    write_indelible_config <- function(indelible_config, i) {
-        folder <- sprintf("%sngsphy_%i/", dir, i)
-        indelible_config[grepl("%LENGTH%", indelible_config)] <-
-            gsub("%LENGTH%", gsub("\\[|\\]", "", nbp[i]),
-                 indelible_config[grepl("%LENGTH%", indelible_config)])
-        indelible_config[grepl("%SEED%", indelible_config)] <-
-            gsub("%SEED%", sample.int(2^31-1, 1),
-                 indelible_config[grepl("%SEED%", indelible_config)])
-        writeLines(indelible_config, paste0(folder, "indelible_config.txt"))
-        invisible(NULL)
+    # Hacking together one giant tree with 20 copies of the species tree to get NGSphy
+    # to make all 20 chromosomes
+    tree$tip.label <- paste(1:length(tree$tip.label), 1, "1", sep = "_")
+    tree$root.edge <- 0
+    s <- stree(2)
+    s$edge.length <- rep(0, nrow(s$edge))
+    z <- bind.tree(s, tree)
+    for (i in 2:20) {
+        tree$tip.label <- paste(1:length(tree$tip.label), i, "0", sep = "_")
+        z <- bind.tree(z, tree, length(z$tip.label)+1)
     }
-    # Make tree file
-    write_tree_file <- function(i) {
-        folder <- sprintf("%sngsphy_%i/", dir, i)
-        tree <- trees[[i]]
-        # NGSphy requires specific naming apparently
-        tree$tip.label <- sprintf("1_1_%s", tree$tip.label)
-        write_tree(tree, file = paste0(folder, "tree.tree"))
-        invisible(NULL)
-    }
-
-    # Make ngsphy config files
-    write_ngsphy_config <- function(ngsphy_config, i) {
-        n_haps <- length(trees[[i]]$tip.label)
-        # See "COMPUTING SHAPES" below for more on these
-        shapes = rbind(c(100e3, 314.8933),
-                        c(1e6, 31.34824),
-                        c(10e6, 3.109776))
-        len <- as.integer(gsub("\\[|\\]", "", nbp[i]))
-        folder <- sprintf("%sngsphy_%i/", dir, i)
-        # average # reads per output file, where there are separate files by
-        # gene tree, individual, and which of read pair
-        n_reads_i <- n_reads / (n_haps * 2) * (len / gsize)
-        repl_strs <- list(OUT_PATH = dir,
-                          READS_PER_FILE = sprintf("%.1f", n_reads_i),
-                          INDIV_SHAPE = sprintf("%.3f", shapes[shapes[,1] == n_reads, 2]))
-        for (n in names(repl_strs)) {
-            str <- paste0("%", n, "%")
-            ngsphy_config[grepl(str, ngsphy_config)] <-
-                gsub(str, repl_strs[[n]], ngsphy_config[grepl(str, ngsphy_config)])
-        }
-        # Now add one settings file for 1 thread, another for 4 threads
-        for (nt in c(1, 4)) {
-            tmp <- ngsphy_config
-            tmp[grepl("%THREADS%", ngsphy_config)] <-
-                gsub("%THREADS%", (nt), ngsphy_config[grepl("%THREADS%", ngsphy_config)])
-            writeLines(tmp, paste0(folder, "settings_", nt, ".txt"))
-        }
-        invisible(NULL)
-    }
+    z_drop <- ape::drop.tip(z, 1:2)
+    write_tree(z_drop, paste0(dir, "ngsphy_tree.tree"))
 
 
-    # ------------*
-    # Write files for each gene tree's simulation,
-    # each set of files in a separate folder
-    # ------------*
-    n_trees <- length(trees)
-
+    # ----------------*
+    # Make INDELible config file
+    # ----------------*
     indelible_config <- readLines("indelible_header.txt")
     indelible_config <- indelible_config[!grepl("^//", indelible_config)] # remove comments
+    indelible_config[grepl("%LENGTH%", indelible_config)] <-
+        gsub("%LENGTH%", chrom_size, indelible_config[grepl("%LENGTH%", indelible_config)])
+    indelible_config[grepl("%SEED%", indelible_config)] <-
+        gsub("%SEED%", sample.int(2^31-1, 1),
+             indelible_config[grepl("%SEED%", indelible_config)])
+    writeLines(indelible_config, paste0(dir, "indelible_config.txt"))
 
+
+    # ----------------*
+    # Make ngsphy config files
+    # ----------------*
+    # See "COMPUTING SHAPES" below for more on these
+    shapes = rbind(c(100e3, 314.8933),
+                   c(1e6, 31.34824),
+                   c(10e6, 3.109776))
     ngsphy_config <- readLines("ngsphy_header.txt")
     ngsphy_config <- ngsphy_config[!grepl("^//", ngsphy_config)] # remove comments
     ngsphy_config <- ngsphy_config[ngsphy_config != ""] # remove empty lines
-
-    for (i in 1:n_trees) {
-        folder <- sprintf("%sngsphy_%i/", dir, i)
-        dir.create(folder, recursive = TRUE, showWarnings = FALSE)
-        write_indelible_config(indelible_config, i)
-        write_tree_file(i)
-        write_ngsphy_config(ngsphy_config, i)
+    # average # reads per output file, where there are separate files by
+    # gene tree, individual, and which of read pair
+    n_reads_i <- n_reads / (n_chroms * n_haps * 2)
+    repl_strs <- list(OUT_PATH = dir,
+                      READS_PER_FILE = sprintf("%.1f", n_reads_i),
+                      INDIV_SHAPE = sprintf("%.3f", shapes[shapes[,1] == n_reads, 2]))
+    for (n in names(repl_strs)) {
+        str <- paste0("%", n, "%")
+        ngsphy_config[grepl(str, ngsphy_config)] <-
+            gsub(str, repl_strs[[n]], ngsphy_config[grepl(str, ngsphy_config)])
     }
-
+    # Now add one settings file for 1 thread, another for 4 threads
+    for (nt in c(1, 4)) {
+        tmp <- ngsphy_config
+        tmp[grepl("%THREADS%", ngsphy_config)] <-
+            gsub("%THREADS%", nt, ngsphy_config[grepl("%THREADS%", ngsphy_config)])
+        writeLines(tmp, paste0(dir, "settings_", nt, ".txt"))
+    }
 
 })
 

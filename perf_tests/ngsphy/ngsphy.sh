@@ -6,7 +6,7 @@
 # It's not meant to be run directly.
 #
 # Inputs are...
-# (1) temporary parent directory containing folders with configuration and tree files,
+# Inputs are (1) temporary directory containing configuration and tree files,
 # (2) number of threads to use, and
 # (3) output file for results from /usr/bin/time
 #
@@ -16,8 +16,8 @@
 export INDELIBLE=~/Downloads/INDELibleV1.03/src/
 export PATH="$INDELIBLE:$PATH"
 
-# /Users/lucasnell/opt/anaconda3/etc/profile.d/conda.sh
-export PATH="/Users/lucasnell/opt/anaconda3/bin:$PATH"
+
+export PATH=~"/opt/anaconda3/bin:$PATH"
 export NGSPHY=~/Downloads/ngsphy/scripts/ngsphy
 
 
@@ -36,29 +36,11 @@ export out_fn=$3
 echo -e "\n---------------\n>>> NGSPHY -" $nt "\n---------------\n" >> $out_fn
 
 
-# Solution for timing the loop was found here: https://askubuntu.com/a/431184
+# Run NGSphy, suppressing its output, and writing output from /usr/bin/time to $out_fn:
+/usr/bin/time -l $NGSPHY --log ERROR -s settings_${nt}.txt 1> /dev/null 2>> $out_fn
 
-# Timing the loop this way adds some overhead due to an extra bash instance, but
-# it shouldn't affect our conclusions given that we're talking about operations
-# that take minutes.
-
-function loop {
-    for d in `ls -d ngsphy*`
-    do
-        cd $d
-        # Run NGSphy for this one folder:
-        $NGSPHY --log ERROR -s settings_${nt}.txt
-        cd ..
-        rm -r NGSphy_output
-    done
-}
-
-export -f loop
-
-# Run NGSphy for all folders, suppressing all output, and writing output from
-# /usr/bin/time to $out_fn:
-echo loop | /usr/bin/time -l /bin/bash 1> /dev/null 2>> $out_fn
-
+# Remove the output directory
+rm -r NGSphy_output
 
 
 echo -e "\n\n" >> $out_fn
