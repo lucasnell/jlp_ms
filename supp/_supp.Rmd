@@ -45,7 +45,7 @@ suppressPackageStartupMessages({
   library(ape)
   library(tidyverse)
 })
-knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = "quartz_pdf",
+knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = "cairo_pdf",
                       fig.height = 3, fig.width = 3.25, fig.align = "center",
                       message = FALSE, warning = FALSE)
 knitr::opts_knit$set(root.dir = normalizePath(".."))
@@ -63,15 +63,16 @@ dir <- paste0(tempdir(check = TRUE), "/")
 
 
 
-This document provides diagnostics on creating variants, Illumina sequencing, and 
-Pacific Biosciences (PacBio) sequencing in `jackalope`.
+This document provides diagnostics on creating haplotypes, Illumina sequencing,
+Pacific Biosciences (PacBio) sequencing, and the $\tau$-leap approximation to the
+Doob--Gillespie algorithm in `jackalope`.
 The overall conclusion is that the simulations work as expected.
 
 
 
 
 
-# Creating variants
+# Creating haplotypes
 
 ```{r mevo-main, child = 'diagnostics-mevo.Rmd'}
 ```
@@ -93,4 +94,9 @@ The overall conclusion is that the simulations work as expected.
 
 
 
+
+\section{$\tau$-leaping}
+
+```{r tau-leap-main, child = 'diagnostics-tau-leap.Rmd'}
+```
 
