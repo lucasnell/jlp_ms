@@ -18,7 +18,6 @@ export PATH="$INDELIBLE:$PATH"
 
 
 export PATH=~"/opt/anaconda3/bin:$PATH"
-export NGSPHY=~/Downloads/ngsphy/scripts/ngsphy
 
 
 # Needed to start ngsphy:
@@ -37,7 +36,7 @@ echo -e "\n---------------\n>>> NGSPHY -" $nt "\n---------------\n" >> $out_fn
 
 
 # Run NGSphy, suppressing its output, and writing output from /usr/bin/time to $out_fn:
-/usr/bin/time -l $NGSPHY --log ERROR -s settings_${nt}.txt 1> /dev/null 2>> $out_fn
+/usr/bin/time -l ngsphy --log ERROR -s settings_${nt}.txt 1> /dev/null 2>> $out_fn
 
 # Remove the output directory
 rm -r NGSphy_output

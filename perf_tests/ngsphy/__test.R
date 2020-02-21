@@ -94,6 +94,10 @@ jlp <- function(nt) {
     output <- file(std_out, "at")
     writeLines("\n\n", output)
     close(output)
+
+    # Remove files made:
+    system(sprintf("cd %s && rm *.fa *.fq", dir))
+
     invisible(NULL)
 }
 
