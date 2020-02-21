@@ -42,6 +42,7 @@ dir <- paste0(dir, "/")
 
 
 
+
 # std_out <- path.expand("~/Desktop/test.out")
 # gsize <- 2e6L
 # mdepth <- 0.001
@@ -71,6 +72,18 @@ if (!dir.exists(dirname(std_out))) dir.create(dirname(std_out), recursive = TRUE
 # Just to clear the file
 output <- file(std_out, "wt")
 close(output)
+
+
+# This is too much for my computer to handle (due to NGSphy):
+if (gsize >= 20e6 && mdepth >= 0.1) {
+    output <- file(std_out, "wt")
+    writeLines("\n\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n", output)
+    writeLines(sprintf("skipping...\n  gsize = %iMb\n  mdepth = %.03f\n  n_reads = %ik",
+                       gsize %/% 1e6, mdepth, n_reads %/% 1e3), output)
+    writeLines("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n", output)
+    close(output)
+    quit(save = "no")
+}
 
 
 # Make trees and indelible configure.txt file:
