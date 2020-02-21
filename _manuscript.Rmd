@@ -466,6 +466,24 @@ Using known inputs, I compared predicted to observed values of outputs,
 and `jackalope` conformed closely to expectations 
 (Supporting Information Figures S1--S13).
 
+I also tested the effects of varying the error-control parameter ($\epsilon$) on 
+performance and accuracy of haplotype-creation simulations that include indels.
+Accuracy of simulations decreased slowly with increasing $\epsilon$ when simulating
+either insertions or deletions, but had little effect when simulating both types of 
+indels at the same rate (Supporting Information Figures S14).
+Performance increased with $\epsilon$, except for when simulating only deletions
+(Supporting Information Figures S15).
+When only simulating deletions, as $\epsilon$ increases, the per-chromosome rate of 
+deletion (the product of the per-site deletion rate and chromosome size) remains
+higher for longer because the chromosome size is not adjusted for each new deletion.
+Therefore, the number of deletions for each $\tau$-sized jump is greater than
+it would be under the exact algorithm.
+The performance benefit of the approximation outweighs this cost at low $\epsilon$,
+but at high $\epsilon$, the benefit is offset by the cost of having to add more mutations.
+This also explains why the average chromosome size decreases with increasing $\epsilon$
+when only simulating deletions (Supporting Information Figures S14).
+
+
 
 I compared the performance of `jackalope` to existing programs on a MacBook
 Pro running macOS Catalina (version 10.15) with a 2.6GHz Intel Core i5 processor
@@ -793,6 +811,9 @@ hap_p <- plot_grid({hap_time_seqgen + x + y_time} %>% no_f() %>% no_x(),
 save_fig("Fig_2.pdf", hap_p, width = 112, height = 140)
 
 ```
+
+
+
 
 
 
