@@ -627,9 +627,8 @@ slightly slower when using only 1 thread;
 `jackalope` performed best at low maximum tree depths in the 20 Mb genome
 (Figure \@ref(fig:haplotypes-perf-test-plot)A).
 `jackalope` consistently outperformed `INDELible` in terms of speed, although this
-difference was slightly less drastic when there were more mutations: 
-for the larger genome size and greater maximum tree depth (Figure
-\@ref(fig:haplotypes-perf-test-plot)B).
+difference was slightly less drastic for the larger genome size and 
+greater maximum tree depth (Figure \@ref(fig:haplotypes-perf-test-plot)B).
 
 
 For the smaller 2 Mb genome, memory usage was greater in `jackalope` than both
@@ -667,9 +666,6 @@ hap_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 ```
 
 ```{r haplotypes-perf-test-plot-make, echo = FALSE, eval = TRUE}
-
-
-# one column, two-thirds page width, or two columns (80 mm, 112 mm, or 169 mm, respectively)
 
 
 # For jittering:
@@ -1211,14 +1207,13 @@ pip_runs_p <- pip_runs %>%
 
 `jackalope` was faster than `NGSphy` for all the performance tests
 (Figure \@ref(fig:pipeline-perf-test-plot)A).
-The speed advantage of `jackalope` was greatest
-at low mutation densities and when the number of reads generated was higher.
+The speed advantage of `jackalope` was greatest at low maximum tree depths.
 The effect of multithreading in `jackalope` increased with increasing read numbers, 
 genome sizes, or maximum tree depth.
 These results were both consistent with those from the separate performance tests with
 `INDELible` and `ART`, the programs that make up the `NGSphy` pipeline.
 Attempts at multithreading in `NGSphy` had no effect on its performance:
-Calling for 4 threads resulted in `r sprintf("$%.2f \\times$", ngsphy_threads$sec)` 
+Calling for 4 threads resulted in `r sprintf("$%.3f \\times$", ngsphy_threads$sec)` 
 as much elapsed time and never caused total CPU time to exceed elapsed time.
 Thus multithreading in `NGSphy` seems to take place in another portion of the pipeline
 that is not apparent from its documentation.
@@ -1228,12 +1223,12 @@ together in Figure \@ref(fig:pipeline-perf-test-plot) and in the text below.
 
 Throughout the tests, `NGSphy` used significantly more memory than `jackalope`
 (Figure \@ref(fig:pipeline-perf-test-plot)B).
-This was particularly true for the 20 Mb genome at maximum tree depths of 0.001 and 0.01,
+This was particularly true for the 2 Mb genome at a maximum tree depth of 0.1,
 where `NGSphy` consumed 
-`r sprintf("$%.1f \\times$", filter(pip_prop_mb, mdepth == 0.001, gsize == "20 Mb")$asmuch)`
-and
-`r sprintf("$%.1f \\times$", filter(pip_prop_mb, mdepth == 0.01, gsize == "20 Mb")$asmuch)`
-as much memory, respectively.
+`r sprintf("$%.1f \\times$", filter(pip_prop_mb, mdepth == 0.1, gsize == "2 Mb")$asmuch)`
+as much memory.
+`NGSphy` could not be run for a 20 Mb genome at a maximum tree depth of 0.1 because
+it exceeded available memory on the computer.
 The number of reads had little effect on memory usage: When generating 10M versus
 100k reads, `jackalope` consumed `r sprintf("$%.4f \\times$", abs(pip_reads_mb$jackalope))`
 as much memory, and `NGSphy` used `r sprintf("$%.4f \\times$", abs(pip_reads_mb$ngsphy))` 
@@ -1248,13 +1243,13 @@ pip_plot_cap <- paste("(A) Speed and (B) memory usage comparison between",
                       "\\texttt{jackalope} and \\texttt{NGSphy} in generating haplotypes",
                       "from a reference genome, then producing Illumina reads from",
                       "those haplotypes.",
-                      "In (A), sub-panel columns indicate the maximum tree depth of the",
-                      "phylogeny used for the simulations.",
                       "In both plots, sub-panel rows indicate the size of the genome",
                       "from which haplotypes were generated, and color indicates",
                       "the program used;",
                       "superscripts in the color labels indicate the number of threads",
                       "used.",
+                      "In (A), sub-panel columns indicate the maximum tree depth of the",
+                      "phylogeny used for the simulations.",
                       "The ${}^{*}$ highlights where results were combined for calls",
                       "to \\texttt{NGSphy} with 1 and 4 threads; see text for details.")
 ```
@@ -1273,7 +1268,7 @@ pip_time <- pip_runs_p %>%
               sec = mean(sec)) %>%
     ungroup() %>%
     mutate(log_reads = log10(nreads * 1e6)) %>% 
-    ggplot(aes(log_reads, sec)) +
+    ggplot(aes(log_reads, sec / 60)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
     geom_line(aes(color = prog), size = 0.75) +
     geom_jitter(data = pip_runs_p %>% mutate(log_reads = log10(nreads * 1e6)),
@@ -1283,11 +1278,11 @@ pip_time <- pip_runs_p %>%
                             prog = c("jackalope 4", "jackalope 1", "ngsphy"),
                             label = c("bold(jackalope^4)", "bold(jackalope^1)",
                                       "bold(NGSphy^{1 * '*'})"),
-                            log_reads = c(7.3, 7.3, 6.6),
-                            sec = c(-5, 190, 500)),
+                            log_reads = c(7.3, 6.8, 6.6),
+                            sec = c(-5, 175, 500)),
               aes(label = label, color = prog),
               hjust = 1, vjust = 1, size = 10 / 2.835, parse = TRUE) +
-    scale_y_continuous("Elapsed time (sec)", limits = c(-5, NA), 
+    scale_y_continuous("Elapsed time (min)", limits = c(-15 / 60, NA), 
                        expand = expand_scale(0.125)) +
     scale_x_continuous("Millions of reads",
                        breaks = log10(c(0.1e6, 1e6, 10e6)), labels = c(0.1, 1, 10)) +
@@ -1296,6 +1291,7 @@ pip_time <- pip_runs_p %>%
           axis.text = element_text(size = 8),
           plot.margin = margin(0, 0, r = 6, b = 6),
           strip.text = element_text(size = 10),
+          strip.text.y = element_blank(),
           strip.background = element_blank()) +
     scale_color_manual(NULL, values = perf_palette, guide = FALSE) +
     NULL
@@ -1311,14 +1307,6 @@ pip_mem <- pip_runs_p %>%
     geom_jitter(data = pip_runs_p %>%  mutate(nreads = factor(nreads)),
                 aes(color = prog), shape = 1, size = 2, width = 0.25) +
     geom_line(aes(color = prog), size = 0.75) +
-    geom_text(data = tibble(gsize = "2 Mb",
-                            prog = c("jackalope 4", "jackalope 1", "ngsphy"),
-                            label = c("bold(jackalope^4)", "bold(jackalope^1)",
-                                      "bold(NGSphy^{1 * '*'})"),
-                            mdepth = 10^(c(-1, -0.7, -1.7)),
-                            MB = c(225, 50, 550)),
-              aes(label = label, color = prog),
-              hjust = 1, vjust = 0.5, size = 10 / 2.835, parse = TRUE) +
     scale_y_continuous("Memory used (GB)", limits = c(0, NA)) +
     scale_x_continuous("Maximum tree depth",
                        breaks = -3:-1, labels = c(0.001, 0.01, 0.1)) +
@@ -1326,17 +1314,72 @@ pip_mem <- pip_runs_p %>%
     theme(axis.title = element_text(size = 11),
           axis.text = element_text(size = 8),
           plot.margin = margin(0, 0, l = 6, b = 6),
-          strip.text = element_text(size = 10),
+          strip.text = element_text(size = 11),
           strip.background = element_blank()) +
     scale_color_manual(NULL, guide = FALSE, values = perf_palette) +
     NULL
 
 
 
+
+# # ==========================================
+# # In case you're interested in looking at proportions in relation to NGSphy:
+# # ==========================================
+# 
+# pip_runs_p %>%
+#     group_by(prog, gsize, mdepth, nreads) %>%
+#     summarize(sec = mean(sec)) %>%
+#     group_by(gsize, mdepth, nreads) %>%
+#     summarize(sec1 = mean(sec[prog == "jackalope 1"]) / mean(sec[prog == "ngsphy"]),
+#               sec4 = mean(sec[prog == "jackalope 4"]) / mean(sec[prog == "ngsphy"])) %>%
+#     ungroup() %>%
+#     ggplot(aes(log10(nreads * 1e6))) +
+#     # geom_hline(yintercept = 1, linetype = 2, color = "gray70") +
+#     geom_line(aes(y = sec1), size = 0.75, color = "dodgerblue") +
+#     geom_point(aes(y = sec1), size = 2, color = "dodgerblue") +
+#     geom_line(aes(y = sec4), size = 0.75, color = "firebrick") +
+#     geom_point(aes(y = sec4), size = 2, color = "firebrick") +
+#     scale_x_continuous("Millions of reads",
+#                        breaks = log10(c(0.1e6, 1e6, 10e6)), labels = c(0.1, 1, 10)) +
+#     scale_y_continuous("Relative elapsed time") +
+#     facet_grid(gsize ~ mdepth, scales = "free_y") +
+#     theme(axis.title = element_text(size = 11),
+#           axis.text = element_text(size = 8),
+#           plot.margin = margin(0, 0, l = 6, b = 6),
+#           strip.text = element_text(size = 11),
+#           strip.background = element_blank()) +
+#     scale_color_manual(NULL, guide = FALSE, values = perf_palette) +
+#     NULL
+# pip_runs_p %>%
+#     group_by(prog, gsize, mdepth) %>% 
+#     summarize(MB = mean(MB)) %>% 
+#     group_by(gsize, mdepth) %>% 
+#     summarize(MB1 = mean(MB[prog == "jackalope 1"]) / mean(MB[prog == "ngsphy"]),
+#               MB4 = mean(MB[prog == "jackalope 4"]) / mean(MB[prog == "ngsphy"])) %>% 
+#     ungroup() %>% 
+#     ggplot(aes(log10(mdepth))) +
+#     # geom_hline(yintercept = 1, linetype = 2, color = "gray70") +
+#     geom_line(aes(y = MB1), size = 0.75, color = "dodgerblue") +
+#     geom_point(aes(y = MB1), size = 2, color = "dodgerblue") +
+#     geom_line(aes(y = MB4), size = 0.75, color = "firebrick") +
+#     geom_point(aes(y = MB4), size = 2, color = "firebrick") +
+#     scale_y_continuous("Relative memory used", limits = c(0, NA)) +
+#     scale_x_continuous("Maximum tree depth",
+#                        breaks = -3:-1, labels = c(0.001, 0.01, 0.1)) +
+#     facet_grid(gsize ~ ., scales = "free") +
+#     theme(axis.title = element_text(size = 11),
+#           axis.text = element_text(size = 8),
+#           plot.margin = margin(0, 0, l = 6, b = 6),
+#           strip.text = element_text(size = 11),
+#           strip.background = element_blank()) +
+#     scale_color_manual(NULL, guide = FALSE, values = perf_palette) +
+#     NULL
+
+
 pip_plot <- plot_grid(pip_time, pip_mem, ncol = 2, rel_widths = c(0.6, 0.4),
                       labels = LETTERS[1:2], label_fontface = "plain")
 
-save_fig("Fig_4.pdf", pip_plot, width = 169, height = 112)
+save_fig("Fig_4.pdf", pip_plot, width = 169, height = 90)
 ```
 
 
