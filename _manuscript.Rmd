@@ -1685,7 +1685,7 @@ The stable version of `jackalope` is available on CRAN
 and the development version is on GitHub
 (https://github.com/lucasnell/jackalope).
 The documentation can be found at https://jackalope.lucasnell.com.
-The version used in this manuscript was 1.0.1.
+The version used in this manuscript was 1.1.0.
 Code for the example usage, validation, and performance is available on GitHub at
 https://github.com/lucasnell/jlp_ms.
 
