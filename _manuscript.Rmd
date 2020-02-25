@@ -1528,7 +1528,7 @@ tree <- ape::rcoal(10)
 This section shows how `jackalope` can generate haplotypes from a phylogeny, then
 simulate sequencing data from those haplotypes to test phylogeny reconstruction methods.
 First, I simulated a random species tree of 10 species (object `tree`) using
-`ape::rcoal(10)` [@Paradis_2018].
+`ape::rcoal(8)` [@Paradis_2018].
 Function `haps_phylo` organizes and checks the `tree` object, and
 including it with the mutation-type information allowed me to create haplotypes based
 on this phylogeny:
@@ -1654,10 +1654,12 @@ be natural extensions of these simulations.
 `jackalope` outperforms popular stand-alone programs for phylogenomic and HTS
 simulation and combines their functionalities into one cohesive package.
 Although it does not provide the in-built power of a full pipeline like `NGSphy`,
-simulations using `jackalope` are simpler to implement and more efficient computationally.
-As part of a larger pipeline that includes coalescent simulations or other methods
-that guide patterns of mutations, `jackalope` should inform research design for 
-projects employing HTS,
+simulations using `jackalope` are simpler to implement.
+They are also more efficient computationally, but users should weight this performance
+advantage in relation to other parts of their larger pipeline (e.g., 
+constructing an ancestral recombination graph) that might take up a greater
+proportion of the overall time.
+`jackalope` should inform research design for projects employing HTS,
 particularly those focusing on population genomics or phylogenomics.
 Output from `jackalope` will help develop more specific sequencing goals 
 in funding applications and estimate the power of a given sequencing design.
