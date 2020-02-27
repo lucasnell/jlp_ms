@@ -1130,19 +1130,19 @@ pip_runs <- expand.grid(gsize_ = c(2, 20),
 
 # # This shows that only jackalope causes CPU time to exceed elapsed time:
 # 
-# pip_runs_cpu <- expand.grid(gsize_ = c(2, 20), 
-#                         mdepth_ = c(0.001, 0.01, 0.1), 
+# pip_runs_cpu <- expand.grid(gsize_ = c(2, 20),
+#                         mdepth_ = c(0.001, 0.01, 0.1),
 #                         nreads_ = c(0.1, 1, 10)) %>%
-#     as.list() %>% 
-#     {pmap_dfr(., one_run, .get_cpu = TRUE)} %>% 
+#     as.list() %>%
+#     {pmap_dfr(., one_run, .get_cpu = TRUE)} %>%
 #     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
 #                           labels = paste(sort(unique(gsize)), "Mb")),
 #            prog = factor(prog, levels = c("jackalope 4", "jackalope 1",
 #                                           "ngsphy 4", "ngsphy 1")))
 # # Only "jackalope 4" shows up here:
-# pip_runs_cpu %>% 
-#     filter(cpu_sec > sec) %>% 
-#     .[["prog"]] %>% 
+# pip_runs_cpu %>%
+#     filter(cpu_sec > sec) %>%
+#     .[["prog"]] %>%
 #     unique()
 
 
@@ -1159,6 +1159,7 @@ pip_runs <- expand.grid(gsize_ = c(2, 20),
 # X as much in MB:
 pip_prop_mb <- pip_runs %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>%
+    filter(!(gsize == "20 Mb" & mdepth == 0.1)) %>% 
     group_by(prog, gsize, mdepth) %>%
     summarize(MB = mean(MB)) %>%
     group_by(gsize, mdepth) %>%
