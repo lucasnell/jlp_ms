@@ -154,13 +154,14 @@ rm(env)
 #     n_lines <- length(fq_str)
 #     if (n_lines < 4) return(c(0, 0))
 #     total_read <- sum(nchar(fq_str[seq(2, n_lines, 4)]))
+#     # Returning # reads, and total read output
 #     return(c(n_lines / 4, total_read))
 # })
 # read_mat <- do.call(rbind, read_mat)
 #
-#
+# # Compare to request # reads:
 # sum(read_mat[,1])
-# sum(read_mat[,2]) / (8 * 20 * 500)
+# sum(read_mat[,2])
 #
 # mean(read_mat[,1])
 
