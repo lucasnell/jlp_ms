@@ -5,6 +5,7 @@
 # evolution and read simulation.
 # It's not meant to be run directly.
 #
+# Inputs are...
 # Inputs are (1) temporary directory containing configuration and tree files,
 # (2) number of threads to use, and
 # (3) output file for results from /usr/bin/time
@@ -12,11 +13,11 @@
 
 
 
-INDELIBLE=~/Downloads/INDELibleV1.03/src/
+export INDELIBLE=~/Downloads/INDELibleV1.03/src/
 export PATH="$INDELIBLE:$PATH"
 
 
-NGSPHY=~/Downloads/ngsphy/scripts/ngsphy
+export PATH=~"/opt/anaconda3/bin:$PATH"
 
 
 # Needed to start ngsphy:
@@ -26,14 +27,16 @@ conda activate py2
 
 cd $1
 
-nt=$2
-out_fn=$3
+export nt=$2
+export out_fn=$3
+
+
 
 echo -e "\n---------------\n>>> NGSPHY -" $nt "\n---------------\n" >> $out_fn
 
 
-# Run simlord, suppressing its output, and writing output from /usr/bin/time to $out_fn:
-/usr/bin/time -l $NGSPHY --log ERROR -s settings_${nt}.txt 1> /dev/null 2>> $out_fn
+# Run NGSphy, suppressing its output, and writing output from /usr/bin/time to $out_fn:
+/usr/bin/time -l ngsphy --log ERROR -s settings_${nt}.txt 1> /dev/null 2>> $out_fn
 
 # Remove the output directory
 rm -r NGSphy_output

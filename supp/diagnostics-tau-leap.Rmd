@@ -1,0 +1,249 @@
+---
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+```{r tau-leap-setup, include=FALSE, cache = FALSE, eval = FALSE}
+suppressPackageStartupMessages({
+    library(jackalope)
+    library(tidyverse)
+    library(ape)
+})
+
+if (!isTRUE(getOption('knitr.in.progress'))) {
+    options("device" = "quartz")
+    grDevices::graphics.off()
+}
+theme_set(theme_classic() + 
+              theme(legend.background = element_blank(),
+                    strip.background = element_blank(),
+                    plot.margin = margin(0.5, 0.5, 0.5, 0.5)))
+```
+
+
+
+
+This tests the performance (just speed, not memory) and accuracy of simulations
+with varying error control parameters for the $\tau$-approximation to the
+Doob--Gillespie algorithm.
+Both speed and accuracy are compared to exact simulations 
+(i.e., when `epsilon` = 0 in `create_haploids`).
+
+Because this algorithm is only used when indels are being simulated, I didn't
+include substitutions for any of these simulations.
+I first simulated a 2 Mb reference genome, evenly split among 20 chromosomes.
+I then generated a random 8-species tree (using `ape::rcoal(8)`) 
+that I scaled to have a maximum depth of 1.
+I conducted 3 sets of simulations: insertions only, deletions only, and both.
+When insertions were included, their total rate was 0.1 per site per unit time.
+Relative rates were derived from a Lavalette distribution with $L = 541$ and $a = 1.7$.
+Deletions had the same total and relative rates when they were included.
+For each type of simulation, I ran `create_haplotypes` 10 times for each of five values
+of `epsilon` (0.00, 0.03, 0.06, 0.12, and 0.24).
+I measured how long it took for each call of `create_haplotypes` to run, and
+I recorded the length of each chromosome at the end of the simulation.
+My measure of accuracy was the relative ending chromosome size: $s_{\epsilon} / s_{0}$,
+where $s_{\epsilon}$ is the median ending chromosome size among all chromosomes in
+the 10 simulations with `epsilon` set to $\epsilon$,
+and $s_{0}$ is the same for the simulations using the exact Doob--Gillespie algorithm.
+My measure of performance was the relative time elapsed: $t_{\epsilon} / t_{0}$.
+
+
+
+```{r tau-leap-simulations, eval = FALSE}
+
+# If you re-do these simulations, do NOT have `__JACKALOPE_DIAGNOSTICS` defined 
+# inside `jackalope/src/jackalope_config.h`
+# Because you need it to not be defined, you can't run these simulations when knitting
+# the document. (The other parts require that it IS defined.)
+
+
+# --------------------*
+# How I originally did the simulations:
+# --------------------*
+
+gsize <- 2e6
+mdepth <- 1
+n_haps <- 8
+
+set.seed(272614876)
+ref <- create_genome(20, gsize / 20)
+tr <- rcoal(n_haps)
+# Scale tree:
+tr$edge.length <- tr$edge.length * mdepth / max(node.depth.edgelength(tr))
+
+
+indel <- indels(rate = 0.1, max_length = 541, a = 1.7)
+
+epsilons <- c(0, 0.03 * 2^(0:3))
+# Number of times to simulate each epsilon:
+n_reps <- 10
+
+library(progress)
+
+sim_df <- crossing(eps = epsilons,
+                   type = 1:3,
+                   rep = 1:n_reps,
+                   chrom = 1:20,
+                   size = 0,
+                   time = 0)
+
+# Make list for arguments
+arg_fun <- function(.e, .t) {
+    arg_list <- list(reference = ref,
+                     haps_info = haps_phylo(obj = tr),
+                     sub = NULL,
+                     epsilon = .e)
+    stopifnot(.t %in% 1:3)
+    if (.t == 1) {
+        arg_list$ins <- indel
+        arg_list$del <- indel
+    } else if (.t == 2) {
+        arg_list$ins <- indel
+        arg_list$del <- NULL
+    } else {
+        arg_list$ins <- NULL
+        arg_list$del <- indel
+    }
+    return(arg_list)
+}
+
+
+pb <- progress_bar$new(total = 3 * length(epsilons) * n_reps,
+                       format = "  simulating [:bar] :percent eta: :eta",
+                       clear = FALSE)
+
+# Takes ~15 min
+for (i in 1:n_reps) {
+
+    for (t in 1:3) {
+
+        eps <- sample(epsilons)  # to do in random order
+
+        for (e in eps) {
+
+            arg_list <- arg_fun(e, t)
+
+            t0 <- Sys.time()
+            haps <- do.call(create_haplotypes, arg_list)
+            t1 <- Sys.time()
+
+            inds <- sim_df$rep == i & sim_df$eps == e & sim_df$type == t
+            sim_df[inds,"size"] <- rowMeans(sapply(1:n_haps, function(i) haps$sizes(i)))
+            sim_df[inds,"time"] <- as.numeric(difftime(t1, t0, units = "sec"))
+            pb$tick()
+        }
+
+    }
+
+}
+
+
+sim_df <- sim_df %>%
+    mutate_at(vars(eps, rep, chrom), factor) %>%
+    mutate(type = factor(type, levels = c(2:3,1),
+                         labels = c("insertions only", "deletions only", "both")))
+
+saveRDS(sim_df, "supp/rds_files/tau_sims.rds")
+```
+
+
+
+```{r tau-leap-plots-size-caption, eval=TRUE}
+tau_size_cap <- paste("Accuracy of simulations with varying error control parameters",
+                      "($\\epsilon$) and under conditions of only simulating insertions,",
+                      "only deletions, or both insertions and deletions.",
+                      "Accuracy is indicated by the similarity of chromosome sizes",
+                      "at the end of the simulations to those when the exact algorithm",
+                      "is used (i.e., when $\\epsilon = 0$).",
+                      "Therefore, a value of 1 is most accurate.")
+epsilons <- c(0, 0.03 * 2^(0:3))
+```
+
+
+```{r tau-leap-plots-size, fig.width=4, fig.height=5, eval=TRUE, fig.cap=tau_size_cap}
+
+sim_df <- readRDS("supp/rds_files/tau_sims.rds")
+
+sim_summ_df <- sim_df %>%
+    group_by(type, eps) %>%
+    summarize(size = median(size),
+              time = median(time[chrom == 1])) %>%
+    group_by(type) %>%
+    mutate(size_prop = size / size[eps == 0],
+           time_prop = time / time[eps == 0]) %>%
+    ungroup()
+
+
+prop_break_fun <- function(x) {
+    m <- min(x)
+    if (m < 0.85) {
+        bb <- c(1, 0.95, 0.9, 0.85)
+    } else if (m < 0.92) {
+        bb <- c(1, 0.95, 0.9)
+    } else if (m < 0.95) {
+        bb <- c(1, 0.98, 0.96, 0.94)
+    } else {
+        bb <- c(1.0025, 1, 0.9975)
+    }
+    return(bb)
+}
+# sim_summ_df %>% 
+#     group_by(type) %>% 
+#     summarize(min_time = min(time_prop),
+#               min_size = min(size_prop))
+
+size_p <- sim_summ_df %>%
+    ggplot(aes(as.integer(eps), size_prop)) +
+    geom_hline(yintercept = 1, linetype = 2, color = "gray70") +
+    geom_point() +
+    geom_line() +
+    facet_wrap(~ type, ncol = 1, scales = "free_y") +
+    scale_y_continuous("Relative ending chromosome size", breaks = prop_break_fun) +
+    scale_x_continuous(expression("Error control parameter (" * epsilon * ")"),
+                       breaks = 1:5, labels = epsilons) +
+    theme_classic() +
+    theme(strip.background = element_blank(),
+          strip.text = element_text(size = 12),
+          panel.spacing.y = unit(1, "lines"),
+          axis.title = element_text(size = 12))
+
+size_p
+```
+
+
+
+
+```{r tau-leap-plots-time-caption, eval=TRUE}
+tau_time_cap <- paste("Performance of simulations with varying error control parameters",
+                      "($\\epsilon$) and under conditions of only simulating insertions,",
+                      "only deletions, or both insertions and deletions.",
+                      "Performance is indicated by how the time elapsed",
+                      "compares to that when the exact algorithm",
+                      "is used (i.e., when $\\epsilon = 0$).",
+                      "Therefore, lower values indicate better performance.")
+```
+
+```{r tau-leap-plots-time, fig.width=4, fig.height=5, eval=TRUE, fig.cap=tau_time_cap}
+
+
+time_p <- sim_summ_df %>%
+    ggplot(aes(as.integer(eps), time_prop)) +
+    geom_hline(yintercept = 1, linetype = 2, color = "gray70") +
+    geom_point() +
+    geom_line() +
+    facet_wrap(~ type, ncol = 1, scales = "free_y") +
+    scale_y_continuous("Relative time elapsed", breaks = prop_break_fun) +
+    scale_x_continuous(expression("Error control parameter (" * epsilon * ")"),
+                       breaks = 1:5, labels = epsilons) +
+    theme_classic() +
+    theme(strip.background = element_blank(),
+          strip.text = element_text(size = 12),
+          panel.spacing.y = unit(1, "lines"),
+          axis.title = element_text(size = 12))
+
+time_p
+
+```

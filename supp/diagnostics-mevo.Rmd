@@ -4,6 +4,14 @@ editor_options:
 ---
 
 
+```{r mevo-use_rds, echo = FALSE, eval = TRUE}
+# Logical for whether to use saved RDS files. 
+# Alternative is to re-run everything.
+use_rds <- TRUE
+```
+
+
+
 ```{r mevo-setup, include=FALSE, cache = FALSE, eval = FALSE}
 suppressPackageStartupMessages({
     library(jackalope)
@@ -11,7 +19,7 @@ suppressPackageStartupMessages({
     library(grid)
     library(ape)
 })
-knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = 'quartz_pdf')
+knitr::opts_chunk$set(echo = FALSE, cache = FALSE, dev = 'cairo_pdf')
 # knitr::opts_knit$set(root.dir = normalizePath(".."))
 if (isTRUE(getOption('knitr.in.progress'))) {
   knitr::knit_theme$set(knitr::knit_theme$get("acid"))
@@ -30,10 +38,10 @@ dir <- paste0(tempdir(check = TRUE), "/")
 ```
 
 
-This tests that when creating variants, `jackalope` produces substitutions, indels,
+This tests that when creating haplotypes, `jackalope` produces substitutions, indels,
 and among-site variation that fit expectations.
 It lastly checks that when simulating along a phylogeny, the number of 
-differences between individual variants is proportional to the phylogenetic distance
+differences between individual haplotypes is proportional to the phylogenetic distance
 between them.
 
 To conduct these tests, `jackalope` is compiled with `__JACKALOPE_DIAGNOSTICS`
@@ -65,7 +73,7 @@ with(pars, {
     rates <- c(0.2, 0.3)
     M <- c(8L, 10L)
     a <- c(0.1, 0.5)
-    n_vars <- 10
+    n_haps <- 10
     #   For site variation:
     shape <- 0.5
     # Construct chromosomes with known number of each nucleotide
@@ -98,10 +106,10 @@ sub <- sub_TN93(alpha_1 = pars$alpha_1,
                 pi_tcag = pars$pi_tcag)
 
 ill_sub_cap <- paste("Observed versus predicted substitutions for simulation of",
-                     "2 variants along a phylogeny.")
+                     "2 haplotypes along a phylogeny.")
 ```
 
-This simulates just substitutions along a phylogeny of 2 variants, with
+This simulates just substitutions along a phylogeny of 2 haplotypes, with
 a branch length of `r signif(tree$edge.length[1], 3)` and with the following
 substitution rate matrix:
 
@@ -115,7 +123,7 @@ prmatrix(sub$Q()[[1]], digits = 3,
 I examined the substitutions from the output object, rather than from console diagnostics,
 because it was simpler this way since there was no among-site variation.
 I counted the number of each type of mutation (corresponding to all non-diagonal 
-elements in the rate matrix) for each chromosome and variant.
+elements in the rate matrix) for each chromosome and haplotype.
 I compared these to the predicted substitution counts, which were the product of the
 chromosome size and the transition-probability matrix for the branch length of
 the phylogeny.
@@ -124,7 +132,7 @@ the phylogeny.
 ```{r mevo-sub-rates, fig.cap=ill_sub_cap, results="hide"}
 
 # Only substitutions
-var_set <- create_variants(ref, vars_phylo(tree), sub = sub)
+hap_set <- create_haplotypes(ref, haps_phylo(tree), sub = sub)
 
 # ---------*
 # Observed values:
@@ -133,8 +141,8 @@ sub_mats <- map(0:(length(tree$tip.label)-1),
                 function(v) {
                   map(0:(pars$n_chroms-1),
                        function(s) {
-                           Z <- jackalope:::examine_mutations(var_set_ptr = var_set$ptr(),
-                                                       var_ind = v, chrom_ind = s) %>%
+                           Z <- jackalope:::examine_mutations(hap_set_ptr = hap_set$ptr(),
+                                                       hap_ind = v, chrom_ind = s) %>%
                            .[["sub"]]
                        return(Z)
                    })
@@ -149,7 +157,7 @@ Pt <- function(t, .sub, i = 1) {
   diag_L <- diag(as.numeric(exp(.sub$L()[[i]] * t)))
   .sub$U()[[i]] %*% diag_L %*% .sub$Ui()[[i]]
 }
-# Expected # mutations per variant per chromosome, of each type
+# Expected # mutations per haplotype per chromosome, of each type
 e_muts <- Pt(max(ape::node.depth.edgelength(tree)), sub) * # mutations per base
   matrix(ref$sizes()[1], 4, 4) *  # going from mutations/base to mutation/chromosome
   matrix(0.25, 4, 4) *  # accounting for nucleotide frequencies in ref. genome
@@ -192,7 +200,7 @@ In the second set of simulations, the insertion rate was zero and the deletion
 rate was `r pars$rates[2]`.
 ```{r mevo-indels-caption}
 ind_cap <- paste("Observed versus predicted insertions (left) and deletions (right)",
-                 "for simulation of 2 variants along a phylogeny.")
+                 "for simulation of 2 haplotypes along a phylogeny.")
 ```
 
 
@@ -228,7 +236,7 @@ indel_pred <- function(u, j, b_len, chrom_size) {
 insertions <- indels(rate = pars$rates[1],
                      max_length = pars$M[1],
                      a = pars$a[1])
-ins_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree),
+ins_output <- capture.output(hap_set <- create_haplotypes(ref, haps_phylo(tree),
                                                         ins = insertions))
 
 ins_info <- ins_output[grepl("^\\+-", ins_output)]
@@ -261,7 +269,7 @@ ins_df <- tibble(pred = as.numeric(ins_pred),
 deletions <- indels(rate = pars$rates[2],
                     max_length = pars$M[2],
                     a = pars$a[2])
-del_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree),
+del_output <- capture.output(hap_set <- create_haplotypes(ref, haps_phylo(tree),
                                                         del = deletions))
 
 del_info <- del_output[grepl("^\\+-", del_output)]
@@ -336,7 +344,7 @@ It also output when switching chromosomes, so I could match substitutions with
 chromosomes.
 I counted the number of mutations per chromosome, rate category, and type of substitution.
 I compared these to predicted counts, which were the product of the
-chromosome size, number of variants, and the transition-probability matrix for the
+chromosome size, number of haplotypes, and the transition-probability matrix for the
 branch length of the phylogeny.
 
 
@@ -360,10 +368,14 @@ sub <- sub_TN93(alpha_1 = pars$alpha_1,
               gamma_k = 5)
 gammas <- discrete_gamma(5, pars$shape)
 
-# # Takes ~7 min
-# svar_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree), sub = sub))
-# saveRDS(svar_output, "svar_output.rds")
-svar_output <- readRDS("svar_output.rds")
+if (use_rds) {
+    svar_output <- readRDS("supp/rds_files/svar_output.rds")
+} else {
+    # Takes ~7 min
+    svar_output <- capture.output(hap_set <- create_haplotypes(ref, haps_phylo(tree), 
+                                                               sub = sub))
+    saveRDS(svar_output, "supp/rds_files/svar_output.rds")
+}
 
 
 sub_info <- svar_output[grepl("^__", svar_output)]
@@ -399,7 +411,7 @@ e_muts <- map(1:5, function(i) {
     matrix(ref$sizes()[1] / 5, 4, 4) *  
     # accounting for nucleotide frequencies in ref. genome:
     matrix(0.25, 4, 4) *
-    # Accounting for the two variants:
+    # Accounting for the two haplotypes:
     2 *
     # setting diagonal to zero:
     (1 - diag(4)) 
@@ -411,10 +423,10 @@ pred_df <- map_dfr(1:5, ~ rename(process_sub_mat(e_muts[[.x]], .x),
   mutate_at(vars(to, from), paste)
 
 
-var_df <- left_join(sub_df, pred_df, by = c("to", "from", "rate"))
+hap_df <- left_join(sub_df, pred_df, by = c("to", "from", "rate"))
 
 
-var_df %>%
+hap_df %>%
     ggplot(aes(pred, obs)) +
     geom_point(shape = 1, alpha = 0.25) +
     geom_abline(size = 1, slope = 1, intercept = 0, linetype = 2, color = "firebrick2") +
@@ -459,20 +471,20 @@ rate_df %>%
 ## Phylogeny
 
 
-For this section, I simulated 10 variants along the following phylogenetic tree:
+For this section, I simulated 10 haplotypes along the following phylogenetic tree:
 
 
-```{r mevo-phylogeny-phylo, fig.height=4, fig.width=5, fig.cap="Phylogeny of 10 simulated variants."}
+```{r mevo-phylogeny-phylo, fig.height=4, fig.width=5, fig.cap="Phylogeny of 10 simulated haplotypes."}
 # Phylogenetic tree:
 set.seed(89415648)
-tree <- ape::rcoal(pars$n_vars)
+tree <- ape::rcoal(pars$n_haps)
 tree$edge.length <- tree$edge.length * 0.1
 
 mp_cap <- paste("Observed versus predicted numbers of unshared mutations",
-                "between", pars$n_vars, "variants created by simulating along",
+                "between", pars$n_haps, "haplotypes created by simulating along",
                 "a phylogeny.",
                 "Each point represents the number of unshared mutations between",
-                "two variants for one of the", ref$n_chroms(), "chromosomes.",
+                "two haplotypes for one of the", ref$n_chroms(), "chromosomes.",
                 "The dashed line is the 1-to-1 line.")
 
 plot(tree)
@@ -480,7 +492,7 @@ plot(tree)
 
 
 I used only substitutions in the simulations, to make matching mutations between
-variants more straightforward.
+haplotypes more straightforward.
 
 I used the diagnostic console output for this section.
 Each time a substition was generated, the console output the position,
@@ -500,10 +512,14 @@ sub <- sub_TN93(alpha_1 = pars$alpha_1,
               alpha_2 = pars$alpha_2, beta = pars$beta,
               pi_tcag = pars$pi_tcag)
 
-# # Takes ~6.5 min
-# phy_output <- capture.output(var_set <- create_variants(ref, vars_phylo(tree), sub = sub))
-# saveRDS(phy_output, "phy_output.rds")
-phy_output <- readRDS("phy_output.rds")
+if (use_rds) {
+    phy_output <- readRDS("supp/rds_files/phy_output.rds")
+} else {
+    # Takes ~6.5 min
+    phy_output <- capture.output(hap_set <- create_haplotypes(ref, haps_phylo(tree), 
+                                                              sub = sub))
+    saveRDS(phy_output, "supp/rds_files/phy_output.rds")
+}
 
 sub_info <- phy_output[grepl("^__", phy_output)]
 sub_info <- map(strsplit(sub_info, " "), ~ .x[-1])

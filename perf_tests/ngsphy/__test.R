@@ -42,6 +42,7 @@ dir <- paste0(dir, "/")
 
 
 
+
 # std_out <- path.expand("~/Desktop/test.out")
 # gsize <- 2e6L
 # mdepth <- 0.001
@@ -59,7 +60,7 @@ if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
 #' as minimum, which is why these values were chosen.
 #' `2^31 - 1` is the max integer value in R.
 #'
-set.seed((gsize / mdepth) / (20e6 / 0.001) * (2^31 - 1))
+set.seed((gsize / mdepth) / (20e6 / 0.001) * 2^30 + 3)
 
 
 cat(sprintf("output file directory: %s\n", dir))
@@ -71,6 +72,9 @@ if (!dir.exists(dirname(std_out))) dir.create(dirname(std_out), recursive = TRUE
 # Just to clear the file
 output <- file(std_out, "wt")
 close(output)
+
+
+
 
 
 # Make trees and indelible configure.txt file:
@@ -94,6 +98,10 @@ jlp <- function(nt) {
     output <- file(std_out, "at")
     writeLines("\n\n", output)
     close(output)
+
+    # Remove files made:
+    system(sprintf("cd %s && rm *.fa *.fq", dir))
+
     invisible(NULL)
 }
 
@@ -115,6 +123,11 @@ ngp <- function(nt) {
 #' 3 = jackalope 4 threads
 #'
 rep_order <- sample(rep(0:3, 5))
+
+# Can't run NGSphy for this combination because it uses too much memory:
+if (gsize >= 20e6 && mdepth >= 0.1) {
+    rep_order <- rep_order[rep_order %in% 2:3]
+}
 
 for (i in 1:length(rep_order)) {
 

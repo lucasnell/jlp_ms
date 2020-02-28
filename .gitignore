@@ -19,3 +19,5 @@ _manuscript_cache*
 *.aux
 
 *.out
+
+.Rprofile

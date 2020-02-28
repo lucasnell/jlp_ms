@@ -410,11 +410,13 @@ $if(toc)$
         \end{frame}
     $else$
     {
+        \vspace*{-6ex}
         $if(colorlinks)$
             \hypersetup{linkcolor=$if(toccolor)$$toccolor$$else$$endif$}
         $endif$
         \setcounter{tocdepth}{$toc-depth$}
         \tableofcontents
+        \clearpage
     }
     $endif$
 $endif$

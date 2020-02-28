@@ -14,7 +14,7 @@ ploidy=1
 
 [data]
 inputmode=1
-gene_tree_file=tree.tree
+gene_tree_file=ngsphy_tree.tree
 indelible_control_file=indelible_config.txt
 
 [coverage]

@@ -1,3 +1,5 @@
+
+
 #' This is the main file to use for performance testing `jackalope` in comparison
 #' to `seq-gen`.
 #'
@@ -5,6 +7,8 @@
 #' for 2 Mb genome with trees scaled to have max depth of 0.001:
 #'
 #' Rscript ~/GitHub/Wisconsin/jlp_ms/perf_tests/seq-gen/__test.R 2 0.001
+#'
+#'
 #'
 
 
@@ -21,7 +25,7 @@ if (length(args) < 3) {
                        getwd(), gsize %/% 1e6L, mdepth)
 } else std_out <- path.expand(as.character(args[3]))
 
-# std_out <- "~/Desktop/test"
+# std_out <- "~/Desktop/test.out"
 # gsize <- 2 * 1e6L
 # mdepth <- 0.001
 
@@ -33,51 +37,85 @@ dir <- paste0(dir, "/")
 
 cat(sprintf("output file directory: %s\n", dir))
 
+
+if (!dir.exists(dirname(std_out))) dir.create(dirname(std_out), recursive = TRUE)
+
+
 # Just to clear the file
 output <- file(std_out, "wt")
 close(output)
 
 
-if (!dir.exists(dirname(std_out))) dir.create(dirname(std_out), recursive = TRUE)
-
 
 # Make trees and indelible configure.txt file:
-source("indelible_configure.R")
+source("seq-gen_configure.R")
+
+
+
+
+# One rep of jackalope
+jlp <- function(nt) {
+    sys_str <- paste("/usr/bin/time -l Rscript jackalope.R", gsize, mdepth, dir, nt,
+                     "1>/dev/null 2>>", std_out)
+
+    output <- file(std_out, "at")
+    writeLines(sprintf("\n---------------\n>>> JACKALOPE - %i\n---------------\n", nt),
+               output)
+    close(output)
+
+    system(sys_str)
+
+    output <- file(std_out, "at")
+    writeLines("\n\n", output)
+    close(output)
+    invisible(NULL)
+}
+
+# One rep of seq-gen:
+ind <- function() {
+    sys_str <- paste("./seq-gen.sh", dir, gsize %/% 1e6L, std_out)
+    system(sys_str)
+    invisible(NULL)
+}
 
 
 
 
 
 #'
-#' This file creates the file `seq-gen_scripts.sh` that has each iteration of
-#' both programs (with 2, 20, and 200 Mb genome size, plus 1 and 4 threads for jackalope)
-#' run 10 times and in randomized order.
-#' Each run outputs a file that summarizes the time and memory used.
+#' Turning arguments into seeds for RNG. It should only affect `rep_order` below,
+#' so it's not a big deal that it's not extremely random.
 #'
+#' Note: I plan to simulate a 20 Mb genome at max and 0.001 max branch length
+#' as minimum, which is why these values were chosen.
+#' `2^31 - 1` is the max integer value in R.
+#'
+set.seed((gsize / mdepth) / (20e6 / 0.001) * 2^30 + 1)
 
-if (grepl("jlp_ms$", getwd())) setwd("perf_tests")
 
-commands = list(seq_gen = "./seq-gen.sh",
-                jackalope = "Rscript ./seq-gen.R")
+# Do 5 reps of each, 0 = seq-gen, 1 = jackalope 1 thread, 2 = jackalope 4 threads
+rep_order <- sample(rep(0:2, 5))
 
-n_reps <- 10
 
-cmd_info <- rbind(expand.grid(prog = "seqgen", gsize = c(2, 20, 200), threads = 1,
-                             rep = 1:n_reps),
-                 expand.grid(prog = "jackalope", gsize = c(2, 20, 200), threads = c(1,4),
-                             rep = 1:n_reps))
-set.seed(1982639769)
-cmd_info <- cmd_info[sample(1:nrow(cmd_info)),]
-rownames(cmd_info) <- NULL
+for (i in 1:length(rep_order)) {
 
-scripts <- sapply(1:nrow(cmd_info), function(i) {
-    .cmd <- paste(commands[[cmd_info$prog[i]]], cmd_info$gsize[i], cmd_info$threads[i])
-    .fn <- sprintf("seq-gen_out/runs/%s_%iMb_%ithreads_rep%i.out", cmd_info$prog[i],
-                   cmd_info$gsize[i], cmd_info$threads[i], cmd_info$rep[i])
-    sprintf("(/usr/bin/time -l %s) &> \\\n    %s\n", .cmd, .fn)
-})
+    if (rep_order[i] == 0) {
+        ind()
+    } else if (rep_order[i] == 1) {
+        jlp(1)
+    } else {
+        jlp(4)
+    }
+    cat(sprintf("%.2f\n", i / length(rep_order)))
 
-writeLines(c("#!/usr/bin/env bash\n", "cd ~/GitHub/Wisconsin/jlp_ms/perf_tests\n",
-             "i=1\n",
-             paste(scripts, collapse = "echo $i\n\ni=$(($i + 1))\n")),
-           "seq-gen_scripts.sh")
+}
+
+
+cat(sprintf(paste("\n~~~~~~~~~~~~~~~~~~~~\n~~~~~~~~~~~~~~~~~~~~~~~~\nFinished for\n",
+                  "- size = %iMb\n - max depth =",
+                  "%.04f\n~~~~~~~~~~~~~~~~~~~~~~~~\n~~~~~~~~~~~~~~~~~~~~\n\n"),
+            gsize %/% 1e6L, mdepth))
+
+
+
+

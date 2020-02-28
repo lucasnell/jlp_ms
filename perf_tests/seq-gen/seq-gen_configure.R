@@ -1,4 +1,5 @@
 
+
 #'
 #' This script is used inside `__test.R` to make the trees for seq-gen.
 #' It's not meant to be run directly.
@@ -29,7 +30,29 @@ with(env, {
 
     source("../indelible/write_tree.R")
 
-    trees <- read.tree("../in_files/scrm.tree")
+    fn <- sprintf("../in_files/scrm_%i.tree", gsize %/% 1e6L)
+
+    full_file <- readLines(fn)
+
+    # numbers of bp per tree
+    nbp <- full_file[grepl("^\\[", full_file)]
+    nbp <- sapply(strsplit(nbp, "\\("), `[`, i = 1)
+
+    # Create vector to group gene trees into chromosomes
+    chroms <- numeric(sum(full_file == "//"))
+    j = 0
+    for (i in 1:length(full_file)) {
+        if (full_file[i] == "//") {
+            j = j + 1
+            next
+        }
+        if (grepl("^\\[", full_file[i])) chroms[j] <- chroms[j] + 1
+    }
+    # Starting and ending points for groups:
+    chroms <- cbind(c(1, 1 + head(cumsum(chroms), -1)), cumsum(chroms))
+
+    # Trees themselves:
+    trees <- read.tree(fn)
 
     # Scale to have max depth of mdepth
     trees <- lapply(trees, function(x) {
@@ -39,42 +62,20 @@ with(env, {
     names(trees) <- NULL
 
     # For jackalope version:
-    writeLines(paste0("//\n", sapply(trees, write_tree), collapse = "\n\n"),
+    tree_strings <- apply(chroms, 1,
+                          function(.xy) {
+                              inds <- (.xy[1]):(.xy[2])
+                              string <- paste0(nbp[inds], sapply(trees[inds], write_tree),
+                                               collapse = "\n")
+                              paste0("//\n", string, "\n\n")
+                          })
+    writeLines(paste0(tree_strings, collapse = "\n\n"),
                paste0(dir, "tree.tree"))
 
+    # For seq-gen version:
+    writeLines(paste0(gsub("//", "", tree_strings), collapse = "\n"),
+               paste0(dir, "seq-gen.tree"))
 
-    n_chroms <- length(trees)  # one tree per chromosome
-    partition_size <- as.integer(gsize / n_chroms)
-
-    tree_strs <- sapply(1:n_chroms, function(i) {
-        sprintf("[TREE] t%02i %s\n", i, write_tree(trees[[i]]), mdepth)
-    })
-
-    part_strs <- sapply(1:n_chroms, function(i) {
-        sprintf("[PARTITIONS] chrom%02i [t%02i hky_model %i]\n", i, i, partition_size)
-    })
-
-    evolve_strs <- c("[EVOLVE]    chrom01     1   out01\n",
-                     sapply(2:n_chroms,
-                            function(i) sprintf("            chrom%02i     1   out%02i\n",
-                                                i, i)))
-
-    # cat(paste(tree_strs, collapse = ""))
-    # cat(paste(part_strs, collapse = ""))
-    # cat(paste(evolve_strs, collapse = ""))
-
-
-    hdr <- readLines("indelible_header.txt")
-    hdr <- sapply(hdr, function(x) paste0(x, "\n"))
-
-
-
-    lines <- c(hdr, "\n\n", tree_strs, "\n\n", part_strs, "\n\n", evolve_strs)
-
-
-    out_fn <- paste0(dir, "control.txt")
-
-    writeLines(paste(lines, collapse = ""), out_fn)
 })
 
 

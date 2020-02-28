@@ -17,7 +17,7 @@ colorlinks: true
 mathspec: true
 linestretch: 2
 sectionbreaks: true
-sectionnumbering: true
+numbersections: true
 raggedtoc: true
 output: 
     bookdown::pdf_document2:
@@ -40,10 +40,13 @@ suppressPackageStartupMessages({
     library(jackalope)
     library(scrm)
     library(ape)
+    library(viridisLite)
 })
-knitr::opts_chunk$set(echo = TRUE, cache = FALSE, eval = FALSE, dev = "quartz_pdf")
-# Color palette for performance testing:
-perf_palette <- viridisLite::magma(5, begin = 0, end = 0.85)[c(1, 4, 5)]
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE, eval = FALSE, dev = "cairo_pdf")
+# Color palette for most performance testing plots:
+perf_palette <- magma(5, begin = 0, end = 0.85)[c(1, 4, 5)]
+# For Figure 2 bc it needs 4 colors:
+perf_palette4 <- magma(7, begin = 0, end = 0.85)[c(1, 4, 6, 7)]
 
 theme_set(theme_classic() + 
               theme(legend.background = element_blank(),
@@ -53,24 +56,33 @@ if (!isTRUE(getOption('knitr.in.progress'))) {
     options("device" = "quartz")
     grDevices::graphics.off()
 }
+# height and width should be in mm
+save_fig <- function(filename, p, width, height) {
+    cairo_pdf(filename, width = width / 25.4, height = height / 25.4)
+    print(p)
+    dev.off()
+    invisible(NULL)
+}
 ```
 
 
-## Abstract
+\section*{Abstract}
 
 High-throughput sequencing (HTS) is central to the study of population genomics
 and has an increasingly important role in constructing phylogenies.
 Choices in research design for sequencing projects can include 
 a wide range of factors, such as sequencing platform, depth of coverage, and
 bioinformatic tools.
-Simulating HTS data better informs these decisions.
-However, current standalone HTS simulators cannot generate genomic variants under
-even somewhat complex evolutionary scenarios, which greatly reduces their usefulness
+Simulating HTS data better informs these decisions, as you can validate software by 
+comparing output to the known simulation parameters.
+However, current standalone HTS simulators cannot generate variant haplotypes under
+even somewhat complex evolutionary scenarios, such as recombination or demographic change.
+This greatly reduces their usefulness
 for fields such as population genomics and phylogenomics.
 Here I present the R package `jackalope` that simply and efficiently simulates
-(i\) variants from reference genomes and
-(ii\) reads from both Illumina and Pacific Biosciences (PacBio) platforms.
-Genomic variants can be simulated using phylogenies, gene trees,
+(a\) sets of variant haplotypes from a reference genome and
+(b\) reads from both Illumina and Pacific Biosciences (PacBio) platforms.
+Haplotypes can be simulated using phylogenies, gene trees,
 coalescent-simulation output, population-genomic summary statistics,
 and Variant Call Format (VCF) files.
 `jackalope` can simulate single, paired-end, or mate-pair Illumina reads,
@@ -92,7 +104,7 @@ Illumina, Pacific Biosciences, Pool-seq
 
 
 
-## Introduction
+# Introduction
 
 
 
@@ -102,16 +114,16 @@ of genomic data and has revolutionized the study of genomes
 The combination of massive datasets, sequencing errors, and potentially complex
 evolutionary histories make bioinformatic pipelines an important aspect of
 research using HTS.
-Many bioinformatic tools exist, and new programs that are more accurate and
-computationally efficient are constantly being developed.
+Many bioinformatic tools exist, and new analytical and data-processing programs
+that are more accurate and computationally efficient are constantly being developed.
 Simulation of HTS data is needed to test these tools.
 Although there are many sequence simulators currently available
 [reviewed in @Escalona_2016],
-most have only rudimentary ways to generate variants from a reference genome.
+most have only rudimentary ways to generate variant haplotypes from a reference genome.
 For example, both `Mason` [@Holtgrewe_2010] and `GemSIM` [@McElroy_2012] place mutations
-randomly throughout genome sequences, the former based on per-site mutation rates
+randomly throughout genome sequences, the former based on a single per-site mutation rate
 and the latter on a set number of mutations per variant haplotype.
-In either case, simulations alone are not useful for researchers interested
+In either case, these simulators alone are not useful for researchers interested
 in simulating HTS data to test more complex evolutionary questions, such as
 (a\) how demographic changes and selection interact to affect genome-wide diversity or
 (b\) how incongruence between gene trees might affect reconstructed phylogenies.
@@ -122,10 +134,9 @@ Recently, pipelines have been developed that use multiple programs
 to simulate complex evolutionary histories and HTS on the resulting populations
 or species.
 `TreeToReads` [@McTavish_2017] simulates sequences along a single
-phylogenetic tree using `Seq-Gen` [@Rambaut_1997]
+phylogenetic tree using `INDELible` [@Fletcher_2009]
 and generates Illumina reads using `ART` [@Huang_2011].
-The newer pipeline `NGSphy` [@Escalona_2018] uses `INDELible` [@Fletcher_2009]
-for more mutation options than `Seq-Gen` and
+The newer pipeline `NGSphy` [@Escalona_2018] also uses `INDELible` and `ART`, and
 can simulate along multiple gene trees via `SimPhy` [@Mallo_2015].
 These pipelines are quite powerful.
 However, they both require the installation of multiple programs to use them,
@@ -144,19 +155,20 @@ the `Rcpp` package [@Eddelbuettel_2011].
 The interface with R allows the user greater flexibility, while the underlying
 C++ code improves memory use and speed.
 `jackalope` can read genomes from FASTA files or simulate them *in silico*.
-It can also create variants from the reference genome based on basic
+It can also create variant haplotypes from the reference genome based on basic
 population-genomic summary statistics, phylogenies, gene trees,
 Variant Call Format (VCF) files, or matrices of segregating sites.
-These variants can be simulated based on any of several popular
+These haplotypes can be simulated based on any of several popular
 molecular-evolution models.
 `jackalope` simulates single, paired-ended, or mate-pair reads on the Illumina platform,
 as well as Pacific Biosciences (PacBio) reads.
 All information generated by `jackalope` can be output to standard file formats.
 
 
-After outlining the methods, I compare the performance of `jackalope` to that of 
-other popular programs.
-Lastly, I demonstrate the usefulness of `jackalope` through four usage examples.
+I first outline the methods used within `jackalope`.
+I then compare its performance to that of other popular programs
+and describe the usage examples available online that demonstrate some applications
+of `jackalope`.
 
 
 
@@ -164,7 +176,7 @@ Lastly, I demonstrate the usefulness of `jackalope` through four usage examples.
 
 
 
-## Features and methods
+# Features and methods
 
 Most code is written in C++ and interfaces with R using the `Rcpp` package
 [@Eddelbuettel_2011].
@@ -180,14 +192,15 @@ Access to these libraries uses the R packages
 `zlibbioc` [@Morgan_2019] and `Rhtslib` [@Hayden_2019] to improve portability.
 
 
-There are two classes in `jackalope`, one that stores information on reference genomes
-(`ref_genome`), the other that stores information on sets of variants (`variants`).
+There are two main classes in `jackalope`, one that stores information on reference 
+genomes (`ref_genome`), the other that stores information on sets of variant 
+haplotypes (`haplotypes`), each set based on one reference.
 Both classes are `R6` [@Chang_2019] classes that wrap pointers to underlying C++ objects.
 Those C++ objects store all the information.
 Reference genomes are simply vectors of chromosome names and sequence strings.
-Variants are stored as nested vectors of mutation information.
+Haplotypes are stored as nested vectors of mutation information.
 This can greatly reduce memory usage (unless the mutation density is high), and
-it provides the ability to output VCF files based on variants.
+it provides the ability to output VCF files based on haplotypes.
 I chose `R6` classes because they allowed me to make the pointers to the C++ objects
 private, thereby preventing users from accidentally manipulating them.
 Methods in `jackalope`'s classes allow the user to view and manipulate aspects of the
@@ -201,7 +214,7 @@ in Figure \@ref(fig:jackalope-overview-figure).
 ```{r jackalope-overview-cap, echo=FALSE, eval = TRUE}
 go_cap <- paste("Overview of primary \\texttt{jackalope} functions, classes,",
                 "inputs, and outputs.",
-                "Circles \\texttt{sub\\_models} and \\texttt{vars\\_functions}",
+                "Circles \\texttt{sub\\_models} and \\texttt{haps\\_functions}",
                 "refer to multiple functions; see text for details.",
                 "$\\theta$ indicates the population-scaled mutation rate.")
 ```
@@ -210,7 +223,7 @@ go_cap <- paste("Overview of primary \\texttt{jackalope} functions, classes,",
 
 
 
-### Reference genomes
+## Generating reference genomes
 
 Haploid reference genomes can be generated from FASTA files, optionally with index
 files---created using `samtools faidx`---that speed up processing.
@@ -225,20 +238,20 @@ that it works well for chromosome sizes in diploid eukaryotes [@Li_2011].
 
 
 
-### Creating variants
+## Creating variant haplotypes
 
-#### Methods
+There are five ways to generate variant haplotypes from the reference genome.
+Two are phylogeny-free (PF), and three are phylogeny-guided (PG).
+Information on all the methods can be found in the documentation (under `haps_functions`).
 
-There are five ways to generate haploid variants from the reference genome, and
-information on all the methods can be found in the documentation (under `vars_functions`).
-The first two variant methods do not require phylogenetic information.
-First, a Variant Call Format (VCF) file can directly specify mutations for each variant.
+The two PF methods do not require phylogenetic information.
+(a\) A VCF file can directly specify mutations for each haplotype.
 This method works using the `htslib` C library and
 is the only method that does not require any molecular-evolution information.
-Second, segregating sites from coalescent output can inform the locations of mutations
-and which variants have them.
-The user provides molecular evolution information, which is then used to sample
-for mutation types at each segregating site.
+(b\) Segregating sites from coalescent output can inform the locations of mutations
+and which haplotypes have them.
+The user provides molecular evolution information (see "Molecular evolution" below), 
+which is then used to sample for mutation types at each segregating site.
 Sampling is weighted based on each mutation type's rate.
 The segregating-site information can take the form of 
 (1\) a coalescent-simulator object from the `scrm`
@@ -248,31 +261,31 @@ The segregating-site information can take the form of
 `ms` [@Hudson_2002] or `msms` [@Ewing_2010] program.
 
 
-The remaining three variant methods use phylogenetic information.
-In the third method, phylogenetic tree(s) can be directly input from either
-`phylo` object(s) or NEWICK file(s).
-These can be a single species tree or one gene tree per chromosome.
-Fourth, users can pass an estimate for $\theta$, the population-scaled mutation rate.
+The three PG methods use phylogenetic information.
+(c\) A single species tree can be directly input from either
+a `phylo` object or a NEWICK file.
+(d\) Users can pass an estimate for $\theta$, the population-scaled mutation rate.
 A random coalescent tree is first generated using the `rcoal` function
 in the `ape` package [@Paradis_2018].
 Then, its total tree length is scaled to be
-$\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ variants and an equilibrium
+$\theta / \mu \sum_{i=1}^{n-1}{1 / i}$ for $n$ haplotypes and an equilibrium
 mutation rate of $\mu$.
-The last method allows for recombination by simulating along
+(e\) The last method allows for recombination by simulating along
 gene trees that can differ both within and among reference chromosomes.
 Similarly to simulations using coalescent segregating sites, gene trees can be
 from `scrm` or `coala` objects, or from `ms`-style output files.
 
 
-In these last three "phylogenomic" methods, chromosomal sequences are evolved along
+In the PG methods, chromosomal sequences are evolved along
 phylogenetic trees (either species or gene trees).
-All chromosomes evolve independently.
-If recombination is included, multiple gene trees are used
-per chromosome, and chromosomal regions referred to by different gene trees
-evolve independently.
-Evolving independent chromosomal regions along phylogenetic trees starts by 
+In the case of a single species tree, mutations are generated independently for
+each chromosome.
+If recombination is included, multiple gene trees are used per chromosome, and 
+mutations are generated independently for each chromosomal region referred to by 
+each gene tree.
+Evolving sequences along phylogenetic trees starts by 
 using the reference genome sequences as those for the root of the tree.
-Then, for each region and branch, the number of newly generated mutations is
+Then, the number of newly generated mutations is
 proportional to the branch length (see below for more details).
 These new mutations are then assigned to the daughter node on the tree.
 This process is repeated down the tree, from root to tips.
@@ -283,15 +296,19 @@ way that no intermediate objects are created.
 
 
 
-#### Molecular evolution
+### Molecular evolution
 
 
 Both substitutions and indels can be simulated by `jackalope`.
 It is assumed that the substitution- and indel-producing processes are independent,
 so they are simulated separately to improve computational efficiency [@Fletcher_2009].
+All mutation models in `jackalope` are finite-site models.
+These models allow for the inclusion of back mutations and multiple mutations at a site,
+but come at the cost of performance under conditions of very low mutation rates 
+compared to infinite-site models such as those used in `fastsimcoal` [@Excoffier_2011].
 
 
-##### Substitutions
+#### Substitutions
 
 For substitutions, the following models can be employed:
 TN93 [@TN93],
@@ -309,6 +326,9 @@ This is done by finding the left eigenvector of $\mathbf{Q}$ that
 corresponds to the eigenvalue closest to zero.
 Each substitution model uses its own function, and the provided documentation
 (under `sub_models`) includes information to help users choose among them.
+By default, rate matrices are scaled so that branch lengths are in units
+of substitutions per site, but this scaling can be adjusted.
+
 
 
 Substitution rates can also vary among sites.
@@ -321,7 +341,7 @@ A site's overall rate is its nucleotide's mutation rate multiplied by the
 The user can also specify a proportion of invariant sites.
 
 
-For the phylogenetic methods, substitutions are simulated for each branch by first
+For the PG methods, substitutions are simulated for each branch by first
 calculating the transition-probability matrix ($P(t)$) for each Gamma category based on
 the branch length.
 Substitutions are then sampled for each site using the $P(t)$ matrix that coincides with
@@ -333,10 +353,9 @@ including `Seq-Gen` [@Rambaut_1997] and `INDELible` [@Fletcher_2009].
 
 
 
-##### Indels
+#### Indels
 
-
-Information for insertions and deletions is provided separately, but
+The user separately provides information for insertions and deletions, but
 the same information is needed for both.
 The first requirement is an overall rate parameter, which is for the sum among all
 nucleotides; indel rates do not differ among nucleotides.
@@ -352,8 +371,8 @@ Indels up to 1 Mb are allowed.
 
 
 Indels are generated along phylogenetic-tree branches using
-the $\tau$-leaping approximation [@Wieder_2011; @Cao_2006] to the
-Doob--Gillespie algorithm [@Doob_1942; @Gillespie_1976].
+the Doob--Gillespie algorithm [@Doob_1942; @Gillespie_1976], optionally 
+with the $\tau$-leaping approximation [@Wieder_2011; @Cao_2006].
 I chose the Doob--Gillespie algorithm because it only requires instantaneous rates
 rather than the calculation of a transition-probability matrix, making it easily used
 for indels [@Yang_2006].
@@ -381,13 +400,14 @@ for an error control parameter $\epsilon$ (where $0 < \epsilon \ll 1$),
 chromosome length $C$,
 mutation rate for one indel type $m_i$, and
 effect on chromosome length for one indel type $v_i$  [@Wieder_2011; @Cao_2006].
-Increasing the error control parameter results in faster simulations that 
-approximate the exact Doob--Gillespie algorithm less precisely.
-It can be changed by the user, but has a default value of 0.03 
-as recommended by @Cao_2006.
 The rate parameter for the Poisson distribution that generates the number of 
 mutations over the entire chromosome across $\tau$ time units is $\tau C m_i$
 for indel type $i$.
+Increasing $\epsilon$ results in faster simulations that 
+approximate the exact Doob--Gillespie algorithm less precisely.
+It has a default value of 0.03, as recommended by @Cao_2006, but can be changed
+by the user.
+An $\epsilon$ value of zero results in the exact algorithm being used.
 
 
 
@@ -395,27 +415,29 @@ for indel type $i$.
 
 
 
-### Simulating sequencing data
+## Simulating sequencing data
 
 
-Both reference genomes and variants can be simulated for Illumina and PacBio sequencing.
+Illumina and PacBio sequencing can be based on either a reference genome or a
+set of haplotypes.
 Chromosomes from which reads are derived are sampled with weights proportional to
 their length.
-If variants are provided, individual variants are sampled with equal probabilities 
+If haplotypes are provided, individual haplotypes are sampled with equal probabilities 
 by default.
-Alternatively, the user can specify sampling weights for each variant
+Alternatively, the user can specify sampling weights for each haplotype
 to simulate the library containing differing amounts of DNA from each.
 Both methods also allow for a probability of read duplication, which might occur
-due to PCR in either method and from optical duplicates in Illumina sequencing.
+due to PCR in either method (e.g., during DNA amplification) and 
+from optical duplicates in Illumina sequencing.
 `jackalope` can create reads using multiple threads by having a read "pool" for
 each thread and having pools write to file only when they are full.
 This reduces conflicts that occur when multiple threads attempt to write to disk
 at the same time.
 The size of a "full" pool can be adjusted, and larger sizes should increase both
 speed and memory usage.
-Illumina reads can be single, paired-ended, or mate-pair, and I used
-methods based on the `ART` program [@Huang_2011].
-PacBio read simulation is based on `SimLoRD` [@St_cker_2016].
+Illumina reads can be single, paired-ended, or mate-pair, and I re-implemented the
+overall read-generation procedure from the `ART` program [@Huang_2011].
+PacBio read simulation is similarly based on `SimLoRD` [@St_cker_2016].
 Each was re-coded in C++ to more seemlessly integrate into `jackalope`.
 Function inputs emulate the program they were based on,
 and users are encouraged in each function's documentation to also cite
@@ -423,11 +445,11 @@ and users are encouraged in each function's documentation to also cite
 
 
 
-### Writing output
+## Writing output
 
-Reference genomes and variants can be written to FASTA files; the latter
-has a separate file for each variant.
-Variant information can also be written to VCF files, where each variant can
+Reference genomes and haplotypes can be written to FASTA files; the latter
+has a separate file for each haplotype.
+Haplotype information can also be written to VCF files, where each can
 optionally be considered one of multiple haplotypes for samples with ploidy levels > 1.
 Simulated gene trees can be written to `ms`-style output files, and phylogenies can be
 written to NEWICK files using `ape::write.tree`.
@@ -436,13 +458,31 @@ All sequencing reads are output to FASTQ files.
 
 
 
-## Validation and performance
+# Validation and performance
 
-I validated `jackalope` by conducting a series of simulations for variant creation
-and Illumina and PacBio sequencing.
+I validated `jackalope` by conducting a series of simulations for variant haplotype
+creation and Illumina and PacBio sequencing.
 Using known inputs, I compared predicted to observed values of outputs,
 and `jackalope` conformed closely to expectations 
 (Supporting Information Figures S1--S13).
+
+I also tested the effects of varying the error-control parameter ($\epsilon$) on 
+performance and accuracy of haplotype-creation simulations that include indels.
+Accuracy of simulations decreased slowly with increasing $\epsilon$ when simulating
+either insertions or deletions, but had little effect when simulating both types of 
+indels at the same rate (Supporting Information Figure S14).
+Performance increased with $\epsilon$, except for when simulating only deletions
+(Supporting Information Figure S15).
+When only simulating deletions, as $\epsilon$ increases, the per-chromosome rate of 
+deletion (the product of the per-site deletion rate and chromosome size) remains
+higher for longer because the chromosome size is not adjusted for each new deletion.
+Therefore, the number of deletions for each $\tau$-sized jump is greater than
+it would be under the exact algorithm.
+The performance benefit of the approximation outweighs this cost at low $\epsilon$,
+but at high $\epsilon$, the benefit is offset by the cost of having to add more mutations.
+This also explains why the average chromosome size decreases with increasing $\epsilon$
+when only simulating deletions (Supporting Information Figure S14).
+
 
 
 I compared the performance of `jackalope` to existing programs on a MacBook
@@ -454,31 +494,40 @@ For each test, 5 runs of each program were tested in random order.
 In the text below, numbers presented are means from these 5 tests unless otherwise stated.
 
 
-### Creating variants
+## Creating variant haplotypes
 
-For creating variants, I compared `jackalope` to `INDELible`
-[version 1.03; @Fletcher_2009].
+For creating variant haplotypes, I compared `jackalope` to 
+`Seq-Gen` [version 1.3.4; @Rambaut_1997] and
+`INDELible` [version 1.03; @Fletcher_2009].
+I chose `Seq-Gen` because it is widely used and can generate sequences based on
+gene trees. 
+It is relatively simple and written in C, so it should provide a conservative
+estimate of how well `jackalope` performs against similar programs.
 I chose `INDELible` because it is used by `NGSphy` and because it can generate
-sequences with both substitutions and indels based on phylogenetic trees.
+sequences with both substitutions and indels based on gene trees.
 I tested each program by having them simulate a 2 Mb and 20 Mb genome
-split evenly among 20 chromosomes, then generate 8 variants from that genome using
-phylogenetic trees produced by the command line version of `scrm`.
+split evenly among 20 chromosomes, then generate 8 haplotypes from that genome using
+gene trees produced by the command line version of `scrm`.
 I ran separate simulations with the trees scaled to maximum tree depths of 0.1, 0.01,
 and 0.001.
-I used the HKY85 substitution model with a transition rate of 2.5 substitutions per
-site per unit of time (where one unit of time is equal to a branch length of 1),
-and a transversion rate of 1.
+I used the HKY85 substitution model with a transition--transversion ratio of 1,
+where a ratio of 0.5 gives equal instantaneous rates of transitions and transversions.
+All rate matrices were scaled such that branch lengths were in units of 
+substitutions per site.
 Relative frequencies of nucleotides were 0.4, 0.3, 0.2, and 0.1 for T, C, A, and G,
 respectively.
 For among-site variability in substitution rates, I used
 (1\) a discrete Gamma distribution with 10 categories and a shape parameter of 0.5, and
 (2\) an invariant-site rate of 0.25.
-The total rate for insertions was 0.1 per site per unit time,
-with relative rates derived from a Lavalette distribution with $L = 541$ and $a = 1.7$.
-Deletions had the same total and relative rates.
-Output was written to FASTA files.
+No indels were included when comparing to `Seq-Gen`.
+For the comparison to `INDELible`, the total rate for insertions was 0.1 per site 
+per unit time, with relative rates derived from a Lavalette distribution with
+$L = 541$ and $a = 1.7$; deletions had the same total and relative rates.
+The exact Doob--Gillespie algorithm was used for indels because `INDELible` does
+not use the approximation.
+Output was written to FASTA files for all tests.
 `jackalope` was tested for 1 and 4 threads, but
-`INDELible` for only 1 because it cannot use multiple threads.
+`Seq-Gen` and `INDELible` for only 1 because they cannot use multiple threads.
 
 
 ```{bash scrm-test, echo = FALSE, eval = FALSE}
@@ -486,12 +535,12 @@ Output was written to FASTA files.
 scrm 8 20 -T -seed 1829812441 253160851 137767610 > scrm.tree
 ```
 
-```{r variants-perf-test-data, echo = FALSE, eval = TRUE}
+```{r haplotypes-perf-test-data, echo = FALSE, eval = TRUE}
 
-one_run <- function(gsize_, mdepth_) {
-    # gsize_ = 20; mdepth_ = 0.1; ## rm(gsize_, mdepth_)
-    fn <- sprintf("perf_tests/indelible/results/%iMb__%.4f__times.txt",
-                  gsize_, mdepth_)
+one_run <- function(gsize_, mdepth_, prog_) {
+    # gsize_ = 20; mdepth_ = 0.1; prog_ = "indelible"; ## rm(gsize_, mdepth_)
+    fn <- sprintf("perf_tests/%s/results/%iMb__%.4f__times.txt",
+                  prog_, gsize_, mdepth_)
     lines <- readLines(fn)
     
     .prog <- lines[grepl("^>>>", lines)] %>%
@@ -508,165 +557,270 @@ one_run <- function(gsize_, mdepth_) {
         map_dbl(~ as.numeric(.x[1]) / 1e6)
     
     .df <- tibble(prog = .prog, gsize = gsize_, mdepth = mdepth_, 
-                  sec = .time, MB = .mem)
+                  sec = .time, MB = .mem,
+                  comp = prog_)
     return(.df)
 }
 
-var_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1)) %>% 
+hap_runs <- expand.grid(gsize_ = c(2, 20), mdepth_ = c(0.001, 0.01, 0.1),
+                        prog_ = c("indelible", "seq-gen")) %>% 
     as.list() %>% 
     {pmap_dfr(., one_run)} %>% 
     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
                           labels = paste(sort(unique(gsize)), "Mb")),
-           prog = factor(prog, levels = c("jackalope 4", "jackalope 1", "indelible")))
+           prog = factor(prog, levels = c("jackalope 4", "jackalope 1",
+                                          "seq-gen", "indelible")),
+           comp = factor(comp, levels = c("seq-gen", "indelible")))
 
 # # To look at the exact numbers:
-# var_runs %>%
-#     group_by(gsize, mdepth, prog) %>%
-#     summarize(sec = mean(sec), MB = mean(MB))
+# hap_runs %>%
+#     group_by(comp, gsize, mdepth, prog) %>%
+#     summarize(sec = mean(sec), MB = mean(MB)) %>% 
+#     as.data.frame()
 
 
 # These numbers are used below:
 
-low_mut_mb <- var_runs %>%
-    filter(gsize == "2 Mb", mdepth == 0.001) %>%
+low_mut_mb <- map(c("indelible", "seq-gen"), function(.c) {
+  hap_runs %>%
+    filter(comp == .c, gsize == "2 Mb", mdepth == 0.001) %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
     summarize(MB = mean(MB)) %>% 
     spread("prog", "MB") %>% 
     as.list()
+})
 
-high_mut_mb <- var_runs %>%
-    filter(gsize == "20 Mb", mdepth == 0.1) %>%
+high_mut_mb <- map(c("indelible", "seq-gen"), function(.c) {
+    hap_runs %>%
+    filter(comp == .c, gsize == "20 Mb", mdepth == 0.1) %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>% 
     group_by(prog) %>% 
     summarize(MB = mean(MB)) %>% 
     spread("prog", "MB") %>% 
     as.list()
+})
+
+names(low_mut_mb) <- names(high_mut_mb) <- c("indelible", "seq-gen")
+
 
 # Average difference between jackalope with 1 vs 4 threads:
-avg_diff_threads <- var_runs %>%
-    group_by(gsize, mdepth, prog) %>%
+avg_diff_threads <- hap_runs %>%
+    group_by(comp, gsize, mdepth, prog) %>%
     summarize(MB = mean(MB)) %>% 
-    group_by(gsize, mdepth) %>%
+    group_by(comp, gsize, mdepth) %>%
     summarize(diff = MB[prog == "jackalope 4"] - MB[prog == "jackalope 1"]) %>% 
-    .[["diff"]] %>% mean()
+    group_by(comp) %>%
+    summarize(diff = mean(diff)) %>% 
+    spread(comp, diff) %>% 
+    as.list()
 
 ```
 
 
 
 
+
+
+`jackalope` using 4 threads was faster than `Seq-Gen` but
+slightly slower when using only 1 thread;
+`jackalope` performed best at low maximum tree depths in the 20 Mb genome
+(Figure \@ref(fig:haplotypes-perf-test-plot)A).
 `jackalope` consistently outperformed `INDELible` in terms of speed, although this
-difference was less drastic when there were more mutations: for the larger genome size
-and greater maximum tree depth (Figure \@ref(fig:variants-perf-test-plot)).
-This is somewhat offset by the fact that using more threads has a greater effect at
-larger genome sizes.
-Memory usage was greater in `jackalope` than `INDELible`.
-With low mutation numbers, this difference was due to the overhead associated
-with loading R.
-For a 2 Mb genome and 0.001 max tree depth, `jackalope` used 
-`r sprintf("%.1f", low_mut_mb$jackalope)` MB memory, 
-while `INDELible` used `r sprintf("%.1f", low_mut_mb$indelible)` MB.
+difference was slightly less drastic for the larger genome size and 
+greater maximum tree depth (Figure \@ref(fig:haplotypes-perf-test-plot)B).
+
+
+For the smaller 2 Mb genome, memory usage was greater in `jackalope` than both
+`Seq-Gen` and `INDELible` (Figure \@ref(fig:haplotypes-perf-test-plot)C--D).
+This difference was due to the overhead associated with loading R.
 An R script that simply printed an empty string used $\sim 55$ MB memory, 
 and another that only loaded `jackalope` used $\sim 70$ MB.
-With greater numbers of mutations, the difference was due to `jackalope` using
-64-bit integers to store positions instead of 32-bit.
-In the most extreme example (20 Mb genome and 0.1 max tree depth), `jackalope` used
-`r sprintf("%.1f", high_mut_mb$jackalope)` MB memory and `INDELible` used
-`r sprintf("%.1f", high_mut_mb$indelible)` MB.
+For the larger 20 Mb genome, whether `jackalope` used more memory than `Seq-Gen`
+depended on the maximum tree depth  (Figure \@ref(fig:haplotypes-perf-test-plot)C).
+This is because `jackalope` stores one copy of reference sequences plus information
+for each mutation, whereas `Seq-Gen` stores a copy of each haplotype's sequences.
+At very high mutation densities, storing all the separate sequences is more efficient.
+Memory usage was largely the same between `jackalope` and `INDELible` for the 20 Mb
+genome.
+The slightly higher high relative usage of `jackalope` at the maximum tree depth of
+0.1 was likely due to `jackalope` using 64-bit integers to store positions 
+instead of 32-bit.
 I chose to use 64-bit integers in `jackalope` to allow chromosomes to exceed
 2 Gb in length.
-Memory usage increased by only `r sprintf("%.1f", avg_diff_threads * 1e3)`kB when
-`jackalope` used 4 threads.
 
 
 
 
-```{r variants-perf-test-plot-caption, echo = FALSE, eval = TRUE}
-var_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
-                      "\\texttt{INDELible} in generating variants from a",
-                      "reference genome.",
-                      "Sub-panel columns indicate the size of the genome from which",
-                      "variants were generated.",
-                      "Sub-panel rows indicate the maximum tree depth of the phylogeny",
-                      "used for the simulations.",
-                      "Superscripts in the y-axis labels indicate",
+```{r haplotypes-perf-test-plot-caption, echo = FALSE, eval = TRUE}
+hap_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
+                      "(A,C) \\texttt{Seq-Gen} and (B,D) \\texttt{INDELible}",
+                      "in generating variant haplotypes from a reference genome,",
+                      "for varying maximum gene tree depths.",
+                      "Panels A and B show elapsed time, and panels C and D show",
+                      "maximum memory used during operation.",
+                      "Sub-panel rows indicate the size of the genome from which",
+                      "haplotypes were generated.",
+                      "Superscripts in the labels indicate",
                       "the number of threads used.")
 ```
 
-```{r variants-perf-test-plot-make, echo = FALSE, eval = TRUE}
-
-
-# one column, two-thirds page width, or two columns (80 mm, 112 mm, or 169 mm, respectively)
+```{r haplotypes-perf-test-plot-make, echo = FALSE, eval = TRUE}
 
 
 # For jittering:
 set.seed(1283422021)
 
-var_time <- var_runs %>%
-    ggplot(aes(prog, sec)) +
+
+hap_time_seqgen <- hap_runs %>%
+    filter(comp == "seq-gen") %>%
+    group_by(prog, gsize, mdepth) %>% 
+    summarize(sec = mean(sec)) %>% 
+    ungroup() %>% 
+    ggplot(aes(log10(mdepth), sec)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-    geom_jitter(aes(fill = prog), height = 0, width = 0.25, 
-                shape = 21, color = "gray40") +
-    scale_y_continuous("Elapsed time (sec)", limits = c(0, NA)) +
-    scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1), 
-                                expression("INDELible"^1))) +
-    facet_grid(mdepth ~ gsize, scales = "free_x") +
+    geom_jitter(data = hap_runs %>% filter(comp == "seq-gen"),
+                aes(color = prog), shape = 1, size = 2, width = 0.2) +
+    geom_line(aes(color = prog), size = 0.75) +
+    geom_text(data = tibble(prog = "seq-gen",
+                            label = "bold(Seq-Gen^1)",
+                            sec = 14, gsize = "20 Mb", mdepth = 0.001),
+              aes(label = label, color = prog),
+              hjust = 0, vjust = 0, size = 10 / 2.835, parse = TRUE) +
+    geom_text(data = tibble(prog = c("jackalope 4", "jackalope 1"),
+                            label = c("bold(jackalope^4)", "bold(jackalope^1)"), 
+                            sec = c(0.8, 2.25), 
+                            gsize = "2 Mb", mdepth = 0.001),
+              aes(label = label, color = prog),
+              hjust = 0, vjust = 1, size = 10 / 2.835, parse = TRUE) +
+    facet_grid(gsize ~ ., scales = "free") +
     theme(axis.title = element_text(size = 11),
           axis.text = element_text(size = 8),
-          axis.title.y = element_blank(),
-          plot.margin = margin(0, 0, 0, b = 6),
-          axis.text.y = element_text(color = "black", size = 11),
-          legend.position = "none",
+          plot.margin = margin(0,0,0,0),
           strip.text = element_text(size = 10),
           strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette) +
-    guides(fill = guide_legend(override.aes = list(size = 3))) +
-    coord_flip() +
+    scale_color_manual(NULL, guide = FALSE, 
+                       values = perf_palette4[1:3]) +
     NULL
 
 
 
+hap_time_indelible <- hap_runs %>%
+    filter(comp == "indelible") %>%
+    group_by(prog, gsize, mdepth) %>% 
+    summarize(sec = mean(sec)) %>% 
+    ungroup() %>% 
+    ggplot(aes(log10(mdepth), sec)) +
+    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
+    geom_jitter(data = hap_runs %>% filter(comp == "indelible"),
+                aes(color = prog), shape = 1, size = 2, width = 0.2) +
+    geom_line(aes(color = prog), size = 0.75) +
+    geom_text(data = tibble(gsize = "20 Mb",
+                            prog = "indelible",
+                            label = "bold(INDELible^1)",
+                            mdepth = 0.001,
+                            sec = 255),
+              aes(label = label, color = prog),
+              hjust = 0, vjust = 0, size = 10 / 2.835, parse = TRUE) +
+    facet_grid(gsize ~ ., scales = "free") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          plot.margin = margin(0,0,0,0),
+          strip.text = element_text(size = 10),
+          strip.background = element_blank()) +
+    scale_color_manual(NULL, guide = FALSE, 
+                       values = perf_palette4[c(1:2,4)]) +
+    NULL
 
 
-# var_mem <- var_runs %>%
-#     ggplot(aes(prog, MB)) +
-#     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
-#     geom_jitter(aes(fill = prog), height = 0, width = 0.25,
-#                 shape = 21, color = "gray40") +
-#     scale_y_continuous("Max memory used (MB)", limits = c(0, NA)) +
-#     scale_x_discrete(labels = c(expression("jackalope"^4), expression("jackalope"^1),
-#                                     expression("INDELible"^1))) +
-#     facet_grid(mdepth ~ gsize, scales = "free_x") +
-#     theme(axis.title = element_text(size = 11),
-#           axis.text = element_text(size = 8),
-#           axis.title.y = element_blank(),
-#           plot.margin = margin(0, 0, 0, t = 6),
-#           axis.text.y = element_text(color = "black", size = 11),
-#           legend.position = "none",
-#           strip.text = element_text(size = 10),
-#           strip.background = element_blank()) +
-#     scale_fill_manual(NULL, values = perf_palette) +
-#     guides(fill = guide_legend(override.aes = list(size = 3))) +
-#     coord_flip() +
-#     NULL
+hap_mb_seqgen <- hap_runs %>% 
+    filter(comp == "seq-gen") %>%
+    group_by(comp, prog, gsize, mdepth) %>% 
+    summarize(MB = mean(MB)) %>% 
+    ungroup() %>% 
+    ggplot(aes(log10(mdepth), MB)) +
+    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
+    geom_jitter(data = hap_runs %>% filter(comp == "seq-gen"),
+                aes(color = prog), shape = 1, size = 2, width = 0.25) +
+    geom_line(aes(color = prog), size = 0.75) +
+    facet_grid(gsize ~ ., scales = "free") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          plot.margin = margin(0,0,0,0),
+          strip.text = element_text(size = 10),
+          strip.background = element_blank()) +
+    scale_color_manual(NULL, guide = FALSE, 
+                       values = perf_palette4[1:3]) +
+    NULL
 
 
-# var_plot <- plot_grid(var_time, var_mem, ncol = 1)
+hap_mb_indelible <- hap_runs %>%
+    filter(comp == "indelible") %>%
+    group_by(comp, prog, gsize, mdepth) %>% 
+    summarize(MB = mean(MB)) %>% 
+    ungroup() %>% 
+    ggplot(aes(log10(mdepth), MB)) +
+    geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
+    geom_jitter(data = hap_runs %>% filter(comp == "indelible"),
+                aes(color = prog), shape = 1, size = 2, width = 0.25) +
+    geom_line(aes(color = prog), size = 0.75) +
+    facet_grid(gsize ~ ., scales = "free") +
+    theme(axis.title = element_text(size = 11),
+          axis.text = element_text(size = 8),
+          plot.margin = margin(0,0,0,0),
+          strip.text = element_text(size = 10),
+          strip.background = element_blank()) +
+    scale_color_manual(NULL, guide = FALSE, 
+                       values = perf_palette4[c(1:2,4)]) +
+    NULL
 
-ggsave("Fig_2.pdf", var_time, width = 88, height = 88, units = "mm")
+
+no_x <- function(p) p + theme(axis.title.x = element_blank())
+no_y <- function(p) p + theme(axis.title.y = element_blank())
+no_f <- function(p) p + theme(strip.text = element_blank())
+y_break_fun <- function(x) {
+    m <- max(x)
+    if (m > 400) return(c(0, 200, 400))
+    if (m > 290) return(c(0, 150, 300))
+    if (m > 100) return(c(0, 40, 80))
+    if (m > 20) return(c(0, 12, 24))
+    if (m > 15) return(c(0, 8, 16))
+    return(c(0, 0.8, 1.6))
+}
+x <- scale_x_continuous("Maximum tree depth",
+                        breaks = -3:-1, labels = c(0.001, 0.01, 0.1))
+y_time <- scale_y_continuous("Elapsed time (sec)", breaks = y_break_fun, 
+                             limits = c(0, NA))
+y_mb <- scale_y_continuous("Memory used (MB)", breaks = y_break_fun, 
+                           limits = c(0, NA))
+
+hap_p <- plot_grid({hap_time_seqgen + x + y_time} %>% no_f() %>% no_x(), 
+                   {hap_time_indelible + x + y_time} %>% no_y() %>% no_x(), 
+                   NULL, NULL,
+                   {hap_mb_seqgen + x + y_mb} %>% no_f(),
+                   {hap_mb_indelible + x + y_mb} %>% no_y(), 
+                   ncol = 2, align = "v",
+                   labels = c(LETTERS[1:2], "", "", LETTERS[3:4]), 
+                   label_fontface = "plain",
+                   rel_heights = c(1, 0.2, 1))
+
+save_fig("Fig_2.pdf", hap_p, width = 112, height = 140)
+
 ```
 
 
 
 
-### Generating sequencing reads
+
+
+
+## Generating sequencing reads
 
 For both Illumina and PacBio read generation in `jackalope`, I compared their performance
 to the programs they were based on: 
 `ART` [version 2.5.8; @Huang_2011] and
 `SimLoRD` [version 1.0.3; @St_cker_2016], respectively.
-`ART` has the added benefit of being used for both `NSGphy` and `TreesToReads`.
+`ART` has the added benefit of being used for both `NGSphy` and `TreeToReads`.
 All these tests consisted of reading a 2 Mb genome from a FASTA file, simulating
 reads, and writing them to FASTQ files.
 No ALN or SAM/BAM files were written by any of the programs.
@@ -801,7 +955,7 @@ pb_thread_mb <- pb_runs %>%
 
 
 
-Again, `jackalope` outperformed both `ART` and `SimLoRD` in terms of speed
+`jackalope` outperformed both `ART` and `SimLoRD` in terms of speed
 (Figure \@ref(fig:sequencing-perf-test-plot)A--B).
 Multithreading was most useful when many reads were generated:
 For at least 10M Illumina reads and at least 100k PacBio reads, using 4 threads
@@ -812,7 +966,8 @@ Average memory usage was `r sprintf("%.1f", ill_mb$art)` MB for `ART` and
 `jackalope` averaged `r sprintf("%.1f", ill_mb$jackalope)` MB for Illumina reads and
 `r sprintf("%.1f", pb_mb$jackalope)` for PacBio reads.
 Memory usage increased only slightly with increasing read numbers in `jackalope`: 
-It increased `r sprintf("%.1g", ill_reads_mb$jackalope)` MB across the range of Illumina reads and `r sprintf("%.1g", pb_reads_mb$jackalope)` MB across the PacBio range.
+It increased `r sprintf("%.1g", ill_reads_mb$jackalope)` MB across the range of 
+Illumina reads and `r sprintf("%.1g", pb_reads_mb$jackalope)` MB across the PacBio range.
 Over the Illumina range, memory usage by `ART` slightly decreased
 (`r sprintf("%.1g", ill_reads_mb$art)` MB).
 `SimLoRD` memory usage increased over its range
@@ -881,7 +1036,7 @@ seq_plot <- plot_grid(ill_time, pb_time, ncol = 1, labels = LETTERS[1:2],
                       label_fontface = "plain")
 
 
-ggsave("Fig_3.pdf", seq_plot, width = 112, height = 112, units = "mm")
+save_fig("Fig_3.pdf", seq_plot, width = 112, height = 112)
 
 ```
 
@@ -900,23 +1055,24 @@ seq_plot_cap <- paste("Performance comparison between \\texttt{jackalope} and",
 
 
 
-### Pipeline from reference to reads
+## Pipeline from reference to reads
 
 
 I lastly compared the performance of `jackalope` to that of `NGSphy` 
 [version 1.0.13; @Escalona_2018]
 for the following pipeline: 
-generating a reference genome, simulating variants from gene trees, and
-producing Illumina reads from the variants.
+generating a reference genome, simulating haplotypes from a species tree, and
+producing Illumina reads from the haplotypes.
 For the first two steps, I used the same parameters as I did for the comparison to
-`INDELible`.
-I also used the same parameters for the last step, except that the haploid variants
+`INDELible`, except that I used a species tree instead of gene trees.
+I am using a species tree because the method of using gene trees in `NGSphy` requires
+the use of `SimPhy` [@Mallo_2015] to both conduct coalescent simulations and 
+create variant haplotypes.
+Because it includes an extra step, the performance comparison to `jackalope` would
+be unfair.
+I generated the random species tree using `ape::rcoal` [@Paradis_2018].
+I used the same parameters for the Illumina step, except that the variant haplotypes
 were used for sequencing reads instead of a reference genome.
-I generated 8 variants with 20 chromosomes by creating a phylogenetic tree with
-160 tips and assigning every 20 tips to the same individual using the naming
-scheme necessary for `NGSphy`.
-I divided the larger tree by chromosome and passed these separate trees to 
-`jackalope` by writing them to a `ms`-style output file.
 Output was written to both FASTA and FASTQ files.
 Both `NGSphy` and `jackalope` were tested using both 1 and 4 threads.
 
@@ -974,19 +1130,19 @@ pip_runs <- expand.grid(gsize_ = c(2, 20),
 
 # # This shows that only jackalope causes CPU time to exceed elapsed time:
 # 
-# pip_runs_cpu <- expand.grid(gsize_ = c(2, 20), 
-#                         mdepth_ = c(0.001, 0.01, 0.1), 
+# pip_runs_cpu <- expand.grid(gsize_ = c(2, 20),
+#                         mdepth_ = c(0.001, 0.01, 0.1),
 #                         nreads_ = c(0.1, 1, 10)) %>%
-#     as.list() %>% 
-#     {pmap_dfr(., one_run, .get_cpu = TRUE)} %>% 
+#     as.list() %>%
+#     {pmap_dfr(., one_run, .get_cpu = TRUE)} %>%
 #     mutate(gsize = factor(gsize, levels = sort(unique(gsize)),
 #                           labels = paste(sort(unique(gsize)), "Mb")),
 #            prog = factor(prog, levels = c("jackalope 4", "jackalope 1",
 #                                           "ngsphy 4", "ngsphy 1")))
 # # Only "jackalope 4" shows up here:
-# pip_runs_cpu %>% 
-#     filter(cpu_sec > sec) %>% 
-#     .[["prog"]] %>% 
+# pip_runs_cpu %>%
+#     filter(cpu_sec > sec) %>%
+#     .[["prog"]] %>%
 #     unique()
 
 
@@ -1000,39 +1156,37 @@ pip_runs <- expand.grid(gsize_ = c(2, 20),
 
 # These numbers are used below:
 
-# Proportional difference in MB:
+# X as much in MB:
 pip_prop_mb <- pip_runs %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>%
+    filter(!(gsize == "20 Mb" & mdepth == 0.1)) %>% 
     group_by(prog, gsize, mdepth) %>%
     summarize(MB = mean(MB)) %>%
     group_by(gsize, mdepth) %>%
-    summarize(diff = (MB[prog == "ngsphy"] - MB[prog == "jackalope"]) /
-                  MB[prog == "jackalope"]) %>% 
+    summarize(asmuch = MB[prog == "ngsphy"] / MB[prog == "jackalope"]) %>% 
     ungroup()
 
 
-# Proportional difference between NGSphy with 1 and 4 threads
-ngsphy_threads <- pip_runs %>% 
+# X as much between NGSphy with 1 and 4 threads
+ngsphy_threads <- pip_runs %>%
     filter(grepl("ngsphy", prog)) %>% 
     group_by(gsize, mdepth, nreads) %>% 
-    summarize(sec = (mean(sec[prog == "ngsphy 4"]) - mean(sec[prog == "ngsphy 1"])) /
-                  mean(sec[prog == "ngsphy 1"]),
-              MB = (mean(MB[prog == "ngsphy 4"]) - mean(MB[prog == "ngsphy 1"])) /
-                  mean(MB[prog == "ngsphy 1"])) %>% 
+    summarize(sec = mean(sec[prog == "ngsphy 4"]) / mean(sec[prog == "ngsphy 1"]),
+              MB = mean(MB[prog == "ngsphy 4"]) / mean(MB[prog == "ngsphy 1"])) %>% 
     ungroup() %>% 
     summarize_at(vars(sec, MB), mean) %>% 
     as.list()
-# Proportional extra memory for 10M reads vs 100k
+
+# X as much extra memory for 10M reads vs 100k
 pip_reads_mb <- pip_runs %>%
     mutate(prog = gsub(" 1| 4", "", paste(prog))) %>%
     filter(nreads %in% c(0.1, 10)) %>% 
     group_by(prog, gsize, mdepth) %>%
-    summarize(diff = (mean(MB[nreads == 10]) - mean(MB[nreads == 0.1])) / 
-                  mean(MB[nreads == 0.1])) %>% 
+    summarize(asmuch = mean(MB[nreads == 10]) / mean(MB[nreads == 0.1])) %>% 
     group_by(prog) %>% 
-    summarize(diff = mean(diff)) %>% 
+    summarize(asmuch = mean(asmuch)) %>% 
     ungroup() %>% 
-    spread("prog", "diff") %>%
+    spread("prog", "asmuch") %>%
     as.list()
 
 # For plotting
@@ -1040,7 +1194,9 @@ pip_reads_mb <- pip_runs %>%
 pip_runs_p <- pip_runs %>%
     # 4 threads in ngsphy had no effect, so I'm combining 1- and 4-thread call results:
     mutate(prog = paste(prog),
-           prog = ifelse(grepl("ngsphy", prog), "ngsphy", prog))
+           prog = ifelse(grepl("ngsphy", prog), "ngsphy", prog),
+           prog = factor(prog, levels = c("jackalope 4", "jackalope 1", "ngsphy"))) %>%
+    identity()
 
 ```
 
@@ -1052,15 +1208,14 @@ pip_runs_p <- pip_runs %>%
 
 `jackalope` was faster than `NGSphy` for all the performance tests
 (Figure \@ref(fig:pipeline-perf-test-plot)A).
-The speed advantage of `jackalope` was greatest
-at low mutation densities and when the number of reads generated was higher.
+The speed advantage of `jackalope` was greatest at low maximum tree depths.
 The effect of multithreading in `jackalope` increased with increasing read numbers, 
 genome sizes, or maximum tree depth.
 These results were both consistent with those from the separate performance tests with
 `INDELible` and `ART`, the programs that make up the `NGSphy` pipeline.
 Attempts at multithreading in `NGSphy` had no effect on its performance:
-Calling for 4 threads resulted in `r sprintf("%.1g %%", ngsphy_threads$sec * 100)` more
-elapsed time and never caused total CPU time to exceed elapsed time.
+Calling for 4 threads resulted in `r sprintf("$%.3f \\times$", ngsphy_threads$sec)` 
+as much elapsed time and never caused total CPU time to exceed elapsed time.
 Thus multithreading in `NGSphy` seems to take place in another portion of the pipeline
 that is not apparent from its documentation.
 For this reason, I have grouped results from both the 1- and 4-thread calls to `NGSphy`
@@ -1069,16 +1224,16 @@ together in Figure \@ref(fig:pipeline-perf-test-plot) and in the text below.
 
 Throughout the tests, `NGSphy` used significantly more memory than `jackalope`
 (Figure \@ref(fig:pipeline-perf-test-plot)B).
-This was particularly true for the 20 Mb genome at maximum tree depths of 0.001 and 0.01,
+This was particularly true for the 2 Mb genome at a maximum tree depth of 0.1,
 where `NGSphy` consumed 
-`r sprintf("%.0f %%", 100*filter(pip_prop_mb, mdepth == 0.001, gsize == "20 Mb")$diff)`
-and
-`r sprintf("%.0f %%", 100*filter(pip_prop_mb, mdepth == 0.01, gsize == "20 Mb")$diff)`
-more memory, respectively.
+`r sprintf("$%.1f \\times$", filter(pip_prop_mb, mdepth == 0.1, gsize == "2 Mb")$asmuch)`
+as much memory.
+`NGSphy` could not be run for a 20 Mb genome at a maximum tree depth of 0.1 because
+it exceeded available memory on the computer.
 The number of reads had little effect on memory usage: When generating 10M versus
-100k reads, `jackalope` consumed `r sprintf("%.1g %%", abs(pip_reads_mb$jackalope) * 100)`
-less memory, and `NGSphy` used `r sprintf("%.1g %%", abs(pip_reads_mb$ngsphy) * 100)` 
-less.
+100k reads, `jackalope` consumed `r sprintf("$%.4f \\times$", abs(pip_reads_mb$jackalope))`
+as much memory, and `NGSphy` used `r sprintf("$%.4f \\times$", abs(pip_reads_mb$ngsphy))` 
+as much.
 
 
 
@@ -1086,18 +1241,21 @@ less.
 
 ```{r pipeline-perf-test-plot-caption, echo = FALSE, eval = TRUE}
 pip_plot_cap <- paste("(A) Speed and (B) memory usage comparison between",
-                      "\\texttt{jackalope} and \\texttt{NGSphy} in generating variants",
+                      "\\texttt{jackalope} and \\texttt{NGSphy} in generating haplotypes",
                       "from a reference genome, then producing Illumina reads from",
-                      "those variants.",
-                      "In (A), sub-panel columns indicate the maximum tree depth of the",
-                      "phylogeny used for the simulations.",
+                      "those haplotypes.",
                       "In both plots, sub-panel rows indicate the size of the genome",
-                      "from which variants were generated, and color indicates",
+                      "from which haplotypes were generated, and color indicates",
                       "the program used;",
                       "superscripts in the color labels indicate the number of threads",
                       "used.",
+                      "In (A), sub-panel columns indicate the maximum tree depth of the",
+                      "phylogeny used for the simulations.",
                       "The ${}^{*}$ highlights where results were combined for calls",
-                      "to \\texttt{NGSphy} with 1 and 4 threads; see text for details.")
+                      "to \\texttt{NGSphy} with 1 and 4 threads; see text for details.",
+                      "Results from \\texttt{NGSphy} are not shown for a genome size",
+                      "of 20 Mb and maximum tree depth of 0.1 because it exceeded",
+                      "the available memory on the testing platform.")
 ```
 
 ```{r pipeline-perf-test-plot-make, echo = FALSE, eval = TRUE}
@@ -1114,7 +1272,7 @@ pip_time <- pip_runs_p %>%
               sec = mean(sec)) %>%
     ungroup() %>%
     mutate(log_reads = log10(nreads * 1e6)) %>% 
-    ggplot(aes(log_reads, sec)) +
+    ggplot(aes(log_reads, sec / 60)) +
     geom_hline(yintercept = 0, linetype = 2, color = "gray70") +
     geom_line(aes(color = prog), size = 0.75) +
     geom_jitter(data = pip_runs_p %>% mutate(log_reads = log10(nreads * 1e6)),
@@ -1124,11 +1282,11 @@ pip_time <- pip_runs_p %>%
                             prog = c("jackalope 4", "jackalope 1", "ngsphy"),
                             label = c("bold(jackalope^4)", "bold(jackalope^1)",
                                       "bold(NGSphy^{1 * '*'})"),
-                            log_reads = c(7.3, 7.3, 6.6),
-                            sec = c(-5, 190, 500)),
+                            log_reads = c(7.3, 6.8, 6.6),
+                            sec = c(-5, 175, 500)),
               aes(label = label, color = prog),
               hjust = 1, vjust = 1, size = 10 / 2.835, parse = TRUE) +
-    scale_y_continuous("Elapsed time (sec)", limits = c(-5, NA), 
+    scale_y_continuous("Elapsed time (min)", limits = c(-15 / 60, NA), 
                        expand = expand_scale(0.125)) +
     scale_x_continuous("Millions of reads",
                        breaks = log10(c(0.1e6, 1e6, 10e6)), labels = c(0.1, 1, 10)) +
@@ -1137,8 +1295,8 @@ pip_time <- pip_runs_p %>%
           axis.text = element_text(size = 8),
           plot.margin = margin(0, 0, r = 6, b = 6),
           strip.text = element_text(size = 10),
+          strip.text.y = element_blank(),
           strip.background = element_blank()) +
-    scale_fill_manual(NULL, values = perf_palette, guide = FALSE) +
     scale_color_manual(NULL, values = perf_palette, guide = FALSE) +
     NULL
 
@@ -1153,14 +1311,6 @@ pip_mem <- pip_runs_p %>%
     geom_jitter(data = pip_runs_p %>%  mutate(nreads = factor(nreads)),
                 aes(color = prog), shape = 1, size = 2, width = 0.25) +
     geom_line(aes(color = prog), size = 0.75) +
-    geom_text(data = tibble(gsize = "2 Mb",
-                            prog = c("jackalope 4", "jackalope 1", "ngsphy"),
-                            label = c("bold(jackalope^4)", "bold(jackalope^1)",
-                                      "bold(NGSphy^{1 * '*'})"),
-                            mdepth = 10^(c(-1, -0.7, -1.7)),
-                            MB = c(225, 50, 550)),
-              aes(label = label, color = prog),
-              hjust = 1, vjust = 0.5, size = 10 / 2.835, parse = TRUE) +
     scale_y_continuous("Memory used (GB)", limits = c(0, NA)) +
     scale_x_continuous("Maximum tree depth",
                        breaks = -3:-1, labels = c(0.001, 0.01, 0.1)) +
@@ -1168,18 +1318,72 @@ pip_mem <- pip_runs_p %>%
     theme(axis.title = element_text(size = 11),
           axis.text = element_text(size = 8),
           plot.margin = margin(0, 0, l = 6, b = 6),
-          strip.text = element_text(size = 10),
+          strip.text = element_text(size = 11),
           strip.background = element_blank()) +
     scale_color_manual(NULL, guide = FALSE, values = perf_palette) +
-    scale_shape_manual(NULL, guide = FALSE, values = c(1, 2, 5)) +
     NULL
 
+
+
+
+# # ==========================================
+# # In case you're interested in looking at proportions in relation to NGSphy:
+# # ==========================================
+# 
+# pip_runs_p %>%
+#     group_by(prog, gsize, mdepth, nreads) %>%
+#     summarize(sec = mean(sec)) %>%
+#     group_by(gsize, mdepth, nreads) %>%
+#     summarize(sec1 = mean(sec[prog == "jackalope 1"]) / mean(sec[prog == "ngsphy"]),
+#               sec4 = mean(sec[prog == "jackalope 4"]) / mean(sec[prog == "ngsphy"])) %>%
+#     ungroup() %>%
+#     ggplot(aes(log10(nreads * 1e6))) +
+#     # geom_hline(yintercept = 1, linetype = 2, color = "gray70") +
+#     geom_line(aes(y = sec1), size = 0.75, color = "dodgerblue") +
+#     geom_point(aes(y = sec1), size = 2, color = "dodgerblue") +
+#     geom_line(aes(y = sec4), size = 0.75, color = "firebrick") +
+#     geom_point(aes(y = sec4), size = 2, color = "firebrick") +
+#     scale_x_continuous("Millions of reads",
+#                        breaks = log10(c(0.1e6, 1e6, 10e6)), labels = c(0.1, 1, 10)) +
+#     scale_y_continuous("Relative elapsed time") +
+#     facet_grid(gsize ~ mdepth, scales = "free_y") +
+#     theme(axis.title = element_text(size = 11),
+#           axis.text = element_text(size = 8),
+#           plot.margin = margin(0, 0, l = 6, b = 6),
+#           strip.text = element_text(size = 11),
+#           strip.background = element_blank()) +
+#     scale_color_manual(NULL, guide = FALSE, values = perf_palette) +
+#     NULL
+# pip_runs_p %>%
+#     group_by(prog, gsize, mdepth) %>% 
+#     summarize(MB = mean(MB)) %>% 
+#     group_by(gsize, mdepth) %>% 
+#     summarize(MB1 = mean(MB[prog == "jackalope 1"]) / mean(MB[prog == "ngsphy"]),
+#               MB4 = mean(MB[prog == "jackalope 4"]) / mean(MB[prog == "ngsphy"])) %>% 
+#     ungroup() %>% 
+#     ggplot(aes(log10(mdepth))) +
+#     # geom_hline(yintercept = 1, linetype = 2, color = "gray70") +
+#     geom_line(aes(y = MB1), size = 0.75, color = "dodgerblue") +
+#     geom_point(aes(y = MB1), size = 2, color = "dodgerblue") +
+#     geom_line(aes(y = MB4), size = 0.75, color = "firebrick") +
+#     geom_point(aes(y = MB4), size = 2, color = "firebrick") +
+#     scale_y_continuous("Relative memory used", limits = c(0, NA)) +
+#     scale_x_continuous("Maximum tree depth",
+#                        breaks = -3:-1, labels = c(0.001, 0.01, 0.1)) +
+#     facet_grid(gsize ~ ., scales = "free") +
+#     theme(axis.title = element_text(size = 11),
+#           axis.text = element_text(size = 8),
+#           plot.margin = margin(0, 0, l = 6, b = 6),
+#           strip.text = element_text(size = 11),
+#           strip.background = element_blank()) +
+#     scale_color_manual(NULL, guide = FALSE, values = perf_palette) +
+#     NULL
 
 
 pip_plot <- plot_grid(pip_time, pip_mem, ncol = 2, rel_widths = c(0.6, 0.4),
                       labels = LETTERS[1:2], label_fontface = "plain")
 
-ggsave("Fig_4.pdf", pip_plot, width = 169, height = 112, units = "mm")
+save_fig("Fig_4.pdf", pip_plot, width = 169, height = 90)
 ```
 
 
@@ -1187,290 +1391,48 @@ ggsave("Fig_4.pdf", pip_plot, width = 169, height = 112, units = "mm")
 
 
 
-## Example usage
+# Example usage
 
-```{r examples-seed, eval = TRUE, echo = FALSE}
-set.seed(1840304462)
-```
+Documentation for `jackalope` has been developed using R's standard framework, with
+documents for each major class and function.
+A longer vignette with example usage is also included.
+In it, I give examples of basic `jackalope` usage, including generating reference genomes
+and variant haplotypes.
+I also outline examples of how `jackalope` can generate HTS data that can inform 
+some common sampling decisions for HTS studies.
+These include assembling a genome, estimating divergence between populations,
+and constructing a phylogeny from one simulated species tree or gene trees.
+The vignette is available 
+by running `vignette("jackalope-intro")` inside R after `jackalope` is installed,
+and at 
+<https://jackalope.lucasnell.com/articles/jackalope-intro>.
 
 
-This section provides brief examples of how `jackalope` can be used
-to generate sequencing data that can inform some common sampling decisions for HTS
-studies.
-These examples only show how to produce the output from `jackalope`, as
-a review of different bioinformatic programs that would process these data
-is beyond the scope of the present manuscript.
 
 
-For an example reference assembly, I used the *Drosophila melanogaster* assembly
-(version 6.27) downloaded from `flybase.org` [@Thurmond_2018].
-After downloading, I read the compressed FASTA file, filtered out
-scaffolds by using a size threshold, and manually removed the sex chromosomes
-using the following code:
 
-```{r examples-read-assembly-for-eval, eval = TRUE, echo = FALSE}
-ref <- read_fasta("examples/dmel-6.27.fasta.gz", cut_names = TRUE)
-ref$filter_chroms(1e6, method = "size")
-ref$rm_chroms(c("X", "Y"))
-```
-```{r examples-read-assembly-for-show}
-ref <- read_fasta("dmel-6.27.fasta.gz", cut_names = TRUE)
-ref$filter_chroms(1e6, method = "size")
-ref$rm_chroms(c("X", "Y"))
-```
-
-
-
-For mutation-type information, I used the JC69 substitution model,
-an insertion rate of `2e-5` for lengths from 1 to 10,
-and
-a deletion rate of `1e-5` for lengths from 1 to 40.
-
-
-```{r examples-mevo-objects, eval = TRUE}
-sub <- sub_JC69(lambda = 1e-4)
-ins <- indels(rate = 2e-5, max_length = 10)
-del <- indels(rate = 1e-5, max_length = 40)
-```
-
-
-### Assembling a genome
-
-The example here produces FASTQ files from the known *D. melanogaster* reference
-assembly that could test strategies for how to assemble a similar genome using HTS data.
-The strategies the example code below could test would be
-(1\) a PacBio-only assembly,
-(2\) a PacBio-only assembly followed by polishing using Illumina reads, and
-(3\) an explicit hybrid assembly.
-
-
-To generate data to test the first, PacBio-only strategy, I ran
-the following for two Single Molecule, Real-Time (SMRT) cells from the PacBio Sequel
-system (with the file `pacbio_R1.fq` as output):
-
-```{r examples-reads-for-assembly-pacbio}
-pacbio(ref, out_prefix = "pacbio", n_reads = 2 * 500e3)
-```
-
-For either of the last two strategies, I used
-1 SMRT cell of PacBio sequencing and
-1 lane ($\sim 500$ million reads) of $2 \times 100$bp Illumina
-sequencing on the HiSeq 2500 system (the default Illumina system in `jackalope`):
-
-```{r examples-reads-for-assembly-hybrid}
-pacbio(ref, out_prefix = "pacbio", n_reads = 500e3)
-illumina(ref, out_prefix = "illumina", n_reads = 500e6, paired = TRUE,
-         read_length = 100)
-```
-
-
-These data could then be used to compare genome assembly performance between
-the strategies above, or between programs within a given strategy.
-Extensions of these tests include adjusting sequencing depth, sequencing platform,
-and error rates.
-
-
-
-### Estimating divergence between populations
-
-```{r examples-divergence-scrm, eval = TRUE, echo=FALSE}
-ssites <- scrm(paste("40", ref$n_chroms(), "-t 10 -I 2 20 20 100"))
-```
-
-
-Here, I will demonstrate how to generate pooled population-genomic data (Pool-seq)
-that could be used to estimate the divergence between two populations.
-Before starting `jackalope`, I used the `scrm` package [@Paul_R._Staab_2015]
-to conduct coalescent simulations that will generate segregating sites for 40
-haploid variants from the reference genome (object `ssites`).
-Twenty of the variants are from one population, twenty from another.
-The symmetrical migration rate is 100 individuals per generation,
-and the population-scaled mutation rate ($\theta = 4 N_0 \mu$) is 10.
-The `scrm` command for this is `40 5 -t 10 -I 2 20 20 100`.
-
-Using the previously created objects for mutation-type information and the
-`vars_ssites` function that checks and organizes the coalescent output object,
-I created variants from the reference genome:
-
-
-```{r examples-divergence-create, eval = TRUE, echo = TRUE}
-vars <- create_variants(ref, vars_ssites(ssites), sub, ins, del)
-```
-
-
-Lastly, I simulated 1 lane of $2 \times 100$bp Illumina HiSeq 2500 sequencing.
-In this case, each individual variant's reads were output to separate FASTQ files.
-I also wrote the true variant information to a VCF file.
-
-```{r examples-divergence-illumina-individual}
-illumina(vars, out_prefix = "vars_illumina", n_reads = 500e6, paired = TRUE,
-         read_length = 100, sep_files = TRUE)
-write_vcf(vars, "variants")
-```
-
-
-The $F_{ST}$ calculated from the resulting VCF file could then be compared to output
-from various programs to inform which works best in a particular case.
-For uncertain population parameters (e.g., migration rates), output from
-multiple calls to `scrm` varying the parameter of interest could be input to
-the `jackalope` pipeline above to identify the conditions under which one program
-might have an advantage over another.
-
-
-
-
-### Constructing a phylogeny
-
-#### From one phylogenetic tree
-
-```{r examples-phylogeny-tree, eval = TRUE, echo = FALSE}
-tree <- ape::rcoal(10)
-```
-
-This section shows how `jackalope` can generate variants from a phylogeny, then
-simulate sequencing data from those variants to test phylogeny reconstruction methods.
-First, I simulated a coalescent phylogeny of 10 species (object `tree`) using
-`ape::rcoal(10)` [@Paradis_2018].
-Function `vars_phylo` organizes and checks the `tree` object, and
-including it with the mutation-type information allowed me to create variants based
-on this phylogeny:
-
-```{r examples-phylogeny-tree-create-for-show}
-vars <- create_variants(ref, vars_phylo(tree), sub, ins, del)
-```
-```{r examples-phylogeny-tree-create-for-eval, eval = TRUE, echo = FALSE}
-vars <- create_variants(ref, vars_phylo(tree), sub, ins, del,
-                        n_threads = 4)
-variant_barcodes <- c("CTAGCTTG",
-                      "TCGATCCA",
-                      "ATACCAAG",
-                      "GCGTTGGA",
-                      "CTTCACGG",
-                      "TCCTGTAA",
-                      "CCTCGGTA",
-                      "TTCTAACG",
-                      "CGCTCGTG",
-                      "TATCTACA")
-```
-
-
-I then generated data for 1 flow cell of $1 \times 250$bp sequencing
-on an Illumina MiSeq v3, where `variant_barcodes` is a character string that specifies
-the barcodes for each variant.
-I also wrote the true phylogenetic tree to a NEWICK file.
-
-```{r examples-phylogeny-tree-illumina}
-illumina(vars, out_prefix = "phylo_tree", seq_sys = "MSv3",
-         paired = FALSE, read_length = 250, n_reads = 50e6,
-         barcodes = variant_barcodes)
-ape::write.tree(tree, "true.tree")
-```
-
-
-
-The true phylogenetic tree would then be compared to the final tree output from
-the program(s) the user chooses to test.
-
-
-
-
-#### From gene trees
-
-```{r examples-phylogeny-gtrees-scrm, eval = TRUE, echo=FALSE}
-# Run scrm for one sequence size:
-one_chrom <- function(size) {
-    sims <- scrm(
-        paste("24 1",
-              # Output gene trees:
-              "-T",
-              # Recombination:
-              "-r 1", size,
-              # 3 species with no ongoing migration:
-              "-I 3", paste(rep("8", 3), collapse = " "), "0",
-              # Species 3 derived from 1 (and 2) at time 1.0:
-              "-ej 1.0 3 1",
-              # Species 2 derived from 1 at time 0.5:
-              "-ej 0.5 2 1"
-        ))
-    return(sims$trees[[1]])
-}
-# For all sequences:
-gtrees <- list(trees = lapply(ref$sizes(), one_chrom))
-```
-
-Similar to the section above, the ultimate goal here is to test phylogeny
-reconstruction methods.
-The difference in this section is that instead of using a single, straightforward
-phylogeny, I use multiple gene trees per chromosome.
-In the species used in these simulations, species 3 diverged from 1 and 2 at $t = 1.0$,
-where $t$ indicates time into the past and is in units of $4 N_0$ generations.
-Species 1 and 2 diverged at $t = 0.5$.
-I assume a recombination rate of $1 / (4 N_0)$ recombination events per chromosome
-per generation.
-There are 4 diploid individuals sampled per species.
-I used `scrm` to simulate the gene trees (command
-`24 1 -T -r 1 1000 -I 3 8 8 8 0 -ej 1.0 3 1 -ej 0.5 2 1` for a chromosome size of 1000), 
-producing the object `gtrees`.
-As for the other variant-creation methods, function `vars_gtrees` checks and organizes
-information from the `gtrees` object.
-
-
-```{r examples-phylogeny-gtrees-create-variants, echo = FALSE, eval = TRUE}
-# Takes ~1.5 min
-vars <- create_variants(ref, vars_gtrees(gtrees),
-                        sub, ins, del,
-                        n_threads = 4)
-# 2 of each barcode bc it's diploid
-variant_barcodes <- rep(c("TCGCCTTA", "CTAGTACG", "TTCTGCCT", "GCTCAGGA", "AGGAGTCC", 
-                          "CATGCCTA", "GTAGAGAG", "CCTCTCTG", "AGCGTAGC", "CAGCCTCG", 
-                          "TGCCTCTT", "TCCTCTAC"), 2)
-```
-```{r examples-phylogeny-gtrees-create-variants-for-show}
-vars <- create_variants(ref, vars_gtrees(gtrees), sub, ins, del)
-```
-
-
-Next I generated data for 1 flow cell of $2 \times 250$bp sequencing
-on an Illumina MiSeq v3, with barcodes in the object `variant_barcodes`.
-I also wrote the true gene trees to a `ms`-style file.
-
-```{r examples-phylogeny-gtrees-illumina}
-illumina(vars, out_prefix = "phylo_gtrees", seq_sys = "MSv3",
-         read_length = 250, n_reads = 50e6, paired = TRUE, 
-         barcodes = variant_barcodes)
-write_gtrees(vars_gtrees(gtrees), "gtrees")
-```
-
-
-Topologies of the gene trees would then be compared to final phylogenies output
-from software the user is interested in testing.
-Varying recombination rates or adding gene flow after separation of species would
-be natural extensions of these simulations.
-
-
-
-
-## Conclusion
+# Conclusion
 
 
 `jackalope` outperforms popular stand-alone programs for phylogenomic and HTS
 simulation and combines their functionalities into one cohesive package.
 Although it does not provide the in-built power of a full pipeline like `NGSphy`,
-simulations using `jackalope` are simpler to implement and more efficient computationally.
-As part of a larger pipeline that includes coalescent simulations or other methods
-that guide patterns of mutations, `jackalope` should inform research design for 
-projects employing HTS,
+simulations using `jackalope` are simpler to implement.
+They are also more efficient computationally, but users should weigh this performance
+advantage in relation to other parts of their larger pipeline (e.g., 
+constructing an ancestral recombination graph) that might take up a greater
+proportion of the overall time.
+`jackalope` should inform research design for projects employing HTS,
 particularly those focusing on population genomics or phylogenomics.
 Output from `jackalope` will help develop more specific sequencing goals 
 in funding applications and estimate the power of a given sequencing design.
 Furthermore, `jackalope` can be used to test bioinformatic pipelines under 
-assumptions of much more complex evolutionary histories than most current HTS
-simulation platforms allow.
+assumptions of much more complex evolutionary histories (e.g., bottlenecks, immigration)
+than most current HTS simulation platforms allow.
 
 
 
-
-# References
+\section*{References}
 
 \setstretch{1}
 
@@ -1479,7 +1441,7 @@ simulation platforms allow.
 \setstretch{2}
 
 
-# Data Accessibility
+\section*{Data Accessibility}
 
 
 `jackalope` is open source, under the MIT license.
@@ -1488,26 +1450,27 @@ The stable version of `jackalope` is available on CRAN
 and the development version is on GitHub
 (https://github.com/lucasnell/jackalope).
 The documentation can be found at https://jackalope.lucasnell.com.
-The version used in this manuscript was 1.0.0.
+The version used in this manuscript was 1.1.0.
 Code for the example usage, validation, and performance is available on GitHub at
 https://github.com/lucasnell/jlp_ms.
 
 
 
 
-# Author Contributions
+\section*{Author Contributions}
 
 L.A.N. conceived and designed the project, wrote the code, and wrote the manuscript.
 
 
+\clearpage
 
 ```{r jackalope-overview-figure, fig.cap=go_cap, echo = FALSE, eval = TRUE}
 knitr::include_graphics("Fig_1.pdf", dpi = NA)
 ```
 
 
-```{r variants-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=88/25.4, fig.height=88/25.4, fig.cap=var_plot_cap}
-var_time
+```{r haplotypes-perf-test-plot, echo = FALSE, eval = TRUE, fig.width=112/25.4, fig.height=169/25.4, fig.cap=hap_plot_cap}
+hap_p
 ```
 
 

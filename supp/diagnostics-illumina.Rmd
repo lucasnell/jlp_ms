@@ -4,6 +4,12 @@ editor_options:
 ---
 
 
+```{r illumina-use_rds, echo = FALSE, eval = TRUE}
+# Logical for whether to use saved RDS files. 
+# Alternative is to re-run everything.
+use_rds <- TRUE
+```
+
 ```{r illumina-setup, include=FALSE, cache = FALSE, eval = FALSE}
 suppressPackageStartupMessages({
     library(knitr)
@@ -157,31 +163,32 @@ ill_plot2_cap <- paste("Observed versus predicted quality scores for each nucleo
 #' starting nucleotide
 #'
 
-# # Takes ~4 min
-# qbp_df <-
-#     pmap_dfr(
-#         crossing(nt = 1:4, i = 1:10),
-#         function(nt, i) {
-#             do.call(cbind, quals_by_pos(quals[[i]][nts[[i]] == nt])) %>%
-#                 as.data.frame() %>%
-#                 as_tibble() %>%
-#                 set_names(sprintf("p%i", 1:100)) %>%
-#                 gather("position", "quality") %>%
-#                 mutate(position = as.integer(gsub("p", "", position))) %>%
-#                 group_by(position, quality) %>%
-#                 summarize(count = n(),
-#                           pred_count = sum(nts[[i]] == nt) *
-#                               pred_df$prob[pred_df$pos == position[1] &
-#                                                pred_df$qual == quality[1] &
-#                                                pred_df$nucleo == bases[nt]]) %>%
-#                 ungroup() %>%
-#                 mutate(nucleo = bases[nt])
-#         }) %>%
-#     mutate(nucleo = factor(nucleo, levels = bases))
-# saveRDS(qbp_df, "qbp_df.rds")
-qbp_df <- readRDS("qbp_df.rds")
-
-
+if (use_rds) {
+    qbp_df <- readRDS("supp/rds_files/qbp_df.rds")
+} else {
+    # Takes ~4 min
+    qbp_df <-
+        pmap_dfr(
+            crossing(nt = 1:4, i = 1:10),
+            function(nt, i) {
+                do.call(cbind, quals_by_pos(quals[[i]][nts[[i]] == nt])) %>%
+                    as.data.frame() %>%
+                    as_tibble() %>%
+                    set_names(sprintf("p%i", 1:100)) %>%
+                    gather("position", "quality") %>%
+                    mutate(position = as.integer(gsub("p", "", position))) %>%
+                    group_by(position, quality) %>%
+                    summarize(count = n(),
+                              pred_count = sum(nts[[i]] == nt) *
+                                  pred_df$prob[pred_df$pos == position[1] &
+                                                   pred_df$qual == quality[1] &
+                                                   pred_df$nucleo == bases[nt]]) %>%
+                    ungroup() %>%
+                    mutate(nucleo = bases[nt])
+            }) %>%
+        mutate(nucleo = factor(nucleo, levels = bases))
+    saveRDS(qbp_df, "supp/rds_files/qbp_df.rds")
+}
 
 
 qbp_df %>%
@@ -330,13 +337,17 @@ indel_rates_plot_cap <- paste("Observed versus predicted number of reads with in
 
 ```{r illumina-indel-rates-plot, fig.cap=indel_rates_plot_cap}
 
-# # Takes ~ 6 min
-# indel_df <- crossing(ins_prob = c(0, 10^(seq(-1,-4,length.out = 11))),
-#                      del_prob = c(0, 10^(seq(-1,-4,length.out = 11)))) %>%
-#     filter((ins_prob == 0 | del_prob == 0) & (ins_prob > 0 | del_prob > 0)) %>%
-#     pmap_dfr(~ indel_test(..1, ..2))
-# saveRDS(indel_df, "indel_df.rds")
-indel_df <- readRDS("indel_df.rds")
+if (use_rds) {
+    indel_df <- readRDS("supp/rds_files/indel_df.rds")
+} else {
+    # Takes ~ 6 min
+    indel_df <- crossing(ins_prob = c(0, 10^(seq(-1,-4,length.out = 11))),
+                         del_prob = c(0, 10^(seq(-1,-4,length.out = 11)))) %>%
+        filter((ins_prob == 0 | del_prob == 0) & (ins_prob > 0 | del_prob > 0)) %>%
+        pmap_dfr(~ indel_test(..1, ..2))
+    saveRDS(indel_df, "supp/rds_files/indel_df.rds")
+}
+
 
 
 lims <- log(range(c(indel_df$n, indel_df$n_pred)))
