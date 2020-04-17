@@ -6,7 +6,7 @@ author:
     - name: Lucas A. Nell
       nums: "1"
 affil:
-    - name: Department of Integrative Biology, University of Wisconsin--Madison
+    - name: Department of Integrative Biology, University of Wisconsin, Madison, WI, USA
       num: "1"
 fontsize: 12pt
 geometry: left=2.5cm,right=2.5cm,top=3cm,bottom=3cm
@@ -19,6 +19,7 @@ linestretch: 2
 sectionbreaks: true
 numbersections: true
 raggedtoc: true
+include-before: "Correspondence: lucas@lucasnell.com"
 output: 
     bookdown::pdf_document2:
         fig_caption: yes
@@ -66,6 +67,22 @@ save_fig <- function(filename, p, width, height) {
 ```
 
 
+
+
+
+<!-- 4-6 keywords -->
+
+__Keywords\:__ sequencing simulator, population genomics, phylogenomics,
+Illumina, Pacific Biosciences, Pool-seq
+
+
+
+
+\clearpage
+
+
+
+
 \section*{Abstract}
 
 High-throughput sequencing (HTS) is central to the study of population genomics
@@ -95,12 +112,6 @@ and all outputs can be written to standard file formats.
 
 
 
-
-
-<!-- 4-6 keywords -->
-
-__Keywords\:__ sequencing simulator, population genomics, phylogenomics,
-Illumina, Pacific Biosciences, Pool-seq
 
 
 

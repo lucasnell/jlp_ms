@@ -105,7 +105,7 @@
     jackalope: a swift, versatile phylogenomic and high-throughput sequencing simulator
             }
             \author[1]{Lucas A. Nell}
-                \affil[1]{Department of Integrative Biology, University of Wisconsin--Madison}
+                \affil[1]{Department of Integrative Biology, University of Wisconsin, Madison, WI, USA}
     % % \author{true}
 % % \date{}
 \date{}
@@ -135,10 +135,16 @@
 
             \maketitle
 
+    Correspondence: \href{mailto:lucas@lucasnell.com}{\nolinkurl{lucas@lucasnell.com}}
 
 
 
 \raggedright
+
+\textbf{Keywords:} sequencing simulator, population genomics, phylogenomics,
+Illumina, Pacific Biosciences, Pool-seq
+
+\clearpage
 
 \section*{Abstract}
 
@@ -166,9 +172,6 @@ and optical/PCR duplicates.
 It can read reference genomes from FASTA files and can simulate new ones,
 and all outputs can be written to standard file formats.
 \texttt{jackalope} is available for Mac, Windows, and Linux systems.
-
-\textbf{Keywords:} sequencing simulator, population genomics, phylogenomics,
-Illumina, Pacific Biosciences, Pool-seq
 
 \hypertarget{introduction}{%
 \section{Introduction}\label{introduction}}
@@ -658,6 +661,10 @@ The number of reads had little effect on memory usage: When generating 10M versu
 100k reads, \texttt{jackalope} consumed \(0.9991 \times\)
 as much memory, and \texttt{NGSphy} used \(0.9771 \times\)
 as much.
+
+\begin{verbatim}
+## Warning: `expand_scale()` is deprecated; use `expansion()` instead.
+\end{verbatim}
 
 \hypertarget{example-usage}{%
 \section{Example usage}\label{example-usage}}
